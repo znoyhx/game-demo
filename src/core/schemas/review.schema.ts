@@ -25,6 +25,14 @@ export const reviewPayloadSchema = z
   })
   .strict();
 
+export const reviewStateSchema = z
+  .object({
+    current: reviewPayloadSchema.nullable(),
+    history: z.array(reviewPayloadSchema),
+  })
+  .strict();
+
 export type ExplanationType = z.infer<typeof explanationTypeSchema>;
 export type ExplanationItem = z.infer<typeof explanationItemSchema>;
 export type ReviewPayload = z.infer<typeof reviewPayloadSchema>;
+export type ReviewState = z.infer<typeof reviewStateSchema>;

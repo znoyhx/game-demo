@@ -32,10 +32,12 @@ export const schemaOwnerSchema = z.enum([
   'quest',
   'npc',
   'player',
+  'config',
   'event',
   'combat',
   'review',
   'save',
+  'session',
   'agent',
 ]);
 

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import {
+  areaIdSchema,
   eventIdSchema,
   finiteNumberSchema,
   genericIdSchema,
@@ -69,8 +70,18 @@ export const areaSchema = z
   })
   .strict();
 
+export const mapStateSchema = z
+  .object({
+    currentAreaId: areaIdSchema,
+    discoveredAreaIds: z.array(areaIdSchema),
+    unlockedAreaIds: z.array(areaIdSchema),
+    visitHistory: z.array(areaIdSchema),
+  })
+  .strict();
+
 export type AreaType = z.infer<typeof areaTypeSchema>;
 export type InteractionPointType = z.infer<typeof interactionPointTypeSchema>;
 export type InteractionPoint = z.infer<typeof interactionPointSchema>;
 export type AreaUnlockCondition = z.infer<typeof areaUnlockConditionSchema>;
 export type Area = z.infer<typeof areaSchema>;
+export type MapState = z.infer<typeof mapStateSchema>;

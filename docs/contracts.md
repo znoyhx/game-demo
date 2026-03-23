@@ -4,7 +4,7 @@
 
 ```md
 # PixelForge Agent Contracts
-Version: v0.1  
+Version: v0.2  
 Status: Initial contract draft
 
 ---
@@ -426,6 +426,22 @@ export interface PlayerState {
 }
 ```
 
+## 8.4 Player Model State
+
+```ts
+export interface PlayerModelState {
+  tags: PlayerProfileTag[];
+  rationale: string[];
+  recentAreaVisits: AreaId[];
+  recentQuestChoices: string[];
+  npcInteractionCount: number;
+  dominantStyle?: PlayerProfileTag;
+  riskForecast?: string;
+  stuckPoint?: string;
+  lastUpdatedAt?: IsoTimestamp;
+}
+```
+
 ---
 
 # 9. Event Contracts
@@ -643,21 +659,84 @@ export interface SaveSnapshot {
   metadata: SaveMetadata;
   world: World;
   areas: Area[];
+  map?: {
+    currentAreaId: AreaId;
+    discoveredAreaIds: AreaId[];
+    unlockedAreaIds: AreaId[];
+    visitHistory: AreaId[];
+  };
   quests: {
     definitions: QuestDefinition[];
     progress: QuestProgress[];
+    history?: Array<{
+      questId: QuestId;
+      status: QuestStatus;
+      note: string;
+      updatedAt: IsoTimestamp;
+    }>;
   };
   npcs: {
     definitions: NpcDefinition[];
     runtime: NpcState[];
   };
   player: PlayerState;
+  playerModel?: PlayerModelState;
   events: {
     definitions: WorldEvent[];
     history: EventLogEntry[];
+    director?: {
+      pendingEventIds: EventId[];
+      worldTension: number;
+      pacingNote?: string;
+      randomnessDisabled: boolean;
+    };
+  };
+  combatSystem?: {
+    encounters: CombatEncounterDefinition[];
+    active: CombatState | null;
+    history: Array<{
+      encounterId: EncounterId;
+      result: "victory" | "defeat" | "escape";
+      finalTactic: EnemyTacticType;
+      resolvedAt: IsoTimestamp;
+    }>;
   };
   combat?: CombatState | null;
+  config?: {
+    theme: string;
+    worldStyle: string;
+    difficulty: "easy" | "normal" | "hard";
+    gameGoal: string;
+    learningGoal?: string;
+    preferredMode: "story" | "exploration" | "combat" | "hybrid";
+    templateId?: string;
+    quickStartEnabled: boolean;
+    devModeEnabled: boolean;
+    autosaveEnabled: boolean;
+    autoLoadEnabled: boolean;
+    presentationModeEnabled: boolean;
+  };
+  resources?: {
+    activeTheme: string;
+    entries: Array<{
+      id: string;
+      kind: "tileset" | "background" | "music" | "avatar" | "effect";
+      key: string;
+      label: string;
+      areaId?: AreaId;
+      npcId?: NpcId;
+      source?: string;
+    }>;
+    loadedResourceKeys: string[];
+    selectedBackgroundKey?: string;
+    selectedTilesetKey?: string;
+    selectedMusicKey?: string;
+  };
   review?: ReviewPayload | null;
+  reviewState?: {
+    current: ReviewPayload | null;
+    history: ReviewPayload[];
+  };
 }
 ```
 
@@ -950,6 +1029,40 @@ export interface SaveMigrator {
 }
 ```
 
+## 15.4 Session Snapshot
+
+```ts
+export interface SessionSnapshot {
+  ui: {
+    activePanel: "map" | "npc" | "quest" | "combat" | "review" | "debug";
+    selectedNpcId: NpcId | null;
+    selectedQuestId: QuestId | null;
+    selectedAreaId: AreaId | null;
+    selectedEventId: EventId | null;
+    isDebugOverlayOpen: boolean;
+  };
+  debug: {
+    debugModeEnabled: boolean;
+    activeScenarioId?: string;
+    forcedAreaId: AreaId | null;
+    forcedQuestId: QuestId | null;
+    forcedNpcId: NpcId | null;
+    forcedEncounterId: EncounterId | null;
+    forcedEventId: EventId | null;
+    forcedTactic: EnemyTacticType | null;
+    injectedPlayerTags: PlayerProfileTag[];
+    logsPanelOpen: boolean;
+  };
+  session: {
+    lastVisitedRouteId: "home" | "game" | "debug" | "review";
+    routeHistory: Array<"home" | "game" | "debug" | "review">;
+    startedAt?: IsoTimestamp;
+    lastActiveAt?: IsoTimestamp;
+    hasHydratedSession: boolean;
+  };
+}
+```
+
 ---
 
 # 16. Event Bus Contracts
@@ -994,10 +1107,12 @@ src/core/schemas/
   quest.schema.ts
   npc.schema.ts
   player.schema.ts
+  config.schema.ts
   event.schema.ts
   combat.schema.ts
   review.schema.ts
   save.schema.ts
+  session.schema.ts
   agent.schema.ts
 ```
 

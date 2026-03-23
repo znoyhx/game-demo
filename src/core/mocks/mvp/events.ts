@@ -1,4 +1,4 @@
-import type { EventLogEntry, WorldEvent } from '../../schemas';
+import type { EventDirectorState, EventLogEntry, WorldEvent } from '../../schemas';
 
 import { mockIds, mockTimeline } from './constants';
 
@@ -78,3 +78,10 @@ export const mockEventHistory: EventLogEntry[] = [
     source: 'quest',
   },
 ];
+
+export const mockEventDirectorState: EventDirectorState = {
+  pendingEventIds: [mockIds.events.wardenCountermeasure],
+  worldTension: 68,
+  pacingNote: 'The sanctum arc should escalate after the archive route stabilizes.',
+  randomnessDisabled: false,
+};

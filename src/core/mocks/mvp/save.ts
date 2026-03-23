@@ -1,11 +1,14 @@
 import type { SaveSnapshot } from '../../schemas';
 
+import { mockGameConfig, mockResourceState } from './config';
 import { mockAreas } from './areas';
+import { mockBossEncounterDefinition, mockCombatHistory } from './combat';
 import { mockIds, mockTimeline, MOCK_SCHEMA_VERSION } from './constants';
-import { mockEventHistory, mockWorldEvents } from './events';
+import { mockEventDirectorState, mockEventHistory, mockWorldEvents } from './events';
 import { mockNpcDefinitions, mockNpcStates } from './npcs';
-import { mockPlayerState } from './player';
-import { mockQuestDefinitions, mockQuestProgress } from './quests';
+import { mockPlayerModelState, mockPlayerState } from './player';
+import { mockQuestDefinitions, mockQuestHistory, mockQuestProgress } from './quests';
+import { mockReviewPayload, mockReviewState } from './combat';
 import { mockWorld } from './world';
 
 export const mockSaveSnapshot: SaveSnapshot = {
@@ -20,19 +23,36 @@ export const mockSaveSnapshot: SaveSnapshot = {
   },
   world: mockWorld,
   areas: mockAreas,
+  map: {
+    currentAreaId: mockPlayerState.currentAreaId,
+    discoveredAreaIds: [mockIds.areas.crossroads, mockIds.areas.archive],
+    unlockedAreaIds: [mockIds.areas.crossroads, mockIds.areas.archive],
+    visitHistory: [mockIds.areas.crossroads, mockIds.areas.archive],
+  },
   quests: {
     definitions: mockQuestDefinitions,
     progress: mockQuestProgress,
+    history: mockQuestHistory,
   },
   npcs: {
     definitions: mockNpcDefinitions,
     runtime: mockNpcStates,
   },
   player: mockPlayerState,
+  playerModel: mockPlayerModelState,
   events: {
     definitions: mockWorldEvents,
     history: mockEventHistory,
+    director: mockEventDirectorState,
+  },
+  combatSystem: {
+    encounters: [mockBossEncounterDefinition],
+    active: null,
+    history: mockCombatHistory,
   },
   combat: null,
-  review: null,
+  config: mockGameConfig,
+  resources: mockResourceState,
+  review: mockReviewPayload,
+  reviewState: mockReviewState,
 };

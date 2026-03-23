@@ -5,6 +5,7 @@ import {
   eventIdSchema,
   isoTimestampSchema,
   nonEmptyStringSchema,
+  nonNegativeIntegerSchema,
   npcIdSchema,
   questIdSchema,
 } from './shared';
@@ -70,9 +71,19 @@ export const eventLogEntrySchema = z
   })
   .strict();
 
+export const eventDirectorStateSchema = z
+  .object({
+    pendingEventIds: z.array(eventIdSchema),
+    worldTension: nonNegativeIntegerSchema,
+    pacingNote: nonEmptyStringSchema.optional(),
+    randomnessDisabled: z.boolean(),
+  })
+  .strict();
+
 export type EventTriggerType = z.infer<typeof eventTriggerTypeSchema>;
 export type EventTriggerCondition = z.infer<typeof eventTriggerConditionSchema>;
 export type EventEffect = z.infer<typeof eventEffectSchema>;
 export type WorldEvent = z.infer<typeof worldEventSchema>;
 export type EventLogSource = z.infer<typeof eventLogSourceSchema>;
 export type EventLogEntry = z.infer<typeof eventLogEntrySchema>;
+export type EventDirectorState = z.infer<typeof eventDirectorStateSchema>;

@@ -9,16 +9,16 @@ export interface AgentModule {
     | 'player-model'
     | 'explain-coach';
   mode: 'mock';
-  status: 'planned';
+  status: 'implemented';
 }
 
 export const agentRegistry: AgentModule[] = [
-  { id: 'world-architect', mode: 'mock', status: 'planned' },
-  { id: 'quest-designer', mode: 'mock', status: 'planned' },
-  { id: 'level-builder', mode: 'mock', status: 'planned' },
-  { id: 'npc-brain', mode: 'mock', status: 'planned' },
-  { id: 'enemy-tactician', mode: 'mock', status: 'planned' },
-  { id: 'game-master', mode: 'mock', status: 'planned' },
-  { id: 'player-model', mode: 'mock', status: 'planned' },
-  { id: 'explain-coach', mode: 'mock', status: 'planned' },
+  { id: 'world-architect', mode: 'mock', status: 'implemented' },
+  { id: 'quest-designer', mode: 'mock', status: 'implemented' },
+  { id: 'level-builder', mode: 'mock', status: 'implemented' },
+  { id: 'npc-brain', mode: 'mock', status: 'implemented' },
+  { id: 'enemy-tactician', mode: 'mock', status: 'implemented' },
+  { id: 'game-master', mode: 'mock', status: 'implemented' },
+  { id: 'player-model', mode: 'mock', status: 'implemented' },
+  { id: 'explain-coach', mode: 'mock', status: 'implemented' },
 ];

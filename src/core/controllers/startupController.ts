@@ -1,10 +1,16 @@
 import type { StoreApi } from 'zustand/vanilla';
 
+import type { GameEventBus } from '../events/domainEvents';
 import { mockSaveSnapshot } from '../mocks';
 import type { StorageAdapter } from '../persistence/storageAdapter';
-import { saveSnapshotSchema } from '../schemas';
 import type { GameStoreState } from '../state';
 import type { LoadFailureReason, SaveSnapshot } from '../schemas';
+import {
+  SchemaSaveValidator,
+  VersionedSaveMigrator,
+  type SaveMigrator,
+  type SaveValidator,
+} from '../rules';
 
 export type StartupSource = 'save' | 'mock';
 export type StartupReason =
@@ -23,6 +29,9 @@ interface StartupControllerOptions {
   storageAdapter: StorageAdapter;
   store: StoreApi<GameStoreState>;
   fallbackSnapshot?: SaveSnapshot;
+  eventBus?: GameEventBus;
+  saveValidator?: SaveValidator;
+  saveMigrator?: SaveMigrator;
 }
 
 const logStartupResult = (result: StartupResult) => {
@@ -70,14 +79,26 @@ export class StartupController {
 
   private readonly fallbackSnapshot: SaveSnapshot;
 
+  private readonly eventBus?: GameEventBus;
+
+  private readonly saveValidator: SaveValidator;
+
+  private readonly saveMigrator: SaveMigrator;
+
   constructor({
     storageAdapter,
     store,
     fallbackSnapshot = mockSaveSnapshot,
+    eventBus,
+    saveValidator = new SchemaSaveValidator(),
+    saveMigrator = new VersionedSaveMigrator(),
   }: StartupControllerOptions) {
     this.storageAdapter = storageAdapter;
     this.store = store;
     this.fallbackSnapshot = fallbackSnapshot;
+    this.eventBus = eventBus;
+    this.saveValidator = saveValidator;
+    this.saveMigrator = saveMigrator;
   }
 
   async initialize(): Promise<StartupResult> {
@@ -100,13 +121,24 @@ export class StartupController {
         };
 
         logStartupResult(result);
+        this.eventBus?.emit('WORLD_LOADED', {
+          worldId: result.snapshot.world.summary.id,
+          source: result.source,
+          reason: result.reason,
+          saveId: result.snapshot.metadata.id,
+          loadFailureReason: 'missing',
+        });
 
         return result;
       }
 
-      const parsedSave = saveSnapshotSchema.safeParse(rawSave);
+      const validatedSave = this.saveValidator.validate(rawSave);
+      const parsedSave =
+        validatedSave.ok && validatedSave.snapshot
+          ? validatedSave
+          : this.saveMigrator.migrate(rawSave);
 
-      if (!parsedSave.success) {
+      if (!parsedSave.ok || !parsedSave.snapshot) {
         applyStartupState(
           this.store,
           this.fallbackSnapshot,
@@ -122,19 +154,36 @@ export class StartupController {
         };
 
         logStartupResult(result);
+        this.eventBus?.emit('WORLD_LOADED', {
+          worldId: result.snapshot.world.summary.id,
+          source: result.source,
+          reason: result.reason,
+          saveId: result.snapshot.metadata.id,
+          loadFailureReason: 'invalid',
+        });
 
         return result;
       }
 
-      applyStartupState(this.store, parsedSave.data, 'save', 'save-restored');
+      applyStartupState(this.store, parsedSave.snapshot, 'save', 'save-restored');
 
       const result: StartupResult = {
-        snapshot: parsedSave.data,
+        snapshot: parsedSave.snapshot,
         source: 'save',
         reason: 'save-restored',
       };
 
       logStartupResult(result);
+      this.eventBus?.emit('WORLD_LOADED', {
+        worldId: result.snapshot.world.summary.id,
+        source: result.source,
+        reason: result.reason,
+        saveId: result.snapshot.metadata.id,
+      });
+      this.eventBus?.emit('SAVE_RESTORED', {
+        saveId: result.snapshot.metadata.id,
+        updatedAt: result.snapshot.metadata.updatedAt,
+      });
 
       return result;
     } catch {
@@ -153,6 +202,13 @@ export class StartupController {
       };
 
       logStartupResult(result);
+      this.eventBus?.emit('WORLD_LOADED', {
+        worldId: result.snapshot.world.summary.id,
+        source: result.source,
+        reason: result.reason,
+        saveId: result.snapshot.metadata.id,
+        loadFailureReason: 'corrupt',
+      });
 
       return result;
     }

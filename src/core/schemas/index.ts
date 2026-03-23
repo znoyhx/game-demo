@@ -1,6 +1,7 @@
 export * from './agent.schema';
 export * from './area.schema';
 export * from './combat.schema';
+export * from './config.schema';
 export * from './event.schema';
 export * from './npc.schema';
 export * from './player.schema';
@@ -8,5 +9,6 @@ export * from './quest.schema';
 export * from './review.schema';
 export * from './save.schema';
 export * from './schemaRegistry';
+export * from './session.schema';
 export * from './shared';
 export * from './world.schema';

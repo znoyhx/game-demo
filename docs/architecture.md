@@ -4,7 +4,7 @@
 
 
 # PixelForge Agent Architecture
-Version: v0.1  
+Version: v0.2  
 Status: Initial architecture draft
 
 ---
@@ -747,6 +747,44 @@ Contains:
 * last load result
 * recovery notices
 
+## 8.9 Player Model State
+
+Contains:
+
+* inferred player tags
+* rationale snippets
+* recent area visits
+* recent quest choices
+* NPC interaction count
+* optional risk or stuck-point hints
+
+## 8.10 Review State
+
+Contains:
+
+* current review payload
+* review history
+* explanation artifacts for debug/replay
+
+## 8.11 Config and Resource State
+
+Contains:
+
+* world/template configuration
+* autosave and presentation toggles
+* active theme
+* resource catalog entries
+* selected background/music/tileset keys
+
+## 8.12 Session and Debug State
+
+Contains:
+
+* active UI panel and selections
+* debug scenario overrides
+* forced encounter/event/tactic state
+* route history and session hydration metadata
+
 ---
 
 # 9. Agent Architecture
@@ -813,14 +851,15 @@ A save snapshot should contain:
 
 * save metadata
 * world state snapshot
-* area state snapshot
+* area definitions plus map runtime snapshot
 * quest state snapshot
 * NPC state snapshot
 * player state snapshot
-* combat summary if relevant
-* event history summary
 * player model state
-* review/log references if retained
+* event history plus director/runtime state
+* combat definitions plus combat runtime/history if relevant
+* review state if retained
+* config/resource state when it affects the active run
 
 ## 10.2 Save Triggers
 

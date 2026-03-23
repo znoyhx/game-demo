@@ -1,4 +1,4 @@
-import type { QuestDefinition, QuestProgress } from '../../schemas';
+import type { QuestDefinition, QuestHistoryEntry, QuestProgress } from '../../schemas';
 
 import { mockIds, mockTimeline } from './constants';
 
@@ -175,6 +175,21 @@ export const mockQuestProgress: QuestProgress[] = [
     status: 'available',
     currentObjectiveIndex: 0,
     completedObjectiveIds: [],
+    updatedAt: mockTimeline.archiveEventAt,
+  },
+];
+
+export const mockQuestHistory: QuestHistoryEntry[] = [
+  {
+    questId: mockIds.quests.sideSupply,
+    status: 'completed',
+    note: 'Brom trusted the player with a tonic reserve after the herb delivery.',
+    updatedAt: mockTimeline.bromInteractionAt,
+  },
+  {
+    questId: mockIds.quests.main,
+    status: 'active',
+    note: 'Lyra advanced the main route once the archive relay was located.',
     updatedAt: mockTimeline.archiveEventAt,
   },
 ];

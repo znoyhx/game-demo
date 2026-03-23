@@ -1,12 +1,26 @@
 import { z } from 'zod';
 
+import { gameConfigStateSchema, resourceStateSchema } from './config.schema';
+import { mapStateSchema } from './area.schema';
 import { areaSchema } from './area.schema';
-import { combatStateSchema } from './combat.schema';
-import { eventLogEntrySchema, worldEventSchema } from './event.schema';
+import {
+  combatEncounterDefinitionSchema,
+  combatHistoryEntrySchema,
+  combatStateSchema,
+} from './combat.schema';
+import {
+  eventDirectorStateSchema,
+  eventLogEntrySchema,
+  worldEventSchema,
+} from './event.schema';
 import { npcDefinitionSchema, npcStateSchema } from './npc.schema';
-import { playerStateSchema } from './player.schema';
-import { questDefinitionSchema, questProgressSchema } from './quest.schema';
-import { reviewPayloadSchema } from './review.schema';
+import { playerModelStateSchema, playerStateSchema } from './player.schema';
+import {
+  questDefinitionSchema,
+  questHistoryEntrySchema,
+  questProgressSchema,
+} from './quest.schema';
+import { reviewPayloadSchema, reviewStateSchema } from './review.schema';
 import {
   isoTimestampSchema,
   nonEmptyStringSchema,
@@ -34,10 +48,12 @@ export const saveSnapshotSchema = z
     metadata: saveMetadataSchema,
     world: worldSchema,
     areas: z.array(areaSchema),
+    map: mapStateSchema.optional(),
     quests: z
       .object({
         definitions: z.array(questDefinitionSchema),
         progress: z.array(questProgressSchema),
+        history: z.array(questHistoryEntrySchema).default([]),
       })
       .strict(),
     npcs: z
@@ -47,14 +63,32 @@ export const saveSnapshotSchema = z
       })
       .strict(),
     player: playerStateSchema,
+    playerModel: playerModelStateSchema.optional(),
     events: z
       .object({
         definitions: z.array(worldEventSchema),
         history: z.array(eventLogEntrySchema),
+        director: eventDirectorStateSchema
+          .default({
+            pendingEventIds: [],
+            worldTension: 0,
+            randomnessDisabled: false,
+          }),
       })
       .strict(),
+    combatSystem: z
+      .object({
+        encounters: z.array(combatEncounterDefinitionSchema).default([]),
+        active: combatStateSchema.nullable().default(null),
+        history: z.array(combatHistoryEntrySchema).default([]),
+      })
+      .strict()
+      .optional(),
     combat: combatStateSchema.nullable().optional(),
+    config: gameConfigStateSchema.optional(),
+    resources: resourceStateSchema.optional(),
     review: reviewPayloadSchema.nullable().optional(),
+    reviewState: reviewStateSchema.optional(),
   })
   .strict();
 

@@ -1,4 +1,10 @@
-import type { CombatEncounterDefinition, CombatState, ReviewPayload } from '../../schemas';
+import type {
+  CombatEncounterDefinition,
+  CombatHistoryEntry,
+  CombatState,
+  ReviewPayload,
+  ReviewState,
+} from '../../schemas';
 
 import { mockIds, mockTimeline } from './constants';
 
@@ -95,6 +101,15 @@ export const mockBossCombatState: CombatState = {
   result: 'victory',
 };
 
+export const mockCombatHistory: CombatHistoryEntry[] = [
+  {
+    encounterId: mockBossEncounterDefinition.id,
+    result: 'victory',
+    finalTactic: 'counter',
+    resolvedAt: mockTimeline.combatResolvedAt,
+  },
+];
+
 export const mockReviewPayload: ReviewPayload = {
   generatedAt: mockTimeline.reviewGeneratedAt,
   encounterId: mockBossEncounterDefinition.id,
@@ -124,4 +139,9 @@ export const mockReviewPayload: ReviewPayload = {
   suggestions: [
     'Break the boss counter loop by alternating guarded turns with high-damage bursts.',
   ],
+};
+
+export const mockReviewState: ReviewState = {
+  current: mockReviewPayload,
+  history: [mockReviewPayload],
 };

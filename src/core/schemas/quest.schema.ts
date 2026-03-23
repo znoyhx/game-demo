@@ -89,6 +89,15 @@ export const questProgressSchema = z
   })
   .strict();
 
+export const questHistoryEntrySchema = z
+  .object({
+    questId: questIdSchema,
+    status: questStatusSchema,
+    note: nonEmptyStringSchema,
+    updatedAt: isoTimestampSchema,
+  })
+  .strict();
+
 export type QuestType = z.infer<typeof questTypeSchema>;
 export type QuestStatus = z.infer<typeof questStatusSchema>;
 export type QuestObjectiveType = z.infer<typeof questObjectiveTypeSchema>;
@@ -98,3 +107,4 @@ export type QuestObjective = z.infer<typeof questObjectiveSchema>;
 export type QuestUnlockCondition = z.infer<typeof questUnlockConditionSchema>;
 export type QuestDefinition = z.infer<typeof questDefinitionSchema>;
 export type QuestProgress = z.infer<typeof questProgressSchema>;
+export type QuestHistoryEntry = z.infer<typeof questHistoryEntrySchema>;

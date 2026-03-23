@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { StartupController } from '../../core/controllers/startupController';
+import { gameEventBus } from '../../core/logging';
 import { LocalStorageAdapter } from '../../core/persistence/storageAdapter';
 import { gameStore } from '../../core/state';
 
@@ -15,6 +16,7 @@ export function StartupBootstrap() {
     hasInitializedRef.current = true;
 
     const controller = new StartupController({
+      eventBus: gameEventBus,
       storageAdapter: new LocalStorageAdapter(),
       store: gameStore,
     });

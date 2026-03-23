@@ -4,6 +4,7 @@ import {
   areaIdSchema,
   encounterIdSchema,
   genericIdSchema,
+  isoTimestampSchema,
   nonEmptyStringSchema,
   nonNegativeIntegerSchema,
   npcIdSchema,
@@ -88,6 +89,15 @@ export const combatStateSchema = z
   })
   .strict();
 
+export const combatHistoryEntrySchema = z
+  .object({
+    encounterId: encounterIdSchema,
+    result: combatResultSchema,
+    finalTactic: enemyTacticTypeSchema,
+    resolvedAt: isoTimestampSchema,
+  })
+  .strict();
+
 export type CombatMode = z.infer<typeof combatModeSchema>;
 export type EnemyTacticType = z.infer<typeof enemyTacticTypeSchema>;
 export type CombatantSnapshot = z.infer<typeof combatantSnapshotSchema>;
@@ -99,3 +109,4 @@ export type CombatResult = z.infer<typeof combatResultSchema>;
 export type CombatTurnAction = z.infer<typeof combatTurnActionSchema>;
 export type CombatLogEntry = z.infer<typeof combatLogEntrySchema>;
 export type CombatState = z.infer<typeof combatStateSchema>;
+export type CombatHistoryEntry = z.infer<typeof combatHistoryEntrySchema>;
