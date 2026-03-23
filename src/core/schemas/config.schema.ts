@@ -17,6 +17,7 @@ export const gameConfigStateSchema = z
     difficulty: gameDifficultySchema,
     gameGoal: nonEmptyStringSchema,
     learningGoal: nonEmptyStringSchema.optional(),
+    storyPremise: nonEmptyStringSchema.optional(),
     preferredMode: worldModeSchema,
     templateId: nonEmptyStringSchema.optional(),
     quickStartEnabled: z.boolean(),

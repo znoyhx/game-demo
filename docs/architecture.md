@@ -181,6 +181,7 @@ Translate user actions and system triggers into coordinated use cases.
 ### Example services
 
 * `startupController`
+* `worldCreationController`
 * `dialogueController`
 * `questProgressController`
 * `combatController`
@@ -497,6 +498,30 @@ Make AI and rules behavior visible for demo, explanation, and debugging.
 ---
 
 # 6. Data Flow Patterns
+
+## 6.0 World Creation Flow
+
+```text
+Home page / creation entry
+  -> worldCreationController.createWorld(request)
+  -> validate request contract
+  -> world architect agent generates world, regions, factions, story premise
+  -> quest designer agent generates main + side quest seeds
+  -> level builder agent finalizes area interaction points
+  -> controller prepares initial NPC set, resource setup, event set, player seed
+  -> build and validate SaveSnapshot
+  -> hydrate stores
+  -> persist opening save
+  -> route into the game shell
+```
+
+### Notes
+
+* creation must stay under a minute in UI structure
+* presets / quick play / dev-test should be thin wrappers around the same request contract
+* if generation fails, the controller should fall back to a deterministic, schema-valid opening snapshot
+
+---
 
 ## 6.1 Startup Flow
 

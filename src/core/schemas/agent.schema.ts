@@ -21,8 +21,13 @@ export const difficultyLevelSchema = z.enum(['easy', 'normal', 'hard']);
 export const worldArchitectInputSchema = z
   .object({
     theme: nonEmptyStringSchema,
+    worldStyle: nonEmptyStringSchema,
     preferredMode: worldModeSchema,
     difficulty: difficultyLevelSchema,
+    gameGoal: nonEmptyStringSchema,
+    learningGoal: nonEmptyStringSchema.optional(),
+    quickStartEnabled: z.boolean(),
+    devModeEnabled: z.boolean(),
     promptStyle: nonEmptyStringSchema.optional(),
   })
   .strict();
@@ -32,6 +37,7 @@ export const worldArchitectOutputSchema = z
     world: worldSchema,
     areas: z.array(areaSchema),
     factions: z.array(factionSchema),
+    storyPremise: nonEmptyStringSchema,
   })
   .strict();
 
@@ -40,6 +46,9 @@ export const questDesignerInputSchema = z
     world: worldSchema,
     areas: z.array(areaSchema),
     npcDefinitions: z.array(npcDefinitionSchema),
+    gameGoal: nonEmptyStringSchema,
+    learningGoal: nonEmptyStringSchema.optional(),
+    storyPremise: nonEmptyStringSchema,
     questCount: z
       .object({
         main: nonNegativeIntegerSchema,

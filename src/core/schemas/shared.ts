@@ -33,6 +33,7 @@ export const schemaOwnerSchema = z.enum([
   'npc',
   'player',
   'config',
+  'creation',
   'event',
   'combat',
   'review',

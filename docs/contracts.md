@@ -444,6 +444,57 @@ export interface PlayerModelState {
 
 ---
 
+# 8.5 World Creation Contracts
+
+## 8.5.1 World Creation Request
+
+```ts
+export interface WorldCreationRequest {
+  theme: string;
+  worldStyle: string;
+  difficulty: "easy" | "normal" | "hard";
+  gameGoal: string;
+  learningGoal?: string;
+  preferredMode: "story" | "exploration" | "combat" | "hybrid";
+  templateId?: string;
+  quickStartEnabled: boolean;
+  devModeEnabled: boolean;
+  autosaveEnabled: boolean;
+  autoLoadEnabled: boolean;
+  presentationModeEnabled: boolean;
+  promptStyle?: string;
+  saveAfterCreate?: boolean;
+}
+```
+
+## 8.5.2 World Creation Result
+
+```ts
+export interface WorldCreationResult {
+  snapshot: SaveSnapshot;
+  outputs: {
+    worldName: string;
+    regionNames: string[];
+    factionNames: string[];
+    mainQuestSeed: string;
+    npcNames: string[];
+    resourceLabels: string[];
+    storyPremise: string;
+  };
+  usedFallback: boolean;
+  fallbackReason?:
+    | "world-architect-failed"
+    | "quest-designer-failed"
+    | "level-builder-failed"
+    | "npc-pack-failed"
+    | "event-pack-failed"
+    | "resource-pack-failed"
+    | "snapshot-invalid";
+}
+```
+
+---
+
 # 9. Event Contracts
 
 ## 9.1 Event Trigger Type
@@ -708,6 +759,7 @@ export interface SaveSnapshot {
     difficulty: "easy" | "normal" | "hard";
     gameGoal: string;
     learningGoal?: string;
+    storyPremise?: string;
     preferredMode: "story" | "exploration" | "combat" | "hybrid";
     templateId?: string;
     quickStartEnabled: boolean;
@@ -765,8 +817,13 @@ These contracts define the initial structured boundary for agent-like systems.
 ```ts
 export interface WorldArchitectInput {
   theme: string;
+  worldStyle: string;
   preferredMode: "story" | "exploration" | "combat" | "hybrid";
   difficulty: "easy" | "normal" | "hard";
+  gameGoal: string;
+  learningGoal?: string;
+  quickStartEnabled: boolean;
+  devModeEnabled: boolean;
   promptStyle?: string;
 }
 ```
@@ -778,6 +835,7 @@ export interface WorldArchitectOutput {
   world: World;
   areas: Area[];
   factions: Faction[];
+  storyPremise: string;
 }
 ```
 
@@ -792,6 +850,9 @@ export interface QuestDesignerInput {
   world: World;
   areas: Area[];
   npcDefinitions: NpcDefinition[];
+  gameGoal: string;
+  learningGoal?: string;
+  storyPremise: string;
   questCount: {
     main: number;
     side: number;
@@ -1108,6 +1169,7 @@ src/core/schemas/
   npc.schema.ts
   player.schema.ts
   config.schema.ts
+  creation.schema.ts
   event.schema.ts
   combat.schema.ts
   review.schema.ts

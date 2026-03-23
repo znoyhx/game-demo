@@ -8,6 +8,8 @@ export const mockGameConfig: GameConfigState = {
   difficulty: 'normal',
   gameGoal: 'Rekindle the ward and keep Emberfall playable through the Ash Warden assault.',
   learningGoal: 'Read the world state, react to tactics, and understand explainable AI decisions.',
+  storyPremise:
+    'Emberfall is a fading ward-town where a sealed sanctum is slipping toward collapse, forcing the next ranger to hold three regions together before the valley burns.',
   preferredMode: 'hybrid',
   templateId: 'template:emberfall-demo',
   quickStartEnabled: true,

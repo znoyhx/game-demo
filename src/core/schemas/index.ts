@@ -2,6 +2,7 @@ export * from './agent.schema';
 export * from './area.schema';
 export * from './combat.schema';
 export * from './config.schema';
+export * from './creation.schema';
 export * from './event.schema';
 export * from './npc.schema';
 export * from './player.schema';

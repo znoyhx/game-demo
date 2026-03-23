@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 
+import { appStorageAdapter } from '../runtime/appRuntime';
 import { StartupController } from '../../core/controllers/startupController';
 import { gameEventBus } from '../../core/logging';
-import { LocalStorageAdapter } from '../../core/persistence/storageAdapter';
 import { gameStore } from '../../core/state';
 
 export function StartupBootstrap() {
@@ -17,7 +17,7 @@ export function StartupBootstrap() {
 
     const controller = new StartupController({
       eventBus: gameEventBus,
-      storageAdapter: new LocalStorageAdapter(),
+      storageAdapter: appStorageAdapter,
       store: gameStore,
     });
 

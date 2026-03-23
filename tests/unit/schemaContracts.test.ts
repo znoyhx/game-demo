@@ -94,6 +94,7 @@ describe('schema contracts', () => {
       'npc',
       'player',
       'config',
+      'creation',
       'event',
       'combat',
       'review',

@@ -88,8 +88,13 @@ export const sampleSessionSnapshot: SessionSnapshot = mockSessionSnapshot;
 
 export const sampleWorldArchitectInput: WorldArchitectInput = {
   theme: sampleWorld.summary.theme,
+  worldStyle: sampleGameConfigState.worldStyle,
   preferredMode: sampleWorld.summary.mode,
   difficulty: 'normal',
+  gameGoal: sampleGameConfigState.gameGoal,
+  learningGoal: sampleGameConfigState.learningGoal,
+  quickStartEnabled: sampleGameConfigState.quickStartEnabled,
+  devModeEnabled: sampleGameConfigState.devModeEnabled,
   promptStyle: 'mvp-pack',
 };
 
@@ -97,12 +102,16 @@ export const sampleWorldArchitectOutput: WorldArchitectOutput = {
   world: sampleWorld,
   areas: mockAreas,
   factions: sampleWorld.factions,
+  storyPremise: sampleGameConfigState.storyPremise!,
 };
 
 export const sampleQuestDesignerInput: QuestDesignerInput = {
   world: sampleWorld,
   areas: mockAreas,
   npcDefinitions: mockNpcDefinitions,
+  gameGoal: sampleGameConfigState.gameGoal,
+  learningGoal: sampleGameConfigState.learningGoal,
+  storyPremise: sampleGameConfigState.storyPremise!,
   questCount: {
     main: 1,
     side: 3,

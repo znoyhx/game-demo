@@ -1,18 +1,49 @@
 import type { StoreApi } from 'zustand/vanilla';
 
 import type { AgentSet } from '../agents';
-import { mockBossEncounterDefinition, mockNpcDefinitions, mockNpcStates } from '../mocks';
+import {
+  defaultWorldCreationRequest,
+  devTestWorldCreationRequest,
+  findWorldCreationTemplate,
+  mockBossEncounterDefinition,
+  mockNpcDefinitions,
+  mockNpcStates,
+  mockQuestDefinitions,
+  mockSaveSnapshot,
+  mockWorldEvents,
+  quickPlayWorldCreationRequest,
+} from '../mocks';
 import type { GameLogger } from '../logging';
 import type {
+  Area,
+  CombatEncounterDefinition,
   GameConfigState,
+  NpcDefinition,
+  NpcState,
   PlayerModelState,
   PlayerProfileTag,
   PlayerState,
+  QuestDefinition,
   QuestHistoryEntry,
   QuestProgress,
-  ReviewState,
+  ResourceState,
   SaveSnapshot,
-  WorldArchitectInput,
+  World,
+  WorldCreationFallbackReason,
+  WorldCreationOutputs,
+  WorldCreationRequest,
+  WorldCreationResult,
+  WorldEvent,
+} from '../schemas';
+import {
+  gameConfigStateSchema,
+  npcDefinitionSchema,
+  npcStateSchema,
+  resourceStateSchema,
+  saveSnapshotSchema,
+  worldCreationOutputsSchema,
+  worldCreationRequestSchema,
+  worldCreationResultSchema,
 } from '../schemas';
 import type { GameStoreState } from '../state';
 
@@ -27,8 +58,35 @@ import {
 
 const uniqueIds = (values: string[]) => Array.from(new Set(values));
 
+const toTitleCase = (value: string) =>
+  value
+    .split(/[\s-]+/)
+    .filter(Boolean)
+    .map((segment) => segment[0].toUpperCase() + segment.slice(1))
+    .join(' ');
+
+const toSlug = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+const pickFocusWord = (value: string) =>
+  toTitleCase(value).split(' ').find(Boolean) ?? 'Forge';
+
+const toSentenceCase = (value: string) => {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return trimmed;
+  }
+
+  return `${trimmed[0].toUpperCase()}${trimmed.slice(1)}`;
+};
+
 const derivePlayerTags = (
-  preferredMode: WorldArchitectInput['preferredMode'],
+  preferredMode: WorldCreationRequest['preferredMode'],
 ): PlayerProfileTag[] => {
   switch (preferredMode) {
     case 'combat':
@@ -42,24 +100,525 @@ const derivePlayerTags = (
   }
 };
 
+const buildStoryPremise = (request: WorldCreationRequest, worldName: string) =>
+  `${worldName} is a ${request.worldStyle} realm where you must ${request.gameGoal.trim()} before the final wardline collapses.`;
+
 const buildGameConfig = (
-  input: WorldArchitectInput,
-  overrides: Partial<GameConfigState>,
-): GameConfigState => ({
-  theme: input.theme,
-  worldStyle: overrides.worldStyle ?? `${input.theme} frontier`,
-  difficulty: input.difficulty,
-  gameGoal:
-    overrides.gameGoal ?? 'Stabilize the world state and complete the main ward arc.',
-  learningGoal: overrides.learningGoal,
-  preferredMode: input.preferredMode,
-  templateId: overrides.templateId,
-  quickStartEnabled: overrides.quickStartEnabled ?? true,
-  devModeEnabled: overrides.devModeEnabled ?? false,
-  autosaveEnabled: overrides.autosaveEnabled ?? true,
-  autoLoadEnabled: overrides.autoLoadEnabled ?? true,
-  presentationModeEnabled: overrides.presentationModeEnabled ?? false,
+  request: WorldCreationRequest,
+  storyPremise: string,
+): GameConfigState =>
+  gameConfigStateSchema.parse({
+    theme: request.theme,
+    worldStyle: request.worldStyle,
+    difficulty: request.difficulty,
+    gameGoal: request.gameGoal,
+    learningGoal: request.learningGoal,
+    storyPremise,
+    preferredMode: request.preferredMode,
+    templateId: request.templateId,
+    quickStartEnabled: request.quickStartEnabled,
+    devModeEnabled: request.devModeEnabled,
+    autosaveEnabled: request.autosaveEnabled,
+    autoLoadEnabled: request.autoLoadEnabled,
+    presentationModeEnabled: request.presentationModeEnabled,
+  });
+
+const buildNpcDefinitions = (
+  request: WorldCreationRequest,
+  world: World,
+  areas: Area[],
+): NpcDefinition[] => {
+  const firstArea = areas[0] ?? mockSaveSnapshot.areas[0];
+  const secondArea = areas[1] ?? mockSaveSnapshot.areas[1];
+  const thirdArea = areas[2] ?? mockSaveSnapshot.areas[2];
+  const friendlyFaction = world.factions[0]?.id;
+  const hostileFaction = world.factions[1]?.id ?? friendlyFaction;
+  const modeTag = request.preferredMode;
+
+  return mockNpcDefinitions.map((definition) =>
+    npcDefinitionSchema.parse({
+      ...definition,
+      factionId:
+        definition.role === 'boss' ? hostileFaction ?? definition.factionId : friendlyFaction,
+      areaId:
+        definition.role === 'boss'
+          ? thirdArea.id
+          : definition.role === 'guide' || definition.role === 'merchant'
+            ? firstArea.id
+            : secondArea.id,
+      personalityTags: uniqueIds([...definition.personalityTags, modeTag]),
+    }),
+  );
+};
+
+const buildNpcStates = (
+  request: WorldCreationRequest,
+  world: World,
+  areas: Area[],
+  timestamp: string,
+): NpcState[] => {
+  const firstArea = areas[0] ?? mockSaveSnapshot.areas[0];
+  const secondArea = areas[1] ?? mockSaveSnapshot.areas[1];
+  const thirdArea = areas[2] ?? mockSaveSnapshot.areas[2];
+  const mainQuestId =
+    mockQuestDefinitions.find((quest) => quest.type === 'main')?.id ?? mockQuestDefinitions[0]?.id;
+  const merchantQuestId =
+    mockQuestDefinitions.find((quest) => quest.giverNpcId === mockNpcDefinitions[1]?.id)?.id;
+  const scholarQuestId =
+    mockQuestDefinitions.find((quest) => quest.giverNpcId === mockNpcDefinitions[2]?.id)?.id;
+  const guardQuestId =
+    mockQuestDefinitions.find((quest) => quest.giverNpcId === mockNpcDefinitions[3]?.id)?.id;
+  const sharedLongTerm = `The latest creation brief says: ${request.gameGoal.trim()}.`;
+
+  return mockNpcStates.map((state) =>
+    npcStateSchema.parse({
+      ...state,
+      memory: {
+        shortTerm: [
+          `World created for ${request.preferredMode} play in ${world.summary.name}.`,
+        ],
+        longTerm: [sharedLongTerm],
+        lastInteractionAt: request.devModeEnabled ? timestamp : undefined,
+      },
+      revealableInfo: {
+        publicFacts: [`${state.npcId} is deployed somewhere inside ${world.summary.name}.`],
+        trustGatedFacts: [
+          {
+            minTrust: state.currentDisposition === 'hostile' ? 0 : 20,
+            fact: `${toSentenceCase(request.gameGoal)} depends on stabilizing ${
+              state.npcId === mockNpcDefinitions[0]?.id
+                ? firstArea.name
+                : state.npcId === mockNpcDefinitions[1]?.id
+                  ? firstArea.name
+                  : state.npcId === mockNpcDefinitions[2]?.id
+                    ? secondArea.name
+                    : state.npcId === mockNpcDefinitions[3]?.id
+                      ? secondArea.name
+                      : thirdArea.name
+            }.`,
+          },
+        ],
+        hiddenSecrets: [
+          `${world.summary.name} contains a pressure point connected to ${thirdArea.name}.`,
+        ],
+      },
+      currentGoal:
+        state.npcId === mockNpcDefinitions[0]?.id
+          ? `Guide the player toward ${request.gameGoal.trim()}.`
+          : state.npcId === mockNpcDefinitions[1]?.id
+            ? `Keep the expedition stocked for ${request.gameGoal.trim()}.`
+            : state.npcId === mockNpcDefinitions[2]?.id
+              ? `Interpret how the archive supports ${request.gameGoal.trim()}.`
+              : state.npcId === mockNpcDefinitions[3]?.id
+                ? `Hold the route into ${secondArea.name} while the world escalates.`
+                : `Prevent the player from ${request.gameGoal.trim()}.`,
+      hasGivenQuestIds: [
+        state.npcId === mockNpcDefinitions[0]?.id ? mainQuestId : undefined,
+        state.npcId === mockNpcDefinitions[1]?.id ? merchantQuestId : undefined,
+        state.npcId === mockNpcDefinitions[2]?.id ? scholarQuestId : undefined,
+        state.npcId === mockNpcDefinitions[3]?.id ? guardQuestId : undefined,
+      ].filter((value): value is string => Boolean(value)),
+      flags: {
+        ...state.flags,
+        quickStartSeeded: request.quickStartEnabled,
+        devWorldSeeded: request.devModeEnabled,
+      },
+    }),
+  );
+};
+
+const buildEventDefinitions = (
+  world: World,
+  areas: Area[],
+  request: WorldCreationRequest,
+): WorldEvent[] => {
+  const firstArea = areas[0] ?? mockSaveSnapshot.areas[0];
+  const secondArea = areas[1] ?? mockSaveSnapshot.areas[1];
+  const thirdArea = areas[2] ?? mockSaveSnapshot.areas[2];
+
+  return mockWorldEvents.map((event, index) => ({
+    ...event,
+    title:
+      index === 0
+        ? `${firstArea.name} Disturbance`
+        : index === 1
+          ? `${secondArea.name} Signal`
+          : `${thirdArea.name} Countermeasure`,
+    description:
+      index === 0
+        ? `${world.summary.name} opens under tension as the first district reacts to the new run.`
+        : index === 1
+          ? `Progress toward ${request.gameGoal.trim()} makes the middle region reveal new pressure.`
+          : `The final route answers the player's ${request.preferredMode} bias with a visible shift.`,
+  }));
+};
+
+const buildResourceState = (
+  request: WorldCreationRequest,
+  world: World,
+  areas: Area[],
+  npcs: NpcDefinition[],
+): ResourceState => {
+  const selectedArea = areas.find((area) => area.id === world.startingAreaId) ?? areas[0];
+  const tilesetKey = `tileset-${toSlug(request.worldStyle)}`;
+  const selectedBackgroundKey =
+    selectedArea?.backgroundKey ?? `bg-${toSlug(selectedArea?.name ?? world.summary.name)}`;
+  const selectedMusicKey =
+    selectedArea?.musicKey ?? `music-${toSlug(selectedArea?.name ?? world.summary.name)}`;
+
+  return resourceStateSchema.parse({
+    activeTheme: request.theme,
+    entries: [
+      {
+        id: `resource:${tilesetKey}`,
+        kind: 'tileset',
+        key: tilesetKey,
+        label: `${toTitleCase(request.worldStyle)} tileset`,
+        source: `generated://${tilesetKey}`,
+      },
+      ...areas.flatMap((area) => [
+        {
+          id: `resource:bg:${area.id}`,
+          kind: 'background' as const,
+          key: area.backgroundKey ?? `bg-${toSlug(area.name)}`,
+          label: `${area.name} backdrop`,
+          areaId: area.id,
+          source: `generated://background/${toSlug(area.name)}`,
+        },
+        {
+          id: `resource:music:${area.id}`,
+          kind: 'music' as const,
+          key: area.musicKey ?? `music-${toSlug(area.name)}`,
+          label: `${area.name} score`,
+          areaId: area.id,
+          source: `generated://music/${toSlug(area.name)}`,
+        },
+      ]),
+      ...npcs.map((npc) => ({
+        id: `resource:avatar:${npc.id}`,
+        kind: 'avatar' as const,
+        key: npc.avatarKey ?? `avatar-${toSlug(npc.name)}`,
+        label: `${npc.name} portrait`,
+        npcId: npc.id,
+        source: `generated://avatar/${toSlug(npc.name)}`,
+      })),
+    ],
+    loadedResourceKeys: uniqueIds(
+      [
+        tilesetKey,
+        selectedBackgroundKey,
+        selectedMusicKey,
+        ...npcs.slice(0, 2).map((npc) => npc.avatarKey ?? `avatar-${toSlug(npc.name)}`),
+      ].filter(Boolean),
+    ),
+    selectedBackgroundKey,
+    selectedTilesetKey: tilesetKey,
+    selectedMusicKey,
+  });
+};
+
+const buildCombatEncounter = (
+  areas: Area[],
+  npcs: NpcDefinition[],
+  world: World,
+): CombatEncounterDefinition => {
+  const bossArea = areas[2] ?? mockSaveSnapshot.areas[2];
+  const bossNpc = npcs.find((npc) => npc.role === 'boss') ?? npcs[npcs.length - 1];
+
+  return {
+    ...mockBossEncounterDefinition,
+    title: `${world.summary.name} Final Stand`,
+    areaId: bossArea.id,
+    enemyNpcId: bossNpc?.id,
+  };
+};
+
+const buildQuestProgressEntries = (
+  questDefinitions: QuestDefinition[],
+  world: World,
+  timestamp: string,
+): {
+  progress: QuestProgress[];
+  history: QuestHistoryEntry[];
+} => {
+  const progressEntries: QuestProgress[] = [];
+  const history: QuestHistoryEntry[] = [];
+
+  for (const definition of questDefinitions) {
+    const availability = evaluateQuestAvailability({
+      definition,
+      questProgressEntries: progressEntries,
+      worldFlags: world.flags,
+      now: timestamp,
+    });
+
+    if (!availability.progress) {
+      continue;
+    }
+
+    const progress: QuestProgress =
+      definition.type === 'main' && availability.status === 'available'
+        ? {
+            ...availability.progress,
+            status: 'active',
+          }
+        : availability.progress;
+
+    progressEntries.push(progress);
+    history.push({
+      questId: definition.id,
+      status: progress.status,
+      note: `Quest "${definition.title}" seeded during world creation.`,
+      updatedAt: timestamp,
+    });
+  }
+
+  return {
+    progress: progressEntries,
+    history,
+  };
+};
+
+const buildPlayerState = (
+  request: WorldCreationRequest,
+  world: World,
+  tags: PlayerProfileTag[],
+): PlayerState => {
+  const profileByDifficulty = {
+    easy: { hp: 36, maxHp: 36, gold: 30, energy: 12 },
+    normal: { hp: 30, maxHp: 30, gold: 20, energy: 10 },
+    hard: { hp: 26, maxHp: 26, gold: request.devModeEnabled ? 99 : 16, energy: 9 },
+  } as const;
+
+  const stats = profileByDifficulty[request.difficulty];
+
+  return {
+    hp: stats.hp,
+    maxHp: stats.maxHp,
+    energy: stats.energy,
+    gold: stats.gold,
+    inventory: request.quickStartEnabled ? [{ itemId: 'item:field-kit', quantity: 1 }] : [],
+    profileTags: tags,
+    currentAreaId: world.startingAreaId,
+  };
+};
+
+const buildPlayerModelState = (
+  request: WorldCreationRequest,
+  world: World,
+  tags: PlayerProfileTag[],
+  timestamp: string,
+): PlayerModelState => ({
+  tags,
+  rationale: [
+    `Seeded from ${request.preferredMode} preference during world creation.`,
+    request.devModeEnabled
+      ? 'Debug-forward creation mode enabled direct scenario inspection.'
+      : 'Opening run favors a player-facing, demo-friendly route.',
+  ],
+  recentAreaVisits: [world.startingAreaId],
+  recentQuestChoices: [],
+  npcInteractionCount: 0,
+  dominantStyle: tags[0],
+  stuckPoint: request.quickStartEnabled ? undefined : 'No player friction recorded yet.',
+  lastUpdatedAt: timestamp,
 });
+
+const buildOutputs = (
+  snapshot: SaveSnapshot,
+  storyPremise: string,
+): WorldCreationOutputs =>
+  worldCreationOutputsSchema.parse({
+    worldName: snapshot.world.summary.name,
+    regionNames: snapshot.areas.map((area) => area.name),
+    factionNames: snapshot.world.factions.map((faction) => faction.name),
+    mainQuestSeed:
+      snapshot.quests.definitions.find((quest) => quest.type === 'main')?.title ??
+      snapshot.quests.definitions[0]?.title ??
+      'Opening quest seeded',
+    npcNames: snapshot.npcs.definitions.map((npc) => npc.name),
+    resourceLabels: snapshot.resources?.entries.map((entry) => entry.label) ?? [],
+    storyPremise,
+  });
+
+const buildSnapshot = (options: {
+  request: WorldCreationRequest;
+  timestamp: string;
+  world: World;
+  areas: Area[];
+  questDefinitions: QuestDefinition[];
+  storyPremise: string;
+}): SaveSnapshot => {
+  const { request, timestamp, world, areas, questDefinitions, storyPremise } = options;
+  const npcDefinitions = buildNpcDefinitions(request, world, areas);
+  const npcStates = buildNpcStates(request, world, areas, timestamp);
+  const playerTags = derivePlayerTags(request.preferredMode);
+  const player = buildPlayerState(request, world, playerTags);
+  const playerModel = buildPlayerModelState(request, world, playerTags, timestamp);
+  const events = buildEventDefinitions(world, areas, request);
+  const eventDirector = {
+    pendingEventIds:
+      request.preferredMode === 'combat' ? [events[events.length - 1]?.id].filter(Boolean) : [],
+    worldTension:
+      request.difficulty === 'hard' ? 72 : request.difficulty === 'easy' ? 24 : 48,
+    pacingNote: `Creation mode is tuned for ${request.preferredMode} play inside ${world.summary.name}.`,
+    randomnessDisabled: request.devModeEnabled,
+  };
+  const combatEncounter = buildCombatEncounter(areas, npcDefinitions, world);
+  const questState = buildQuestProgressEntries(questDefinitions, world, timestamp);
+  const config = buildGameConfig(request, storyPremise);
+  const resources = buildResourceState(request, world, areas, npcDefinitions);
+
+  return saveSnapshotSchema.parse({
+    metadata: {
+      id: `save:${world.summary.id}:slot-1`,
+      version: '0.1.0',
+      slot: 'slot-1',
+      label: `${world.summary.name} opening state`,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      source: request.devModeEnabled ? 'debug' : 'manual',
+    },
+    world,
+    areas,
+    map: {
+      currentAreaId: world.startingAreaId,
+      discoveredAreaIds: [world.startingAreaId],
+      unlockedAreaIds: uniqueIds(areas.filter((area) => area.unlockedByDefault).map((area) => area.id)),
+      visitHistory: [world.startingAreaId],
+    },
+    quests: {
+      definitions: questDefinitions,
+      progress: questState.progress,
+      history: questState.history,
+    },
+    npcs: {
+      definitions: npcDefinitions,
+      runtime: npcStates,
+    },
+    player,
+    playerModel,
+    events: {
+      definitions: events,
+      history: [],
+      director: eventDirector,
+    },
+    combatSystem: {
+      encounters: [combatEncounter],
+      active: null,
+      history: [],
+    },
+    combat: null,
+    config,
+    resources,
+    reviewState: {
+      current: null,
+      history: [],
+    },
+    review: null,
+  });
+};
+
+const buildFallbackWorld = (
+  request: WorldCreationRequest,
+  timestamp: string,
+): {
+  world: World;
+  areas: Area[];
+  storyPremise: string;
+} => {
+  const focusWord = pickFocusWord(request.theme);
+  const worldName = `${focusWord} Reach`;
+  const storyPremise = buildStoryPremise(request, worldName);
+  const archiveUnlocked = request.quickStartEnabled || request.devModeEnabled;
+  const sanctumUnlocked = request.devModeEnabled;
+  const factions = mockSaveSnapshot.world.factions.map((faction, index) => ({
+    ...faction,
+    name: index === 0 ? `${focusWord} Wardens` : `${focusWord} Court`,
+    description:
+      index === 0
+        ? `Fallback defenders maintaining ${worldName}.`
+        : `Fallback antagonists disrupting ${worldName}.`,
+  }));
+  const areas = mockSaveSnapshot.areas.map((area, index) => ({
+    ...area,
+    name:
+      index === 0
+        ? `${focusWord} Crossroads`
+        : index === 1
+          ? `${focusWord} Archive`
+          : `${focusWord} Sanctum`,
+    description:
+      index === 0
+        ? `Fallback starting district for ${worldName}.`
+        : index === 1
+          ? `Fallback mid-route pressure zone supporting ${request.gameGoal.trim()}.`
+          : `Fallback boss route defending the final objective.`,
+    unlockedByDefault: index === 0 ? true : index === 1 ? archiveUnlocked : sanctumUnlocked,
+  }));
+
+  return {
+    world: {
+      ...mockSaveSnapshot.world,
+      summary: {
+        ...mockSaveSnapshot.world.summary,
+        id: `world:${toSlug(request.theme)}`,
+        name: worldName,
+        subtitle: `${toTitleCase(request.worldStyle)} fallback seed`,
+        theme: request.theme,
+        tone:
+          request.difficulty === 'easy'
+            ? 'light'
+            : request.difficulty === 'hard'
+              ? 'dark'
+              : 'mysterious',
+        mode: request.preferredMode,
+        createdAt: timestamp,
+      },
+      factions,
+      areaIds: areas.map((area) => area.id),
+      flags: {
+        tutorialCompleted: request.quickStartEnabled || request.devModeEnabled,
+        archiveDoorOpened: archiveUnlocked,
+        sanctumSealBroken: false,
+        bromSupplyDelivered: false,
+        archiveEchoSeen: false,
+        rowanPatrolSecured: false,
+        wardenAlertRaised: false,
+      },
+    },
+    areas,
+    storyPremise,
+  };
+};
+
+const buildFallbackQuestDefinitions = (
+  request: WorldCreationRequest,
+  storyPremise: string,
+): QuestDefinition[] =>
+  mockQuestDefinitions.map((quest, index) =>
+    quest.type === 'main'
+      ? {
+          ...quest,
+          title: toSentenceCase(request.gameGoal),
+          description: `${storyPremise} Main route: ${quest.description}`,
+        }
+      : {
+          ...quest,
+          description: `${quest.description} Fallback route ${index} reinforces ${request.preferredMode} play.`,
+        },
+  );
+
+const normalizeWorldCreationRequest = (
+  request: WorldCreationRequest,
+): WorldCreationRequest =>
+  worldCreationRequestSchema.parse({
+    ...request,
+    theme: request.theme.trim(),
+    worldStyle: request.worldStyle.trim(),
+    gameGoal: request.gameGoal.trim(),
+    learningGoal: request.learningGoal?.trim() ? request.learningGoal.trim() : undefined,
+  });
 
 interface WorldCreationControllerOptions {
   store: StoreApi<GameStoreState>;
@@ -67,18 +626,6 @@ interface WorldCreationControllerOptions {
   saveController?: SaveWriter;
   logger?: GameLogger;
   now?: TimestampProvider;
-}
-
-export interface WorldCreationRequest extends WorldArchitectInput {
-  learningGoal?: string;
-  gameGoal?: string;
-  templateId?: string;
-  quickStartEnabled?: boolean;
-  devModeEnabled?: boolean;
-  autosaveEnabled?: boolean;
-  autoLoadEnabled?: boolean;
-  presentationModeEnabled?: boolean;
-  saveAfterCreate?: boolean;
 }
 
 export class WorldCreationController {
@@ -100,182 +647,168 @@ export class WorldCreationController {
     this.now = options.now ?? defaultTimestampProvider;
   }
 
-  async createWorld(request: WorldCreationRequest): Promise<SaveSnapshot> {
+  async createDefaultWorld(): Promise<WorldCreationResult> {
+    return this.createWorld(defaultWorldCreationRequest);
+  }
+
+  async createWorldFromTemplate(templateId: string): Promise<WorldCreationResult> {
+    const template = findWorldCreationTemplate(templateId);
+
+    if (!template) {
+      throw new Error(`Unknown world creation template: ${templateId}`);
+    }
+
+    return this.createWorld(template.request);
+  }
+
+  async createQuickPlayWorld(): Promise<WorldCreationResult> {
+    return this.createWorld(quickPlayWorldCreationRequest);
+  }
+
+  async createDevTestWorld(): Promise<WorldCreationResult> {
+    return this.createWorld(devTestWorldCreationRequest);
+  }
+
+  async createWorld(request: WorldCreationRequest): Promise<WorldCreationResult> {
+    const validatedRequest = normalizeWorldCreationRequest(request);
     const timestamp = this.now();
-    const worldOutput = await this.agents.worldArchitect.run(request);
-    this.logger?.recordAgentDecision({
-      agentId: 'world-architect',
-      createdAt: timestamp,
-      inputSummary: `Theme=${request.theme}, mode=${request.preferredMode}, difficulty=${request.difficulty}`,
-      outputSummary: `World=${worldOutput.world.summary.name}, areas=${worldOutput.areas.length}`,
-      input: request,
-      output: worldOutput,
-    });
-    const questOutput = await this.agents.questDesigner.run({
-      world: worldOutput.world,
-      areas: worldOutput.areas,
-      npcDefinitions: mockNpcDefinitions,
-      questCount: {
-        main: 1,
-        side: 3,
-      },
-    });
-    this.logger?.recordAgentDecision({
-      agentId: 'quest-designer',
-      createdAt: timestamp,
-      inputSummary: `Quest seed for ${worldOutput.world.summary.name}`,
-      outputSummary: `Generated ${questOutput.quests.length} quests`,
-      input: {
-        worldId: worldOutput.world.summary.id,
+    const result = await this.generateWorldResult(validatedRequest, timestamp);
+
+    this.store.getState().hydrateFromSnapshot(result.snapshot);
+    this.store
+      .getState()
+      .setRecoveryNotice(
+        result.usedFallback && result.fallbackReason
+          ? `World creation used the deterministic fallback path because ${result.fallbackReason.replace(
+              /-/g,
+              ' ',
+            )}.`
+          : null,
+      );
+
+    if (validatedRequest.saveAfterCreate ?? true) {
+      await maybeAutoSave(
+        this.store,
+        this.saveController,
+        validatedRequest.devModeEnabled ? 'debug' : 'manual',
+      );
+    }
+
+    return result;
+  }
+
+  private async generateWorldResult(
+    request: WorldCreationRequest,
+    timestamp: string,
+  ): Promise<WorldCreationResult> {
+    let fallbackReason: WorldCreationFallbackReason = 'world-architect-failed';
+
+    try {
+      const worldOutput = await this.agents.worldArchitect.run({
+        theme: request.theme,
+        worldStyle: request.worldStyle,
+        preferredMode: request.preferredMode,
+        difficulty: request.difficulty,
+        gameGoal: request.gameGoal,
+        learningGoal: request.learningGoal,
+        quickStartEnabled: request.quickStartEnabled,
+        devModeEnabled: request.devModeEnabled,
+        promptStyle: request.promptStyle,
+      });
+      this.logger?.recordAgentDecision({
+        agentId: 'world-architect',
+        createdAt: timestamp,
+        inputSummary: `Theme=${request.theme}, style=${request.worldStyle}, mode=${request.preferredMode}`,
+        outputSummary: `World=${worldOutput.world.summary.name}, areas=${worldOutput.areas.length}`,
+        input: request,
+        output: worldOutput,
+      });
+
+      fallbackReason = 'npc-pack-failed';
+      const npcDefinitions = buildNpcDefinitions(request, worldOutput.world, worldOutput.areas);
+
+      fallbackReason = 'quest-designer-failed';
+      const questOutput = await this.agents.questDesigner.run({
+        world: worldOutput.world,
+        areas: worldOutput.areas,
+        npcDefinitions,
+        gameGoal: request.gameGoal,
+        learningGoal: request.learningGoal,
+        storyPremise: worldOutput.storyPremise,
         questCount: {
           main: 1,
           side: 3,
         },
-      },
-      output: questOutput,
-    });
-
-    const builtAreas = [];
-    for (const area of worldOutput.areas) {
-      const buildResult = await this.agents.levelBuilder.run({
-        area,
-        world: worldOutput.world,
-        questContext: questOutput.quests,
       });
-      builtAreas.push(buildResult.area);
       this.logger?.recordAgentDecision({
-        agentId: 'level-builder',
+        agentId: 'quest-designer',
         createdAt: timestamp,
-        inputSummary: `Area=${area.id}`,
-        outputSummary: `Interaction points=${buildResult.interactionPoints.length}`,
+        inputSummary: `Quest seed for ${worldOutput.world.summary.name}`,
+        outputSummary: `Generated ${questOutput.quests.length} quests`,
         input: {
-          areaId: area.id,
+          worldId: worldOutput.world.summary.id,
+          gameGoal: request.gameGoal,
+          questCount: {
+            main: 1,
+            side: 3,
+          },
         },
-        output: buildResult,
-      });
-    }
-
-    const questProgressEntries: QuestProgress[] = [];
-    const questHistory: QuestHistoryEntry[] = [];
-
-    for (const definition of questOutput.quests) {
-      const availability = evaluateQuestAvailability({
-        definition,
-        questProgressEntries,
-        worldFlags: worldOutput.world.flags,
-        now: timestamp,
+        output: questOutput,
       });
 
-      if (!availability.progress) {
-        continue;
+      fallbackReason = 'level-builder-failed';
+      const builtAreas: Area[] = [];
+      for (const area of worldOutput.areas) {
+        const buildResult = await this.agents.levelBuilder.run({
+          area,
+          world: worldOutput.world,
+          questContext: questOutput.quests,
+        });
+        builtAreas.push(buildResult.area);
+        this.logger?.recordAgentDecision({
+          agentId: 'level-builder',
+          createdAt: timestamp,
+          inputSummary: `Area=${area.id}`,
+          outputSummary: `Interaction points=${buildResult.interactionPoints.length}`,
+          input: {
+            areaId: area.id,
+          },
+          output: buildResult,
+        });
       }
 
-      const progress: QuestProgress =
-        definition.type === 'main' && availability.status === 'available'
-          ? {
-              ...availability.progress,
-              status: 'active',
-            }
-          : availability.progress;
+      fallbackReason = 'snapshot-invalid';
+      const snapshot = buildSnapshot({
+        request,
+        timestamp,
+        world: worldOutput.world,
+        areas: builtAreas,
+        questDefinitions: questOutput.quests,
+        storyPremise: worldOutput.storyPremise,
+      });
 
-      questProgressEntries.push(progress);
-      questHistory.push({
-        questId: definition.id,
-        status: progress.status,
-        note: `Quest "${definition.title}" seeded during world creation.`,
-        updatedAt: timestamp,
+      return worldCreationResultSchema.parse({
+        snapshot,
+        outputs: buildOutputs(snapshot, worldOutput.storyPremise),
+        usedFallback: false,
+      });
+    } catch {
+      const fallbackWorld = buildFallbackWorld(request, timestamp);
+      const fallbackSnapshot = buildSnapshot({
+        request,
+        timestamp,
+        world: fallbackWorld.world,
+        areas: fallbackWorld.areas,
+        questDefinitions: buildFallbackQuestDefinitions(request, fallbackWorld.storyPremise),
+        storyPremise: fallbackWorld.storyPremise,
+      });
+
+      return worldCreationResultSchema.parse({
+        snapshot: fallbackSnapshot,
+        outputs: buildOutputs(fallbackSnapshot, fallbackWorld.storyPremise),
+        usedFallback: true,
+        fallbackReason,
       });
     }
-
-    const playerTags = derivePlayerTags(request.preferredMode);
-    const player: PlayerState = {
-      hp: 30,
-      maxHp: 30,
-      energy: 10,
-      gold: 20,
-      inventory: [],
-      profileTags: playerTags,
-      currentAreaId: worldOutput.world.startingAreaId,
-    };
-    const playerModel: PlayerModelState = {
-      tags: playerTags,
-      rationale: ['World creation seeded the initial player profile from the selected mode.'],
-      recentAreaVisits: [worldOutput.world.startingAreaId],
-      recentQuestChoices: [],
-      npcInteractionCount: 0,
-      dominantStyle: playerTags[0],
-      lastUpdatedAt: timestamp,
-    };
-
-    const snapshot: SaveSnapshot = {
-      metadata: {
-        id: `save:${worldOutput.world.summary.id}-slot-1`,
-        version: '0.1.0',
-        slot: 'slot-1',
-        label: `${worldOutput.world.summary.name} opening state`,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-        source: 'manual',
-      },
-      world: worldOutput.world,
-      areas: builtAreas,
-      map: {
-        currentAreaId: worldOutput.world.startingAreaId,
-        discoveredAreaIds: [worldOutput.world.startingAreaId],
-        unlockedAreaIds: uniqueIds(
-          builtAreas
-            .filter((area) => area.unlockedByDefault)
-            .map((area) => area.id),
-        ),
-        visitHistory: [worldOutput.world.startingAreaId],
-      },
-      quests: {
-        definitions: questOutput.quests,
-        progress: questProgressEntries,
-        history: questHistory,
-      },
-      npcs: {
-        definitions: mockNpcDefinitions,
-        runtime: mockNpcStates,
-      },
-      player,
-      playerModel,
-      events: {
-        definitions: this.store.getState().eventDefinitionOrder.map(
-          (eventId) => this.store.getState().eventDefinitionsById[eventId],
-        ),
-        history: [],
-        director: {
-          pendingEventIds: [],
-          worldTension: 0,
-          randomnessDisabled: false,
-        },
-      },
-      combatSystem: {
-        encounters: [mockBossEncounterDefinition],
-        active: null,
-        history: [],
-      },
-      combat: null,
-      config: buildGameConfig(request, request),
-      resources: {
-        activeTheme: request.theme,
-        entries: [],
-        loadedResourceKeys: [],
-      },
-      reviewState: {
-        current: null,
-        history: [],
-      } satisfies ReviewState,
-      review: null,
-    };
-
-    this.store.getState().hydrateFromSnapshot(snapshot);
-
-    if (request.saveAfterCreate ?? true) {
-      await maybeAutoSave(this.store, this.saveController, 'manual');
-    }
-
-    return snapshot;
   }
 }

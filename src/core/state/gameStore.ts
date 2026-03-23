@@ -418,6 +418,9 @@ const buildDefaultGameConfig = (snapshot: SaveSnapshot): GameConfigState => {
     gameGoal:
       mainQuest?.title ??
       'Explore the world, complete quests, and stabilize the active storyline.',
+    storyPremise:
+      snapshot.config?.storyPremise ??
+      `${snapshot.world.summary.name} opens in crisis, and the first quest line defines how the run stabilizes.`,
     preferredMode: snapshot.world.summary.mode,
     quickStartEnabled: true,
     devModeEnabled: false,
