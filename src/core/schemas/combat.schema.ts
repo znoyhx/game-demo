@@ -1,0 +1,101 @@
+import { z } from 'zod';
+
+import {
+  areaIdSchema,
+  encounterIdSchema,
+  genericIdSchema,
+  nonEmptyStringSchema,
+  nonNegativeIntegerSchema,
+  npcIdSchema,
+  positiveIntegerSchema,
+} from './shared';
+
+export const combatModeSchema = z.enum(['turn-based', 'semi-realtime']);
+export const enemyTacticTypeSchema = z.enum([
+  'aggressive',
+  'defensive',
+  'counter',
+  'trap',
+  'summon',
+  'resource-lock',
+]);
+
+export const combatantSnapshotSchema = z
+  .object({
+    id: genericIdSchema,
+    name: nonEmptyStringSchema,
+    hp: nonNegativeIntegerSchema,
+    maxHp: positiveIntegerSchema,
+    statusEffects: z.array(nonEmptyStringSchema).optional(),
+  })
+  .strict();
+
+export const bossPhaseThresholdTypeSchema = z.enum(['hp', 'turn']);
+
+export const bossPhaseSchema = z
+  .object({
+    id: genericIdSchema,
+    label: nonEmptyStringSchema,
+    thresholdType: bossPhaseThresholdTypeSchema,
+    thresholdValue: positiveIntegerSchema,
+    tacticBias: z.array(enemyTacticTypeSchema).optional(),
+  })
+  .strict();
+
+export const combatEncounterDefinitionSchema = z
+  .object({
+    id: encounterIdSchema,
+    title: nonEmptyStringSchema,
+    mode: combatModeSchema,
+    areaId: areaIdSchema,
+    enemyNpcId: npcIdSchema.optional(),
+    tacticPool: z.array(enemyTacticTypeSchema).min(1),
+    bossPhases: z.array(bossPhaseSchema).optional(),
+  })
+  .strict();
+
+export const combatActorSchema = z.enum(['player', 'enemy', 'system']);
+export const combatResultSchema = z.enum(['victory', 'defeat', 'escape']);
+
+export const combatTurnActionSchema = z
+  .object({
+    actor: combatActorSchema,
+    actionType: nonEmptyStringSchema,
+    description: nonEmptyStringSchema,
+    value: z.number().finite().optional(),
+  })
+  .strict();
+
+export const combatLogEntrySchema = z
+  .object({
+    turn: positiveIntegerSchema,
+    phaseId: genericIdSchema.optional(),
+    activeTactic: enemyTacticTypeSchema.optional(),
+    actions: z.array(combatTurnActionSchema),
+  })
+  .strict();
+
+export const combatStateSchema = z
+  .object({
+    encounterId: encounterIdSchema,
+    turn: positiveIntegerSchema,
+    currentPhaseId: genericIdSchema.optional(),
+    activeTactic: enemyTacticTypeSchema,
+    player: combatantSnapshotSchema,
+    enemy: combatantSnapshotSchema,
+    logs: z.array(combatLogEntrySchema),
+    result: combatResultSchema.optional(),
+  })
+  .strict();
+
+export type CombatMode = z.infer<typeof combatModeSchema>;
+export type EnemyTacticType = z.infer<typeof enemyTacticTypeSchema>;
+export type CombatantSnapshot = z.infer<typeof combatantSnapshotSchema>;
+export type BossPhaseThresholdType = z.infer<typeof bossPhaseThresholdTypeSchema>;
+export type BossPhase = z.infer<typeof bossPhaseSchema>;
+export type CombatEncounterDefinition = z.infer<typeof combatEncounterDefinitionSchema>;
+export type CombatActor = z.infer<typeof combatActorSchema>;
+export type CombatResult = z.infer<typeof combatResultSchema>;
+export type CombatTurnAction = z.infer<typeof combatTurnActionSchema>;
+export type CombatLogEntry = z.infer<typeof combatLogEntrySchema>;
+export type CombatState = z.infer<typeof combatStateSchema>;

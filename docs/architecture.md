@@ -517,6 +517,8 @@ App boot
 * startup must be resilient
 * invalid save must not crash app
 * dev mode should surface cause of fallback
+* current MVP boot path uses `StartupBootstrap -> startupController -> LocalStorageAdapter`
+* startup hydrates the game store from the latest valid `SaveSnapshot` or falls back to the deterministic mock snapshot while exposing `startupSource` and `startupReason` to the route shell
 
 ---
 
