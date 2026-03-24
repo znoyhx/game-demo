@@ -106,8 +106,8 @@ export class NpcInteractionController {
     this.logger?.recordAgentDecision({
       agentId: 'npc-brain',
       createdAt,
-      inputSummary: `NPC=${npcId}, dialogueTurns=${recentDialogue.length}`,
-      outputSummary: `Disposition=${output.updatedDisposition ?? npcState.currentDisposition}, unlockedQuests=${output.unlockedQuestIds?.length ?? 0}`,
+      inputSummary: `角色=${npcId}，对话轮次=${recentDialogue.length}`,
+      outputSummary: `当前态度=${output.updatedDisposition ?? npcState.currentDisposition}，解锁任务数=${output.unlockedQuestIds?.length ?? 0}`,
       input: {
         npcId,
         recentDialogue,
@@ -161,6 +161,10 @@ export class NpcInteractionController {
       disposition:
         output.updatedDisposition ?? relationUpdate.state.currentDisposition,
       unlockedQuestIds: output.unlockedQuestIds ?? [],
+    });
+
+    await this.questController?.refreshQuestStatuses({
+      autoSave: false,
     });
 
     await maybeAutoSave(this.store, this.saveController, 'auto');

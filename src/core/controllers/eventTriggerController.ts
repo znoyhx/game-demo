@@ -63,7 +63,7 @@ export class EventTriggerController {
         ? {
             ok: true,
             eventId,
-            reasons: ['debug path bypassed trigger checks'],
+            reasons: ['调试路径已绕过触发条件校验'],
           }
         : evaluateEventTrigger(worldEvent, {
             currentAreaId: state.mapState.currentAreaId,
@@ -109,7 +109,7 @@ export class EventTriggerController {
         applyNpcRelationChange(npcState, {
           trustDelta: change.delta,
           timestamp: this.now(),
-          memoryNote: `World event ${worldEvent.title} altered this NPC's trust.`,
+          memoryNote: `世界事件“${worldEvent.title}”改变了该角色的信任度。`,
         }).state,
       );
     }
@@ -132,6 +132,10 @@ export class EventTriggerController {
       source,
       unlockedAreaIds: effect.unlockAreaIds,
       startedQuestIds: effect.startQuestIds,
+    });
+
+    await this.questController?.refreshQuestStatuses({
+      autoSave: false,
     });
 
     await maybeAutoSave(
@@ -160,10 +164,10 @@ export class EventTriggerController {
     this.logger?.recordAgentDecision({
       agentId: 'game-master',
       createdAt: this.now(),
-      inputSummary: `Area=${state.mapState.currentAreaId}, activeQuests=${state.questProgressOrder.length}`,
+      inputSummary: `区域=${state.mapState.currentAreaId}，活动任务数=${state.questProgressOrder.length}`,
       outputSummary: result.eventToTrigger
-        ? `Triggered ${result.eventToTrigger}`
-        : 'No event triggered',
+        ? `已触发 ${result.eventToTrigger}`
+        : '没有事件被触发',
       input: {
         currentAreaId: state.mapState.currentAreaId,
         playerTags: state.playerModel.tags,

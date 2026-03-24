@@ -12,11 +12,11 @@ import type { FeaturePanel, RouteId } from '../../types/appShell';
 const routeText = {
   home: {
     label: '首页',
-    summary: 'PixelForge Agent 纵向切片的比赛优先入口。',
+    summary: '像素锻炉代理的比赛优先入口。',
   },
   game: {
     label: '游戏',
-    summary: '区域、NPC、任务与战斗模块的主游玩界面。',
+    summary: '区域、角色、任务与战斗模块的主游玩界面。',
   },
   debug: {
     label: '调试',
@@ -24,7 +24,7 @@ const routeText = {
   },
   review: {
     label: '回顾',
-    summary: '用于展示 AI 行为解释与总结的结算页面。',
+    summary: '用于展示智能行为解释与总结的结算页面。',
   },
 } satisfies Record<RouteId, { label: string; summary: string }>;
 
@@ -38,7 +38,7 @@ const startupSourceLabels = {
 const startupReasonMessages = {
   booting: '正在检查持久化状态，并准备最近一次可游玩的世界。',
   'save-restored': '已通过持久化层恢复最近一次有效存档。',
-  'no-save': '未找到历史存档，已为当前 MVP 切片载入默认样例世界。',
+  'no-save': '未找到历史存档，已为当前比赛演示切片载入默认样例世界。',
   'invalid-save': '检测到无效存档，启动流程已安全回退到默认样例世界。',
   'storage-error': '无法读取存档存储，启动流程已安全回退到默认样例世界。',
   'world-created': '新世界已完成初始化、状态注入与开局存档准备。',
@@ -102,7 +102,7 @@ const worldCreationFallbackReasonLabels = {
   'world-architect-failed': '世界架构代理失败',
   'quest-designer-failed': '任务设计代理失败',
   'level-builder-failed': '关卡构建代理失败',
-  'npc-pack-failed': 'NPC 处理阶段失败',
+  'npc-pack-failed': '角色处理阶段失败',
   'event-pack-failed': '事件包生成失败',
   'resource-pack-failed': '资源包生成失败',
   'snapshot-invalid': '快照校验失败',
@@ -112,7 +112,7 @@ const agentLabels = {
   'world-architect': '世界架构代理',
   'quest-designer': '任务设计代理',
   'level-builder': '关卡构建代理',
-  'npc-brain': 'NPC 思维代理',
+  'npc-brain': '角色思维代理',
   'enemy-tactician': '敌方战术代理',
   'game-master': '游戏主持代理',
   'player-model': '玩家模型代理',
@@ -121,7 +121,7 @@ const agentLabels = {
 
 const domainEventLabels = {
   AREA_ENTERED: '区域进入',
-  NPC_INTERACTED: 'NPC 互动',
+  NPC_INTERACTED: '角色互动',
   QUEST_UPDATED: '任务更新',
   TACTIC_CHANGED: '战术切换',
   COMBAT_STARTED: '战斗开始',
@@ -167,13 +167,13 @@ export const zhCN = {
     },
   },
   appLayout: {
-    eyebrow: 'PixelForge Agent',
-    title: '比赛版 MVP 骨架',
+    eyebrow: '像素锻炉代理',
+    title: '比赛演示版骨架',
     subtitle:
-      '以 Web 为先、以 Mock 为先，并按清晰分层为玩法、持久化、代理编排和调试工具做好承接。',
+      '以前端网页为先、以模拟实现为先，并按清晰分层为玩法、持久化、代理编排和调试工具做好承接。',
     badges: {
-      milestone: 'M0 基础',
-      mockFirst: 'Mock 优先',
+      milestone: '阶段零基础',
+      mockFirst: '模拟优先',
     },
     navigationAriaLabel: '主导航',
     pendingWorldBadge: '等待启动完成',
@@ -189,14 +189,14 @@ export const zhCN = {
     home: {
       title: '世界创建模块',
       description:
-        '通过预设模板、一键默认生成、快速开局和开发测试种子，在一分钟内创建新的 PixelForge Agent 世界，并由经过 schema 校验的 mock 代理驱动。',
+        '通过预设模板、一键默认生成、快速开局和开发测试种子，在一分钟内创建新的像素锻炉代理世界，并由经过契约校验的模拟代理驱动。',
       currentWorld: {
         kicker: '当前世界',
         continueBadge: '可继续游玩',
         sampleWorldBadge: '样例世界已激活',
         generatedWorldBadge: '新世界已创建',
         description:
-          '你可以立刻继续最近一次世界，也可以通过世界架构师、任务设计师和关卡构建器的 mock 流程重新打造一个新世界。',
+          '你可以立刻继续最近一次世界，也可以通过世界架构师、任务设计师和关卡构建器的模拟流程重新打造一个新世界。',
         continueAction: '继续当前世界',
         debugAction: '打开调试入口',
         defaultWorldAction: '一键生成默认世界',
@@ -208,22 +208,22 @@ export const zhCN = {
         title: '预设模板',
         eyebrow: '快速开始',
         description: '先套用调好的配置，如果需要，再微调下面的字段。',
-        footer: '每个预设都符合 PRD 输入契约，并能生成完整的开局世界。',
+        footer: '每个预设都符合产品需求输入契约，并能生成完整的开局世界。',
         meta: (regions: number, factions: number, npcs: number) =>
-          `${regions} 个区域 / ${factions} 个势力 / ${npcs} 名 NPC`,
+          `${regions} 个区域 / ${factions} 个势力 / ${npcs} 名角色`,
         quickPlayAction: '快速开局',
         devModeAction: '开发/测试模式',
       },
       preview: {
         title: '预计生成结果',
         eyebrow: '预览',
-        description: '创建控制器会先准备这些资产，然后再注入状态并保存开局快照。',
-        footer: '最终输出由 mock 代理流程生成，并在存档快照边界再次校验。',
+        description: '创建控制器会先准备这些资源，然后再注入状态并保存开局快照。',
+        footer: '最终输出由模拟代理流程生成，并在存档快照边界再次校验。',
         worldNameLabel: '世界名称',
         regionsLabel: '地图区域',
         factionsLabel: '核心势力',
         mainQuestSeedLabel: '主线任务种子',
-        initialNpcSetLabel: '初始 NPC 阵容',
+        initialNpcSetLabel: '初始角色阵容',
         initialResourceSetupLabel: '初始资源配置',
         initialStoryPremiseLabel: '初始故事背景',
         worldName: (focusWord: string) => `${focusWord}之境`,
@@ -244,8 +244,8 @@ export const zhCN = {
       customWorld: {
         title: '自定义世界',
         eyebrow: '输入契约',
-        description: 'PRD 要求的输入项都会在这里收集，并传入世界创建流程。',
-        footer: '创建控制器会统一处理 schema 校验、快照注入、持久化和失败回退。',
+        description: '产品需求要求的输入项都会在这里收集，并传入世界创建流程。',
+        footer: '创建控制器会统一处理契约校验、快照注入、持久化和失败回退。',
         fields: {
           theme: '游戏主题',
           worldStyle: '世界风格',
@@ -290,66 +290,66 @@ export const zhCN = {
         emptyState: '暂时还没有运行时日志。',
       },
       areaTools: {
-        title: 'Area Debug Controls',
-        eyebrow: (areaName: string) => `Target Area: ${areaName}`,
+        title: '区域调试控制',
+        eyebrow: (areaName: string) => `目标区域：${areaName}`,
         description:
-          'Jump directly into any area, toggle runtime unlock state, and apply environment flag sets without completing the full progression loop.',
+          '无需走完整进度链，即可直接进入任意区域、切换运行时解锁状态，并套用环境标记组合。',
         footer:
-          'Use these controls to verify hidden routes, entry and exit rules, and environment-driven scene variants from the debug route.',
-        areaField: 'Target Area',
-        environmentField: 'Environment State',
-        currentAreaLabel: 'Current Area',
-        selectedAreaLabel: 'Selected Area',
-        lockStatusLabel: (value: string) => `Access: ${value}`,
-        discoveryStatusLabel: (value: string) => `Discovery: ${value}`,
-        hiddenStatusLabel: (value: string) => `Visibility: ${value}`,
-        currentEnvironmentLabel: (value: string) => `Resolved Environment: ${value}`,
-        jumpAction: 'Jump Live State',
-        jumpAndOpenAction: 'Jump & Open Game',
-        unlockAction: 'Force Unlock',
-        relockAction: 'Relock Area',
-        applyEnvironmentAction: 'Apply Environment',
+          '通过这些控件，可从调试入口验证隐藏路线、进出规则以及由环境驱动的场景变体。',
+        areaField: '目标区域',
+        environmentField: '环境状态',
+        currentAreaLabel: '当前区域',
+        selectedAreaLabel: '已选区域',
+        lockStatusLabel: (value: string) => `通行状态：${value}`,
+        discoveryStatusLabel: (value: string) => `发现状态：${value}`,
+        hiddenStatusLabel: (value: string) => `显示状态：${value}`,
+        currentEnvironmentLabel: (value: string) => `解析环境：${value}`,
+        jumpAction: '直接跳转',
+        jumpAndOpenAction: '跳转并打开游戏',
+        unlockAction: '强制解锁',
+        relockAction: '重新上锁',
+        applyEnvironmentAction: '应用环境',
         hiddenAreaHint:
-          'Jumping to a hidden area discovers and unlocks it so you can test the live route immediately.',
+          '跳入隐藏区域时会同步发现并解锁它，便于你立即测试正式路线。',
         relockDisabledDefault:
-          'Default-open areas rely on schema defaults and cannot be relocked through runtime state.',
-        noAreaSelected: 'Select an area to enable direct area debugging.',
-        unlockStateUnlocked: 'Unlocked',
-        unlockStateLocked: 'Locked',
-        discoveryStateDiscovered: 'Discovered',
-        discoveryStateHidden: 'Undiscovered',
-        hiddenStateHidden: 'Hidden until discovered',
-        hiddenStateVisible: 'Visible in navigation',
+          '默认开放区域依赖契约默认值，无法通过运行时状态重新上锁。',
+        noAreaSelected: '请先选择一个区域，再启用直接区域调试。',
+        unlockStateUnlocked: '已解锁',
+        unlockStateLocked: '已上锁',
+        discoveryStateDiscovered: '已发现',
+        discoveryStateHidden: '未发现',
+        hiddenStateHidden: '发现前隐藏',
+        hiddenStateVisible: '导航中可见',
       },
       renderLab: {
-        title: 'Rendering Preview Lab',
-        eyebrow: 'Isolated Render QA',
+        title: '渲染预览实验台',
+        eyebrow: '独立渲染校验',
         description:
-          'Preview any area, marker layer, dialogue panel, or quest tracker without running the full progression loop.',
+          '无需跑完整进度链，就能预览任意区域、标记层、对话面板或任务追踪。',
         footer:
-          'Use this lab to validate renderer slices before swapping in Phaser or Pixi scene implementations.',
-        openSceneAction: 'Open Forced Scene',
-        clearForcedAction: 'Clear Forced Scene',
-        liveBadge: 'Live Game Route',
-        forcedBadge: (areaName: string) => `Forced Scene: ${areaName}`,
-        previewing: (areaName: string) => `Previewing ${areaName}`,
-        mapAreaTitle: 'Map Area',
-        npcLayerTitle: 'NPC Marker Layer',
+          '在切换到正式像素场景实现之前，可先在这里校验各个渲染切片。',
+        openSceneAction: '打开强制场景',
+        clearForcedAction: '清除强制场景',
+        liveBadge: '正式游玩路线',
+        forcedBadge: (areaName: string) => `强制场景：${areaName}`,
+        previewing: (areaName: string) => `正在预览：${areaName}`,
+        mapAreaTitle: '地图区域',
+        npcLayerTitle: '角色标记层',
         npcLayerDescription:
-          'Render only NPC and shop markers to verify scene overlays independently.',
+          '仅渲染角色与商店标记，用来独立校验场景叠层。',
         npcLayerFooter: (count: number) =>
-          `${count} NPC markers ready for isolated rendering`,
-        interactionLayerTitle: 'Interaction Points',
+          `${count} 个角色标记可用于独立渲染`,
+        interactionLayerTitle: '交互点位',
         interactionLayerDescription:
-          'Preview portals, events, items, and battle markers without full area progression.',
+          '无需完整推进区域流程，即可预览传送门、事件、物品与战斗标记。',
         interactionLayerFooter: (count: number) =>
-          `${count} total interaction markers available in this scene`,
+          `当前场景共有 ${count} 个交互标记`,
       },
     },
     game: {
       title: '游戏场景',
       description:
-        '游戏主路线已经为地图渲染、NPC 互动、任务推进与战斗模块预留了界面空间，并且不会把领域状态变更直接写进页面组件。',
+        '游戏主路线已经为地图渲染、角色互动、任务推进与战斗模块预留了界面空间，并且不会把领域状态变更直接写进页面组件。',
     },
     review: {
       title: '回顾与解释',
@@ -488,15 +488,19 @@ export const zhCN = {
           questChoiceCount: number,
           npcInteractionCount: number,
         ) =>
-          `区域访问=${areaVisitCount}，任务选择=${questChoiceCount}，NPC 互动=${npcInteractionCount}`,
+          `区域访问=${areaVisitCount}，任务选择=${questChoiceCount}，角色互动=${npcInteractionCount}`,
         outputSummary: (tagLabels: string[]) => `标签=${tagLabels.join('、')}`,
       },
     },
     questProgression: {
       activationNote: (questTitle: string) => `任务“${questTitle}”已进入进行中。`,
-      branchMemoryNote: (branchId: string) => `任务分支 ${branchId} 已对该 NPC 产生影响。`,
+      branchMemoryNote: (branchId: string) => `任务分支 ${branchId} 已对该角色产生影响。`,
+      branchSelectedNote: (branchLabel: string) => `已将任务分支切换为“${branchLabel}”。`,
+      dynamicActivationNote: (questTitle: string) => `动态任务“${questTitle}”已自动触发。`,
       forceStatusNote: (statusLabel: string) =>
         `调试流程已将任务状态强制设为 ${statusLabel}。`,
+      statusSyncNote: (questTitle: string, statusLabel: string) =>
+        `任务“${questTitle}”状态已同步为${statusLabel}。`,
     },
     reviewGeneration: {
       noEncounter: '无',
@@ -510,14 +514,14 @@ export const zhCN = {
   },
   logging: {
     domainEventSummary: (eventLabel: string) => `领域事件“${eventLabel}”已触发。`,
-    npcInteractionSummary: '已记录一次 NPC 互动结果。',
+    npcInteractionSummary: '已记录一次角色互动结果。',
     combatStartedSummary: '一场战斗已开始。',
     tacticChangedSummary: (tacticLabel: string) => `战斗战术已切换为${tacticLabel}。`,
     combatEndedSummary: (resultLabel: string) => `本场战斗已结束，结果为${resultLabel}。`,
     saveCreatedSummary: '已创建新的存档。',
     saveRestoredSummary: '已恢复最近一次存档。',
     worldLoadedSummary: (sourceLabel: string) => `世界已从${sourceLabel}路径载入。`,
-    npcDetailSummary: 'NPC 已生成回复并更新关系状态。',
+    npcDetailSummary: '角色已生成回复并更新关系状态。',
     combatDetailSummary: (turn: number, actionLabel: string, tacticLabel: string) =>
       `本场战斗在第 ${turn} 回合结算了动作${actionLabel}，敌方战术为${tacticLabel}。`,
     agentDecisionSummary: (agentLabel: string) => `${agentLabel} 已产出一次确定性决策。`,

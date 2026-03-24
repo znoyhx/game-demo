@@ -95,7 +95,9 @@ export class SaveLoadController {
 
     const validation = this.saveValidator.validate(rawSave);
     const result =
-      validation.ok && validation.snapshot
+      validation.ok &&
+      validation.snapshot &&
+      validation.snapshot.metadata.version === CURRENT_SAVE_SCHEMA_VERSION
         ? validation
         : this.saveMigrator.migrate(rawSave);
 

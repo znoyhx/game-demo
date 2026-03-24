@@ -52,9 +52,20 @@ export class MockQuestDesignerAgent
           input.learningGoal ? ` 学习提示：${input.learningGoal}。` : ''
         }`,
       }));
+    const supportQuests = mockQuestDefinitions
+      .filter(
+        (quest) =>
+          quest.type === 'tutorial' ||
+          quest.type === 'hidden' ||
+          quest.type === 'dynamic',
+      )
+      .map((quest) => ({
+        ...quest,
+        description: `${quest.description} 该任务会与${input.gameGoal}形成额外的结构化支线或动态反馈。`,
+      }));
 
     return {
-      quests: [...mainQuests, ...sideQuests],
+      quests: [...supportQuests, ...mainQuests, ...sideQuests],
     };
   }
 }

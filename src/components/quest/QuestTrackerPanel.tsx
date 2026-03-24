@@ -20,9 +20,9 @@ export function QuestTrackerPanel({
 }: QuestTrackerPanelProps) {
   return (
     <GamePanel
-      title="Active Quests"
-      eyebrow="Quest Tracker"
-      description="Current mainline and side progression with visible objective state."
+      title="进行中的任务"
+      eyebrow="任务追踪"
+      description="展示当前主线与支线推进，以及清晰可见的目标状态。"
       className={className}
     >
       <div className="game-list">

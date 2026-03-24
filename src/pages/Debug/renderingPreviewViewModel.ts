@@ -94,8 +94,8 @@ export function buildRenderingPreviewViewModel({
     source.areas.find((area) => area.id === forcedAreaId)?.name ?? null;
   const defaultStatusMessage =
     forcedAreaId === selectedArea?.id
-      ? 'This area is currently forced into the main game scene.'
-      : 'Preview-only render; no quest or progression prerequisite is required.';
+      ? '该区域当前已被强制注入主游戏场景。'
+      : '当前为仅预览渲染，无需任务或进度前置条件。';
 
   return {
     copy,
@@ -111,40 +111,40 @@ export function buildRenderingPreviewViewModel({
     scene: viewModel.scene,
     quests: viewModel.rightSidebar.quests,
     dialogue: {
-      dialogueTitle: leadNpc ? 'Dialogue Preview' : 'Scene Briefing',
+      dialogueTitle: leadNpc ? '对话预览' : '场景简报',
       dialogueSpeaker: leadNpc?.name ?? viewModel.scene.areaName,
       dialogueLines: leadNpc
         ? [
             {
               speaker: leadNpc.name,
-              text: `${leadNpc.disposition} response line prepared for isolated preview rendering.`,
+              text: `已为独立预览渲染准备好一条“${leadNpc.disposition}”倾向的回应。`,
             },
             {
-              speaker: 'System',
+              speaker: '系统',
               text: viewModel.scene.description,
             },
             {
-              speaker: 'Event',
+              speaker: '事件',
               text:
                 highlightedEvent?.detail ??
-                'No pending event is interrupting the preview scene.',
+                '当前没有待触发事件打断这个预览场景。',
             },
           ]
         : [
             {
-              speaker: 'System',
+              speaker: '系统',
               text: viewModel.scene.description,
             },
             {
-              speaker: 'Guide',
-              text: 'Use the debug preview to validate dialogue rendering without full NPC progression.',
+              speaker: '向导',
+              text: '可通过调试预览直接校验对话渲染，无需先推进完整角色流程。',
             },
           ],
       controls: [
-        { id: 'preview-greet', label: 'Greet', tone: 'success' },
-        { id: 'preview-ask', label: 'Ask', tone: 'info' },
-        { id: 'preview-quest', label: 'Quest', tone: 'warning' },
-        { id: 'preview-leave', label: 'Leave', tone: 'default' },
+        { id: 'preview-greet', label: '问候', tone: 'success' },
+        { id: 'preview-ask', label: '询问', tone: 'info' },
+        { id: 'preview-quest', label: '任务', tone: 'warning' },
+        { id: 'preview-leave', label: '离开', tone: 'default' },
       ],
       statusMessage: previewStatusMessage ?? defaultStatusMessage,
       activeControlId,

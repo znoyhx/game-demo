@@ -151,7 +151,7 @@ export class AreaDebugController {
         areaId,
         discoveredAreaIds: state.mapState.discoveredAreaIds,
         unlockedAreaIds: state.mapState.unlockedAreaIds,
-        reason: 'default-unlocked areas cannot be relocked through runtime state',
+        reason: '默认开放区域无法通过运行时状态重新上锁',
       };
     }
 
@@ -161,7 +161,7 @@ export class AreaDebugController {
         areaId,
         discoveredAreaIds: state.mapState.discoveredAreaIds,
         unlockedAreaIds: state.mapState.unlockedAreaIds,
-        reason: 'leave the current area before relocking it',
+        reason: '请先离开当前区域，再执行重新上锁',
       };
     }
 
@@ -214,7 +214,7 @@ export class AreaDebugController {
         ok: false,
         areaId,
         targetStateId,
-        reason: 'target environment state does not exist for this area',
+        reason: '该区域不存在目标环境状态',
       };
     }
 
@@ -241,7 +241,7 @@ export class AreaDebugController {
       reason:
         resolvedState.id === targetStateId
           ? undefined
-          : `resolved to ${resolvedState.id} after applying the debug mutation`,
+          : `应用调试变更后，最终解析环境为 ${resolvedState.id}`,
     };
   }
 }

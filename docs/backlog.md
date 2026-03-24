@@ -20,6 +20,7 @@ Planning principles:
 - use deterministic mocks first
 - enforce modularity and testability
 - keep MVP bounded for competition delivery
+- keep all built-in player-facing UI copy in Simplified Chinese
 
 ---
 
@@ -284,6 +285,8 @@ Prove the core loop end-to-end with one small but complete playable scenario.
 - inspect current save
 - reset scenario
 - set quest status
+- simulate quest conditions
+- inspect quest logs / dependency graph
 - adjust NPC trust/relationship
 
 **Acceptance criteria**
@@ -806,6 +809,8 @@ Do not mark tasks complete unless:
 - behavior works
 - lint/build/tests pass where applicable
 - docs are updated if architecture/contracts changed
+- any new player-facing built-in copy is localized in Simplified Chinese
+- tests are updated when visible localized copy is part of the expected behavior
 
 ---
 

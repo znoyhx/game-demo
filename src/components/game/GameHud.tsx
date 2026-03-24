@@ -133,7 +133,7 @@ export function GameHud({
   onControlSelect,
 }: GameHudProps) {
   return (
-    <section className="game-layout" aria-label="Main game interface">
+    <section className="game-layout" aria-label="主游戏界面">
       <GameTopBar {...topBar} onManualSave={onManualSave} />
       <div className="game-layout__body">
         <GameLeftSidebar

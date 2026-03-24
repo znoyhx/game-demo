@@ -80,7 +80,7 @@ export function RenderingPreviewGallery({
       <div className="render-preview-lab__grid">
         <SectionCard
           title={preview.copy.mapAreaTitle}
-          eyebrow="Map Area"
+          eyebrow="地图区域"
           description={preview.scene.description}
           footer={preview.scene.sceneStatus}
         >
@@ -93,7 +93,7 @@ export function RenderingPreviewGallery({
 
         <SectionCard
           title={preview.copy.npcLayerTitle}
-          eyebrow="NPC Marker Layer"
+          eyebrow="角色标记层"
           description={preview.copy.npcLayerDescription}
           footer={preview.copy.npcLayerFooter(preview.npcMarkerCount)}
         >
@@ -113,7 +113,7 @@ export function RenderingPreviewGallery({
 
         <SectionCard
           title={preview.copy.interactionLayerTitle}
-          eyebrow="Interaction Points"
+          eyebrow="交互点位"
           description={preview.copy.interactionLayerDescription}
           footer={preview.copy.interactionLayerFooter(
             preview.scene.stage.markers.length,

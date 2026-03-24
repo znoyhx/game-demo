@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { playerProfileTagSchema } from './player.schema';
 import {
   areaIdSchema,
   genericIdSchema,
@@ -15,6 +16,20 @@ import {
 export const questTypeSchema = z.enum(['main', 'side', 'hidden', 'tutorial', 'dynamic']);
 export const questStatusSchema = z.enum(['locked', 'available', 'active', 'completed', 'failed']);
 export const questObjectiveTypeSchema = z.enum(['talk', 'visit', 'collect', 'battle', 'trigger']);
+export const questConditionTypeSchema = z.enum([
+  'talk',
+  'visit',
+  'collect',
+  'battle',
+  'trigger',
+  'quest-status',
+  'world-flag',
+  'npc-trust',
+  'player-tag',
+  'event',
+  'current-area',
+  'visited-area',
+]);
 
 export const questRewardSchema = z
   .object({
@@ -26,11 +41,32 @@ export const questRewardSchema = z
   })
   .strict();
 
+export const questConditionSchema = z
+  .object({
+    id: genericIdSchema,
+    label: nonEmptyStringSchema,
+    type: questConditionTypeSchema,
+    targetId: nonEmptyStringSchema.optional(),
+    requiredStatus: questStatusSchema.optional(),
+    requiredCount: positiveIntegerSchema.optional(),
+    minTrust: nonNegativeIntegerSchema.optional(),
+    playerTag: playerProfileTagSchema.optional(),
+  })
+  .strict();
+
+export const questDependencySchema = z
+  .object({
+    questId: questIdSchema,
+    requiredStatus: questStatusSchema.default('completed'),
+  })
+  .strict();
+
 export const questBranchResultSchema = z
   .object({
     id: genericIdSchema,
     label: nonEmptyStringSchema,
     description: nonEmptyStringSchema,
+    activationConditions: z.array(questConditionSchema).default([]),
     reward: questRewardSchema.optional(),
     setsWorldFlags: z.array(nonEmptyStringSchema).optional(),
     changesNpcRelation: z
@@ -70,11 +106,15 @@ export const questDefinitionSchema = z
     title: nonEmptyStringSchema,
     description: nonEmptyStringSchema,
     giverNpcId: npcIdSchema.optional(),
+    triggerConditions: z.array(questConditionSchema).default([]),
+    completionConditions: z.array(questConditionSchema).default([]),
+    failureConditions: z.array(questConditionSchema).default([]),
+    dependencies: z.array(questDependencySchema).default([]),
     unlockCondition: questUnlockConditionSchema.optional(),
-    objectives: z.array(questObjectiveSchema),
+    objectives: z.array(questObjectiveSchema).optional(),
     reward: questRewardSchema.optional(),
     failureCondition: nonEmptyStringSchema.optional(),
-    branchResults: z.array(questBranchResultSchema).optional(),
+    branchResults: z.array(questBranchResultSchema).default([]),
   })
   .strict();
 
@@ -94,6 +134,8 @@ export const questHistoryEntrySchema = z
     questId: questIdSchema,
     status: questStatusSchema,
     note: nonEmptyStringSchema,
+    conditionId: genericIdSchema.optional(),
+    branchId: genericIdSchema.optional(),
     updatedAt: isoTimestampSchema,
   })
   .strict();
@@ -101,7 +143,10 @@ export const questHistoryEntrySchema = z
 export type QuestType = z.infer<typeof questTypeSchema>;
 export type QuestStatus = z.infer<typeof questStatusSchema>;
 export type QuestObjectiveType = z.infer<typeof questObjectiveTypeSchema>;
+export type QuestConditionType = z.infer<typeof questConditionTypeSchema>;
 export type QuestReward = z.infer<typeof questRewardSchema>;
+export type QuestCondition = z.infer<typeof questConditionSchema>;
+export type QuestDependency = z.infer<typeof questDependencySchema>;
 export type QuestBranchResult = z.infer<typeof questBranchResultSchema>;
 export type QuestObjective = z.infer<typeof questObjectiveSchema>;
 export type QuestUnlockCondition = z.infer<typeof questUnlockConditionSchema>;

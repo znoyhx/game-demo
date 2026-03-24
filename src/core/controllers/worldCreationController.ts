@@ -48,7 +48,10 @@ import {
 import type { GameStoreState } from '../state';
 import { locale } from '../utils/locale';
 
-import { evaluateQuestAvailability } from '../rules';
+import {
+  CURRENT_SAVE_SCHEMA_VERSION,
+  evaluateQuestAvailability,
+} from '../rules';
 
 import {
   defaultTimestampProvider,
@@ -366,25 +369,28 @@ const buildQuestProgressEntries = (
   const progressEntries: QuestProgress[] = [];
   const history: QuestHistoryEntry[] = [];
 
-  for (const definition of questDefinitions) {
-    const availability = evaluateQuestAvailability({
-      definition,
-      questProgressEntries: progressEntries,
-      worldFlags: world.flags,
-      now: timestamp,
-    });
+    for (const definition of questDefinitions) {
+      const availability = evaluateQuestAvailability({
+        definition,
+        questProgressEntries: progressEntries,
+        worldFlags: world.flags,
+        currentAreaId: world.startingAreaId,
+        visitedAreaIds: [world.startingAreaId],
+        now: timestamp,
+      });
 
-    if (!availability.progress) {
-      continue;
-    }
+      if (!availability.progress) {
+        continue;
+      }
 
-    const progress: QuestProgress =
-      definition.type === 'main' && availability.status === 'available'
-        ? {
-            ...availability.progress,
-            status: 'active',
-          }
-        : availability.progress;
+      const progress: QuestProgress =
+        (definition.type === 'main' || definition.type === 'dynamic') &&
+        availability.status === 'available'
+          ? {
+              ...availability.progress,
+              status: 'active',
+            }
+          : availability.progress;
 
     progressEntries.push(progress);
     history.push({
@@ -497,13 +503,13 @@ const buildSnapshot = (options: {
   const config = buildGameConfig(request, storyPremise);
   const resources = buildResourceState(request, world, areas, npcDefinitions);
 
-  return saveSnapshotSchema.parse({
-    metadata: {
-      id: `save:${world.summary.id}:slot-1`,
-      version: '0.1.0',
-      slot: 'slot-1',
-      label: worldCreationText.initialSaveLabel(world.summary.name),
-      createdAt: timestamp,
+    return saveSnapshotSchema.parse({
+      metadata: {
+        id: `save:${world.summary.id}:slot-1`,
+        version: CURRENT_SAVE_SCHEMA_VERSION,
+        slot: 'slot-1',
+        label: worldCreationText.initialSaveLabel(world.summary.name),
+        createdAt: timestamp,
       updatedAt: timestamp,
       source: request.devModeEnabled ? 'debug' : 'manual',
     },
@@ -637,14 +643,19 @@ const buildFallbackQuestDefinitions = (
             quest.description,
           ),
         }
-      : {
-          ...quest,
-          description: worldCreationText.fallbackQuestDescriptions.side(
-            quest.description,
-            index + 1,
-            preferredModeLabels[request.preferredMode],
-          ),
-        },
+      : quest.type === 'side'
+        ? {
+            ...quest,
+            description: worldCreationText.fallbackQuestDescriptions.side(
+              quest.description,
+              index + 1,
+              preferredModeLabels[request.preferredMode],
+            ),
+          }
+        : {
+            ...quest,
+            description: `${quest.description} 该任务会作为${preferredModeLabels[request.preferredMode]}导向的补充任务，在回退路径中保持可验证状态。`,
+          },
   );
 
 const normalizeWorldCreationRequest = (

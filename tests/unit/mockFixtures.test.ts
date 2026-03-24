@@ -42,6 +42,9 @@ describe('mvp mock fixtures', () => {
     expect(mockNpcDefinitions).toHaveLength(5);
     expect(mockQuestDefinitions.filter((entry) => entry.type === 'main')).toHaveLength(1);
     expect(mockQuestDefinitions.filter((entry) => entry.type === 'side')).toHaveLength(3);
+    expect(mockQuestDefinitions.filter((entry) => entry.type === 'tutorial')).toHaveLength(1);
+    expect(mockQuestDefinitions.filter((entry) => entry.type === 'hidden')).toHaveLength(1);
+    expect(mockQuestDefinitions.filter((entry) => entry.type === 'dynamic')).toHaveLength(1);
     expect(mockWorldEvents).toHaveLength(3);
   });
 

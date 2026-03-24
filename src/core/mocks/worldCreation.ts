@@ -12,7 +12,7 @@ export const defaultWorldCreationRequest = buildRequest({
   worldStyle: '像素奇幻边境',
   difficulty: 'normal',
   gameGoal: '在最后的堡垒陷落前稳定守护网络',
-  learningGoal: '理解任务、战术与可解释 AI 系统如何在一个活着的世界里协同运作',
+  learningGoal: '理解任务、战术与可解释智能系统如何在一个活着的世界里协同运作',
   preferredMode: 'hybrid',
   templateId: 'template:ward-network',
   quickStartEnabled: true,
@@ -53,7 +53,7 @@ export const worldCreationTemplates: WorldCreationTemplate[] = [
     id: 'template:ward-network',
     label: '守护网络',
     description:
-      '平衡的奇幻边境设定，包含一条主恢复线、分层支线任务与清晰可读的 AI 解释。',
+      '平衡的奇幻边境设定，包含一条主恢复线、分层支线任务与清晰可读的智能解释。',
     request: defaultWorldCreationRequest,
     featuredOutputs: {
       regions: 3,

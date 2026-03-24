@@ -37,9 +37,9 @@ export function GameLeftSidebar({
   return (
     <aside className="game-sidebar game-sidebar--left">
       <GamePanel
-        title="Area Cartography"
-        eyebrow="Minimap / Area Map"
-        description="Track linked regions, discovered ground, and current position."
+        title="区域地图"
+        eyebrow="小地图 / 区域图"
+        description="跟踪连通区域、已发现地带与当前位置。"
         footer={areaSummary}
       >
         <div className="game-minimap">
@@ -66,9 +66,9 @@ export function GameLeftSidebar({
         </div>
       </GamePanel>
       <GamePanel
-        title="Area Switching"
-        eyebrow="Route Entry"
-        description="Jump through the explored network without putting routing logic into the HUD."
+        title="区域切换"
+        eyebrow="路线入口"
+        description="在已探索的网络中切换区域，同时保持界面层不承载路由规则。"
       >
         <div className="game-sidebar__button-stack">
           {areas.map((area) => (
@@ -80,15 +80,15 @@ export function GameLeftSidebar({
               onClick={() => onAreaSelect(area.id)}
               disabled={busyAreaId === area.id || area.isCurrent}
             >
-              {area.isCurrent ? `In ${area.name}` : `Enter ${area.name}`}
+              {area.isCurrent ? `位于 ${area.name}` : `进入 ${area.name}`}
             </PixelButton>
           ))}
         </div>
       </GamePanel>
       <GamePanel
-        title="Exploration Progress"
-        eyebrow="World Scan"
-        description="Show judges exactly how much of the world loop is already open."
+        title="探索进度"
+        eyebrow="世界扫描"
+        description="清楚展示当前世界循环已经开放了多少内容。"
       >
         <div className="game-progress">
           <div className="game-progress__track" aria-hidden="true">
@@ -98,8 +98,8 @@ export function GameLeftSidebar({
             />
           </div>
           <div className="game-progress__meta">
-            <strong>{progressPercent}% explored</strong>
-            <Badge tone="info">Persistent map state</Badge>
+            <strong>已探索 {progressPercent}%</strong>
+            <Badge tone="info">地图持久状态</Badge>
           </div>
           <dl className="game-stat-list">
             {progressMetrics.map((metric) => (

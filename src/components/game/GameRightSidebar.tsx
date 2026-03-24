@@ -1,4 +1,5 @@
 import { Badge } from '../pixel-ui/Badge';
+import { uiToneLabels } from '../../core/utils/displayLabels';
 import { QuestTrackerPanel } from '../quest/QuestTrackerPanel';
 import { GamePanel } from './GamePanel';
 
@@ -52,23 +53,23 @@ export function GameRightSidebar({
     <aside className="game-sidebar game-sidebar--right">
       <QuestTrackerPanel quests={quests} />
       <GamePanel
-        title="Inventory"
-        eyebrow="Pack"
-        description="Compact item readout for demo clarity."
+        title="背包"
+        eyebrow="随行包裹"
+        description="用紧凑视图展示物品，方便演示时快速读取。"
       >
         <div className="game-simple-list">
           {inventory.map((item) => (
             <div key={item.id} className="game-simple-list__item">
               <span>{item.label}</span>
-              <strong>x{item.quantity}</strong>
+              <strong>×{item.quantity}</strong>
             </div>
           ))}
         </div>
       </GamePanel>
       <GamePanel
-        title="Player Status"
-        eyebrow="Vitals"
-        description="Health, energy, resources, and current playstyle tags."
+        title="玩家状态"
+        eyebrow="即时状态"
+        description="展示生命、精力、资源以及当前玩法倾向标签。"
       >
         <dl className="game-stat-list">
           {playerStatus.map((stat) => (
@@ -87,9 +88,9 @@ export function GameRightSidebar({
         </div>
       </GamePanel>
       <GamePanel
-        title="Relationship Indicators"
-        eyebrow="NPC Standing"
-        description="Quick trust and relationship readout for the strongest signals."
+        title="关系指示"
+        eyebrow="角色立场"
+        description="快速读取最关键的信任与关系变化。"
       >
         <div className="game-simple-list">
           {relationships.map((relationship) => (
@@ -99,24 +100,24 @@ export function GameRightSidebar({
                 <span>{relationship.disposition}</span>
               </div>
               <div>
-                <span>Trust {relationship.trust}</span>
-                <strong>Rel {relationship.relationship}</strong>
+                <span>信任 {relationship.trust}</span>
+                <strong>关系 {relationship.relationship}</strong>
               </div>
             </div>
           ))}
         </div>
       </GamePanel>
       <GamePanel
-        title="Enemy Alerts"
-        eyebrow="Threat Feed"
-        description="Combat pressure, boss presence, and dynamic world warnings."
+        title="敌情预警"
+        eyebrow="威胁流"
+        description="展示战斗压力、首领存在感与动态世界预警。"
       >
         <div className="game-list">
           {enemyAlerts.map((alert) => (
             <article key={alert.id} className="game-list__card">
               <div className="game-list__card-header">
                 <strong>{alert.label}</strong>
-                <Badge tone={alert.tone}>{alert.tone}</Badge>
+                <Badge tone={alert.tone}>{uiToneLabels[alert.tone]}</Badge>
               </div>
               <p>{alert.detail}</p>
             </article>

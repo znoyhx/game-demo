@@ -6,6 +6,7 @@ export * from './debugScenarioController';
 export * from './eventTriggerController';
 export * from './npcInteractionController';
 export * from './playerModelController';
+export * from './questDebugController';
 export * from './questProgressionController';
 export * from './reviewGenerationController';
 export * from './saveLoadController';

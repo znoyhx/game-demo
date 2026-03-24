@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useShallow } from 'zustand/react/shallow';
 
 import {
   appAreaDebugController,
+  appQuestDebugController,
   appWorldCreationController,
 } from '../../app/runtime/appRuntime';
 import { RenderingPreviewGallery } from '../../components/debug/RenderingPreviewGallery';
 import { DebugPanel } from '../../components/debug/DebugPanel';
+import { QuestDebugPanel } from '../../components/debug/QuestDebugPanel';
 import { PageFrame } from '../../components/layout/PageFrame';
 import { SectionCard } from '../../components/layout/SectionCard';
 import { Badge } from '../../components/pixel-ui/Badge';
@@ -44,22 +47,22 @@ const debugText = locale.pages.debug;
 
 export function DebugPage() {
   const navigate = useNavigate();
-  const logs = useGameLogStore((state) => state.entries.slice(0, 8));
+  const logEntries = useGameLogStore((state) => state.entries);
   const worldSummary = useGameStore(selectWorldSummary);
   const worldRuntime = useGameStore(selectWorldRuntime);
   const worldFlags = useGameStore(selectWorldFlags);
   const currentArea = useGameStore(selectCurrentArea);
-  const areas = useGameStore(selectAreas);
+  const areas = useGameStore(useShallow(selectAreas));
   const mapState = useGameStore(selectMapState);
-  const questDefinitions = useGameStore(selectQuestDefinitions);
-  const questProgressEntries = useGameStore(selectQuestProgressEntries);
-  const npcDefinitions = useGameStore(selectNpcDefinitions);
-  const npcStates = useGameStore(selectNpcStates);
+  const questDefinitions = useGameStore(useShallow(selectQuestDefinitions));
+  const questProgressEntries = useGameStore(useShallow(selectQuestProgressEntries));
+  const npcDefinitions = useGameStore(useShallow(selectNpcDefinitions));
+  const npcStates = useGameStore(useShallow(selectNpcStates));
   const player = useGameStore(selectPlayerState);
   const playerModel = useGameStore(selectPlayerModelState);
-  const combatEncounters = useGameStore(selectCombatEncounters);
+  const combatEncounters = useGameStore(useShallow(selectCombatEncounters));
   const combatState = useGameStore(selectCombatState);
-  const eventDefinitions = useGameStore(selectEventDefinitions);
+  const eventDefinitions = useGameStore(useShallow(selectEventDefinitions));
   const eventHistory = useGameStore(selectEventHistory);
   const eventDirector = useGameStore(selectEventDirector);
   const review = useGameStore(selectCurrentReview);
@@ -77,12 +80,28 @@ export function DebugPage() {
   const [selectedEnvironmentStateId, setSelectedEnvironmentStateId] = useState<string | null>(null);
   const [areaDebugStatusMessage, setAreaDebugStatusMessage] = useState<string | null>(null);
   const [busyAreaDebugActionId, setBusyAreaDebugActionId] = useState<string | null>(null);
+  const [selectedQuestId, setSelectedQuestId] = useState<string | null>(null);
+  const [selectedQuestStageIndex, setSelectedQuestStageIndex] = useState(0);
+  const [selectedQuestBranchId, setSelectedQuestBranchId] = useState('');
+  const [questDebugStatusMessage, setQuestDebugStatusMessage] = useState<string | null>(null);
+  const [busyQuestDebugActionId, setBusyQuestDebugActionId] = useState<string | null>(null);
+  const logs = useMemo(() => logEntries.slice(0, 8), [logEntries]);
 
   useEffect(() => {
     if (!selectedAreaId || !areas.some((area) => area.id === selectedAreaId)) {
       setSelectedAreaId(currentArea?.id ?? areas[0]?.id ?? null);
     }
   }, [areas, currentArea?.id, selectedAreaId]);
+
+  useEffect(() => {
+    if (!selectedQuestId || !questDefinitions.some((quest) => quest.id === selectedQuestId)) {
+      const nextQuest =
+        questDefinitions.find((quest) => quest.type === 'main') ??
+        questDefinitions[0] ??
+        null;
+      setSelectedQuestId(nextQuest?.id ?? null);
+    }
+  }, [questDefinitions, selectedQuestId]);
 
   const selectedArea = useMemo(
     () => areas.find((area) => area.id === selectedAreaId) ?? currentArea ?? areas[0] ?? null,
@@ -168,13 +187,43 @@ export function DebugPage() {
     ],
   );
 
+  const questDebugSnapshot = appQuestDebugController.getDebugSnapshot();
+
+  const selectedQuestSummary = useMemo(
+    () =>
+      questDebugSnapshot.quests.find((quest) => quest.questId === selectedQuestId) ??
+      questDebugSnapshot.quests[0] ??
+      null,
+    [questDebugSnapshot.quests, selectedQuestId],
+  );
+
+  useEffect(() => {
+    if (!selectedQuestSummary) {
+      setSelectedQuestStageIndex(0);
+      setSelectedQuestBranchId('');
+      return;
+    }
+
+    setSelectedQuestStageIndex(
+      Math.min(
+        selectedQuestSummary.currentObjectiveIndex,
+        Math.max(selectedQuestSummary.completionConditions.length - 1, 0),
+      ),
+    );
+    setSelectedQuestBranchId(
+      selectedQuestSummary.chosenBranchId ??
+        selectedQuestSummary.branches[0]?.id ??
+        '',
+    );
+  }, [selectedQuestSummary]);
+
   const handlePreviewControlSelect = useCallback((controlId: string) => {
     setPreviewControlId(controlId);
-    setPreviewStatusMessage(`Previewed control "${controlId}" in isolation mode.`);
+    setPreviewStatusMessage(`已在隔离预览中查看控件「${controlId}」。`);
   }, []);
 
   const handlePreviewMarkerActivate = useCallback((markerId: string) => {
-    setPreviewStatusMessage(`Previewed scene marker "${markerId}" without live progression.`);
+    setPreviewStatusMessage(`已在不推进主流程的情况下预览场景标记「${markerId}」。`);
   }, []);
 
   const preview = useMemo(
@@ -241,7 +290,7 @@ export function DebugPage() {
   const handleClearForcedScene = useCallback(() => {
     patchDebugToolsState({ forcedAreaId: null });
     setPreviewControlId(null);
-    setPreviewStatusMessage('Forced scene render cleared. The main game view will use live progression again.');
+    setPreviewStatusMessage('已清除强制场景预览，主游戏界面会重新使用实时进度。');
   }, [patchDebugToolsState]);
 
   const runAreaDebugTask = useCallback(
@@ -263,6 +312,187 @@ export function DebugPage() {
     [],
   );
 
+  const runQuestDebugTask = useCallback(
+    async <T,>(actionId: string, task: () => Promise<T>) => {
+      setBusyQuestDebugActionId(actionId);
+      setQuestDebugStatusMessage(null);
+
+      try {
+        return await task();
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : '任务调试执行失败。';
+        setQuestDebugStatusMessage(message);
+        return null;
+      } finally {
+        setBusyQuestDebugActionId(null);
+      }
+    },
+    [],
+  );
+
+  const handleActivateQuest = useCallback(
+    (questId: string) => {
+      const quest = questDebugSnapshot.quests.find((entry) => entry.questId === questId);
+
+      if (!quest) {
+        setQuestDebugStatusMessage('未找到要调试的任务。');
+        return;
+      }
+
+      void runQuestDebugTask('quest-activate', async () => {
+        const result = await appQuestDebugController.activateQuest(questId);
+
+        if (!result) {
+          setQuestDebugStatusMessage('任务激活失败。');
+          return null;
+        }
+
+        setQuestDebugStatusMessage(`已将「${quest.title}」设为进行中。`);
+        return result;
+      });
+    },
+    [questDebugSnapshot.quests, runQuestDebugTask],
+  );
+
+  const handleSetQuestStatus = useCallback(
+    (questId: string, status: 'completed' | 'failed') => {
+      const quest = questDebugSnapshot.quests.find((entry) => entry.questId === questId);
+
+      if (!quest) {
+        setQuestDebugStatusMessage('未找到要调试的任务。');
+        return;
+      }
+
+      void runQuestDebugTask(`quest-status-${status}`, async () => {
+        const result = await appQuestDebugController.setQuestStatus(questId, status);
+
+        if (!result) {
+          setQuestDebugStatusMessage('任务状态更新失败。');
+          return null;
+        }
+
+        setQuestDebugStatusMessage(
+          status === 'completed'
+            ? `已直接完成「${quest.title}」。`
+            : `已直接判定「${quest.title}」失败。`,
+        );
+        return result;
+      });
+    },
+    [questDebugSnapshot.quests, runQuestDebugTask],
+  );
+
+  const handleChooseQuestBranch = useCallback(
+    (questId: string, branchId: string) => {
+      const quest = questDebugSnapshot.quests.find((entry) => entry.questId === questId);
+      const branch = quest?.branches.find((entry) => entry.id === branchId);
+
+      if (!quest || !branch) {
+        setQuestDebugStatusMessage('当前任务没有可用分支。');
+        return;
+      }
+
+      void runQuestDebugTask('quest-branch', async () => {
+        const result = await appQuestDebugController.chooseBranch(questId, branchId);
+
+        if (!result || 'ok' in result && result.ok === false) {
+          setQuestDebugStatusMessage('分支应用失败，请先满足分支前置条件。');
+          return null;
+        }
+
+        setQuestDebugStatusMessage(`已将「${quest.title}」切换到分支「${branch.label}」。`);
+        return result;
+      });
+    },
+    [questDebugSnapshot.quests, runQuestDebugTask],
+  );
+
+  const handleJumpQuestStage = useCallback(
+    (questId: string, stageIndex: number, branchId?: string) => {
+      const quest = questDebugSnapshot.quests.find((entry) => entry.questId === questId);
+
+      if (!quest) {
+        setQuestDebugStatusMessage('未找到要调试的任务。');
+        return;
+      }
+
+      void runQuestDebugTask('quest-stage', async () => {
+        const result = await appQuestDebugController.jumpToStage({
+          questId,
+          stageIndex,
+          chosenBranchId: branchId || undefined,
+        });
+
+        if (!result) {
+          setQuestDebugStatusMessage('阶段跳转失败。');
+          return null;
+        }
+
+        setQuestDebugStatusMessage(
+          `已将「${quest.title}」跳到第 ${stageIndex + 1} 阶验证节点。`,
+        );
+        return result;
+      });
+    },
+    [questDebugSnapshot.quests, runQuestDebugTask],
+  );
+
+  const handleSimulateQuestCondition = useCallback(
+    (questId: string, conditionId: string) => {
+      const quest = questDebugSnapshot.quests.find((entry) => entry.questId === questId);
+      const condition =
+        quest?.triggerConditions.find((entry) => entry.id === conditionId) ??
+        quest?.completionConditions.find((entry) => entry.id === conditionId) ??
+        quest?.failureConditions.find((entry) => entry.id === conditionId);
+
+      if (!quest || !condition) {
+        setQuestDebugStatusMessage('未找到要模拟的任务条件。');
+        return;
+      }
+
+      void runQuestDebugTask(`quest-condition-${conditionId}`, async () => {
+        const result = await appQuestDebugController.simulateCondition({
+          questId,
+          conditionId,
+        });
+
+        if (!result) {
+          setQuestDebugStatusMessage('条件模拟失败。');
+          return null;
+        }
+
+        setQuestDebugStatusMessage(`已模拟条件「${condition.label}」。`);
+        return result;
+      });
+    },
+    [questDebugSnapshot.quests, runQuestDebugTask],
+  );
+
+  const handleResetQuestDebug = useCallback(
+    (questId: string) => {
+      const quest = questDebugSnapshot.quests.find((entry) => entry.questId === questId);
+
+      if (!quest) {
+        setQuestDebugStatusMessage('未找到要回退的任务。');
+        return;
+      }
+
+      void runQuestDebugTask('quest-reset', async () => {
+        const result = await appQuestDebugController.resetQuest(questId);
+
+        if (!result) {
+          setQuestDebugStatusMessage('当前任务还没有可回退的调试快照。');
+          return null;
+        }
+
+        setQuestDebugStatusMessage(`已将「${quest.title}」回退到首次调试前的快照。`);
+        return result;
+      });
+    },
+    [questDebugSnapshot.quests, runQuestDebugTask],
+  );
+
   const handleJumpToArea = useCallback(
     (openGameRoute: boolean) => {
       if (!selectedArea) {
@@ -282,8 +512,8 @@ export function DebugPage() {
 
           setAreaDebugStatusMessage(
             openGameRoute
-              ? `Jumped to ${selectedArea.name} and opened the live game route.`
-              : `Jumped live state to ${selectedArea.name}. You can now test exits and returns without full progression.`,
+              ? `已跳转到「${selectedArea.name}」，并打开实时游戏路线。`
+              : `已把实时状态跳到「${selectedArea.name}」，现在可直接测试进出与返回流程。`,
           );
 
           if (openGameRoute) {
@@ -318,14 +548,14 @@ export function DebugPage() {
           }
 
           if (!result.ok) {
-            setAreaDebugStatusMessage(result.reason ?? 'Area access debug update failed.');
+            setAreaDebugStatusMessage(result.reason ?? '区域通行调试更新失败。');
             return result;
           }
 
           setAreaDebugStatusMessage(
             unlocked
-              ? `${selectedArea.name} is now unlocked for live route testing.`
-              : `${selectedArea.name} has been relocked in runtime state.`,
+              ? `「${selectedArea.name}」现已解锁，可直接测试实时路线。`
+              : `已在运行时状态中重新锁定「${selectedArea.name}」。`,
           );
 
           return result;
@@ -355,13 +585,13 @@ export function DebugPage() {
       if (!result.ok) {
         setAreaDebugStatusMessage(
           result.reason ??
-            `Applied flags for ${selectedArea.name}, but the resolved state differed from the requested target.`,
+            `已对「${selectedArea.name}」写入调试标记，但解析出的环境状态与目标状态不一致。`,
         );
         return result;
       }
 
       setAreaDebugStatusMessage(
-        `Applied ${result.resolvedState?.label ?? selectedEnvironmentStateId} for ${selectedArea.name}.`,
+        `已为「${selectedArea.name}」应用环境「${result.resolvedState?.label ?? selectedEnvironmentStateId}」。`,
       );
       return result;
     });
@@ -570,6 +800,24 @@ export function DebugPage() {
           <p className="section-card__footer">{areaDebugStatusMessage}</p>
         ) : null}
       </SectionCard>
+
+      <QuestDebugPanel
+        snapshot={questDebugSnapshot}
+        selectedQuestId={selectedQuestSummary?.questId ?? null}
+        selectedStageIndex={selectedQuestStageIndex}
+        selectedBranchId={selectedQuestBranchId}
+        busyActionId={busyQuestDebugActionId}
+        statusMessage={questDebugStatusMessage}
+        onSelectQuest={setSelectedQuestId}
+        onStageIndexChange={setSelectedQuestStageIndex}
+        onBranchIdChange={setSelectedQuestBranchId}
+        onActivateQuest={handleActivateQuest}
+        onSetQuestStatus={handleSetQuestStatus}
+        onChooseBranch={handleChooseQuestBranch}
+        onJumpToStage={handleJumpQuestStage}
+        onSimulateCondition={handleSimulateQuestCondition}
+        onResetQuest={handleResetQuestDebug}
+      />
 
       <RenderingPreviewGallery
         preview={preview}

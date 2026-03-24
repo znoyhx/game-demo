@@ -1,13 +1,20 @@
 import type { StoreApi } from 'zustand/vanilla';
 
 import type { GameEventBus } from '../events/domainEvents';
-import type { QuestDefinition, QuestProgress, QuestStatus } from '../schemas';
+import type {
+  NpcState,
+  QuestDefinition,
+  QuestProgress,
+  QuestStatus,
+} from '../schemas';
 import type { GameStoreState } from '../state';
 import { locale } from '../utils/locale';
 import {
   applyNpcRelationChange,
   applyQuestTrigger,
   evaluateQuestAvailability,
+  evaluateQuestBranchSelection,
+  evaluateQuestFailure,
 } from '../rules';
 
 import {
@@ -48,7 +55,92 @@ export class QuestProgressionController {
     return this.store.getState().questProgressById[questId];
   }
 
-  async activateQuest(questId: string) {
+  private buildRuleContext(state: GameStoreState = this.store.getState()) {
+    return {
+      questProgressEntries: state.questProgressOrder.map(
+        (id) => state.questProgressById[id],
+      ),
+      worldFlags: state.worldRuntime.flags,
+      currentAreaId: state.mapState.currentAreaId,
+      visitedAreaIds: state.mapState.visitHistory,
+      playerTags: state.playerModel.tags,
+      eventHistory: state.eventHistory,
+      npcStatesById: state.npcStatesById as Record<string, NpcState>,
+    };
+  }
+
+  private emitQuestUpdated(progress: QuestProgress) {
+    this.eventBus?.emit('QUEST_UPDATED', {
+      questId: progress.questId,
+      status: progress.status,
+      currentObjectiveIndex: progress.currentObjectiveIndex,
+    });
+  }
+
+  private applyTransitionEffects(result: {
+    reward: {
+      gold: number;
+      items: string[];
+      unlockAreaIds: string[];
+      worldFlags: string[];
+    };
+    relationChanges: Array<{ npcId: string; delta: number }>;
+    branchResult?: {
+      id: string;
+    };
+  }) {
+    const state = this.store.getState();
+
+    if (result.reward.gold || result.reward.items.length > 0) {
+      state.setPlayerState({
+        ...state.player,
+        gold: state.player.gold + result.reward.gold,
+        inventory: [...state.player.inventory].concat(
+          result.reward.items.map((itemId) => ({
+            itemId,
+            quantity: 1,
+          })),
+        ),
+      });
+    }
+
+    if (result.reward.worldFlags.length > 0) {
+      state.setWorldFlags(
+        Object.fromEntries(result.reward.worldFlags.map((flag) => [flag, true])),
+      );
+    }
+
+    if (result.reward.unlockAreaIds.length > 0) {
+      state.setUnlockedAreaIds([
+        ...state.mapState.unlockedAreaIds,
+        ...result.reward.unlockAreaIds,
+      ]);
+    }
+
+    for (const relationChange of result.relationChanges) {
+      const npcState = state.npcStatesById[relationChange.npcId];
+      if (!npcState) {
+        continue;
+      }
+
+      state.upsertNpcState(
+        applyNpcRelationChange(npcState, {
+          relationshipDelta: relationChange.delta,
+          timestamp: this.now(),
+          memoryNote: locale.controllers.questProgression.branchMemoryNote(
+            result.branchResult?.id ?? 'default',
+          ),
+        }).state,
+      );
+    }
+  }
+
+  async activateQuest(
+    questId: string,
+    options?: {
+      saveSource?: 'auto' | 'manual' | 'debug';
+    },
+  ) {
     const state = this.store.getState();
     const definition = this.getDefinition(questId);
 
@@ -59,14 +151,19 @@ export class QuestProgressionController {
     const availability = evaluateQuestAvailability({
       definition,
       progress: this.getProgress(questId),
-      questProgressEntries: state.questProgressOrder.map(
-        (id) => state.questProgressById[id],
-      ),
-      worldFlags: state.worldRuntime.flags,
+      ...this.buildRuleContext(state),
       now: this.now(),
     });
 
     if (!availability.ok || !availability.progress) {
+      return availability;
+    }
+
+    if (availability.progress.status === 'active') {
+      return availability.progress;
+    }
+
+    if (availability.progress.status !== 'available') {
       return availability;
     }
 
@@ -84,25 +181,171 @@ export class QuestProgressionController {
       updatedAt: nextProgress.updatedAt,
     });
 
-    this.eventBus?.emit('QUEST_UPDATED', {
+    this.emitQuestUpdated(nextProgress);
+
+    await maybeAutoSave(
+      this.store,
+      this.saveController,
+      options?.saveSource ?? 'auto',
+    );
+
+    return nextProgress;
+  }
+
+  async refreshQuestStatuses(options?: {
+    autoSave?: boolean;
+    saveSource?: 'auto' | 'manual' | 'debug';
+  }) {
+    const state = this.store.getState();
+    const updatedProgressEntries: QuestProgress[] = [];
+    const now = this.now();
+
+    for (const questId of state.questDefinitionOrder) {
+      const definition = this.getDefinition(questId);
+      const progress = this.getProgress(questId);
+
+      if (!definition) {
+        continue;
+      }
+
+      if (progress?.status === 'active') {
+        const failureResult = evaluateQuestFailure(
+          definition,
+          progress,
+          this.buildRuleContext(),
+          now,
+        );
+
+        if (failureResult) {
+          state.upsertQuestProgress(failureResult.progress);
+          state.appendQuestHistory(failureResult.historyEntry);
+          this.emitQuestUpdated(failureResult.progress);
+          updatedProgressEntries.push(failureResult.progress);
+        }
+
+        continue;
+      }
+
+      const availability = evaluateQuestAvailability({
+        definition,
+        progress,
+        ...this.buildRuleContext(),
+        now,
+      });
+
+      if (!availability.progress) {
+        continue;
+      }
+
+      const nextStatus =
+        definition.type === 'dynamic' && availability.status === 'available'
+          ? 'active'
+          : availability.status;
+      const nextProgress: QuestProgress = {
+        ...availability.progress,
+        status: nextStatus,
+        updatedAt: now,
+      };
+      const shouldSkipNewLockedEntry = !progress && nextStatus === 'locked';
+      const hasStatusChanged = progress?.status !== nextProgress.status;
+
+      if (shouldSkipNewLockedEntry || !hasStatusChanged) {
+        continue;
+      }
+
+      state.upsertQuestProgress(nextProgress);
+      state.appendQuestHistory({
+        questId,
+        status: nextProgress.status,
+        note:
+          definition.type === 'dynamic' && nextProgress.status === 'active'
+            ? locale.controllers.questProgression.dynamicActivationNote(
+                definition.title,
+              )
+            : locale.controllers.questProgression.statusSyncNote(
+                definition.title,
+                locale.labels.questStatuses[nextProgress.status],
+              ),
+        updatedAt: now,
+      });
+      this.emitQuestUpdated(nextProgress);
+      updatedProgressEntries.push(nextProgress);
+    }
+
+    if (updatedProgressEntries.length > 0 && options?.autoSave !== false) {
+      await maybeAutoSave(
+        this.store,
+        this.saveController,
+        options?.saveSource ?? 'auto',
+      );
+    }
+
+    return updatedProgressEntries;
+  }
+
+  async chooseBranch(
+    questId: string,
+    branchId: string,
+    options?: {
+      saveSource?: 'auto' | 'manual' | 'debug';
+    },
+  ) {
+    const state = this.store.getState();
+    const definition = this.getDefinition(questId);
+    const progress = this.getProgress(questId);
+
+    if (!definition || !progress) {
+      return null;
+    }
+
+    const branchSelection = evaluateQuestBranchSelection(
+      definition,
+      branchId,
+      this.buildRuleContext(state),
+    );
+
+    if (!branchSelection.ok) {
+      return branchSelection;
+    }
+
+    const nextProgress: QuestProgress = {
+      ...progress,
+      chosenBranchId: branchId,
+      updatedAt: this.now(),
+    };
+
+    state.upsertQuestProgress(nextProgress);
+    state.appendQuestHistory({
       questId,
       status: nextProgress.status,
-      currentObjectiveIndex: nextProgress.currentObjectiveIndex,
+      note: locale.controllers.questProgression.branchSelectedNote(
+        branchSelection.branchResult?.label ?? branchId,
+      ),
+      branchId,
+      updatedAt: nextProgress.updatedAt,
     });
+    this.emitQuestUpdated(nextProgress);
 
-    await maybeAutoSave(this.store, this.saveController, 'auto');
+    await maybeAutoSave(
+      this.store,
+      this.saveController,
+      options?.saveSource ?? 'auto',
+    );
 
     return nextProgress;
   }
 
   async applyTrigger(
     trigger: {
-      type: QuestDefinition['objectives'][number]['type'];
+      type: NonNullable<QuestDefinition['objectives']>[number]['type'];
       targetId?: string;
       count?: number;
       note: string;
     },
     questId?: string,
+    options?: {
+      saveSource?: 'auto' | 'manual' | 'debug';
+    },
   ) {
     const state = this.store.getState();
     const candidateQuestIds = questId
@@ -126,6 +369,7 @@ export class QuestProgressionController {
         trigger,
         this.now(),
         progress.chosenBranchId,
+        this.buildRuleContext(this.store.getState()),
       );
 
       if (!result.ok) {
@@ -134,69 +378,33 @@ export class QuestProgressionController {
 
       state.upsertQuestProgress(result.progress);
       state.appendQuestHistory(result.historyEntry);
-
-      if (result.reward.gold || result.reward.items.length > 0) {
-        state.setPlayerState({
-          ...state.player,
-          gold: state.player.gold + result.reward.gold,
-          inventory: [...state.player.inventory].concat(
-            result.reward.items.map((itemId) => ({
-              itemId,
-              quantity: 1,
-            })),
-          ),
-        });
-      }
-
-      if (result.reward.worldFlags.length > 0) {
-        state.setWorldFlags(
-          Object.fromEntries(
-            result.reward.worldFlags.map((flag) => [flag, true]),
-          ),
-        );
-      }
-
-      if (result.reward.unlockAreaIds.length > 0) {
-        state.setUnlockedAreaIds([
-          ...state.mapState.unlockedAreaIds,
-          ...result.reward.unlockAreaIds,
-        ]);
-      }
-
-      for (const relationChange of result.relationChanges) {
-        const npcState = state.npcStatesById[relationChange.npcId];
-        if (!npcState) {
-          continue;
-        }
-
-        state.upsertNpcState(
-          applyNpcRelationChange(npcState, {
-            relationshipDelta: relationChange.delta,
-            timestamp: this.now(),
-            memoryNote: locale.controllers.questProgression.branchMemoryNote(
-              result.branchResult?.id ?? 'default',
-            ),
-          }).state,
-        );
-      }
-
-      this.eventBus?.emit('QUEST_UPDATED', {
-        questId: candidateQuestId,
-        status: result.progress.status,
-        currentObjectiveIndex: result.progress.currentObjectiveIndex,
-      });
+      this.applyTransitionEffects(result);
+      this.emitQuestUpdated(result.progress);
 
       results.push(result);
     }
 
     if (results.length > 0) {
-      await maybeAutoSave(this.store, this.saveController, 'auto');
+      await this.refreshQuestStatuses({
+        autoSave: false,
+      });
+      await maybeAutoSave(
+        this.store,
+        this.saveController,
+        options?.saveSource ?? 'auto',
+      );
     }
 
     return results;
   }
 
-  async forceQuestStatus(questId: string, status: QuestStatus) {
+  async forceQuestStatus(
+    questId: string,
+    status: QuestStatus,
+    options?: {
+      saveSource?: 'auto' | 'manual' | 'debug';
+    },
+  ) {
     const state = this.store.getState();
     const definition = this.getDefinition(questId);
     const now = this.now();
@@ -205,14 +413,19 @@ export class QuestProgressionController {
       return null;
     }
 
+    const completionConditionCount =
+      definition.completionConditions.length || definition.objectives?.length || 0;
     const progress: QuestProgress = {
       questId,
       status,
-      currentObjectiveIndex:
-        status === 'completed' ? definition.objectives.length : 0,
+      currentObjectiveIndex: status === 'completed' ? completionConditionCount : 0,
       completedObjectiveIds:
         status === 'completed'
-          ? definition.objectives.map((objective) => objective.id)
+          ? (
+              definition.completionConditions.length > 0
+                ? definition.completionConditions
+                : (definition.objectives ?? [])
+            ).map((condition) => condition.id)
           : [],
       updatedAt: now,
     };
@@ -227,13 +440,13 @@ export class QuestProgressionController {
       updatedAt: now,
     });
 
-    this.eventBus?.emit('QUEST_UPDATED', {
-      questId,
-      status,
-      currentObjectiveIndex: progress.currentObjectiveIndex,
-    });
+    this.emitQuestUpdated(progress);
 
-    await maybeAutoSave(this.store, this.saveController, 'debug');
+    await maybeAutoSave(
+      this.store,
+      this.saveController,
+      options?.saveSource ?? 'debug',
+    );
 
     return progress;
   }

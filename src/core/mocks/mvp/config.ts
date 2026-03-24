@@ -6,10 +6,10 @@ export const mockGameConfig: GameConfigState = {
   theme: '灰烬前线',
   worldStyle: '像素奇幻边境',
   difficulty: 'normal',
-  gameGoal: '在灰烬守卫的进攻下重燃守护结界，并让烬陨镇继续坚持下去。',
-  learningGoal: '读取世界状态、应对战术变化，并理解可解释 AI 决策。',
+  gameGoal: '在灰烬守卫的进攻下重燃守护结界，并让烬炉镇继续坚持下去。',
+  learningGoal: '读取世界状态、应对战术变化，并理解可解释智能决策。',
   storyPremise:
-    '烬陨镇是一座正在衰败的守护边镇，封印中的圣所正滑向崩毁，迫使下一任游侠必须在山谷燃尽前守住三个区域。',
+    '烬炉镇是一座正在衰败的守护边镇，封印中的圣所正滑向崩毁，迫使下一任游侠必须在山谷燃尽前守住三个区域。',
   preferredMode: 'hybrid',
   templateId: 'template:emberfall-demo',
   quickStartEnabled: true,
@@ -26,7 +26,7 @@ export const mockResourceState: ResourceState = {
       id: 'resource:tileset-emberfall',
       kind: 'tileset',
       key: 'tileset-emberfall',
-      label: '烬陨镇地表瓦片集',
+      label: '烬炉镇地表瓦片集',
       source: 'assets/tilesets/emberfall.png',
     },
     {

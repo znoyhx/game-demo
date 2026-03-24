@@ -7,6 +7,7 @@ export * from './event.schema';
 export * from './npc.schema';
 export * from './player.schema';
 export * from './quest.schema';
+export * from './questDebug.schema';
 export * from './review.schema';
 export * from './save.schema';
 export * from './schemaRegistry';

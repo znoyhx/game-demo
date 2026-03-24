@@ -5,11 +5,13 @@ import type { GameStoreState } from '../state';
 import { evaluateAreaAccess } from '../rules';
 
 import { maybeAutoSave, type SaveWriter } from './controllerUtils';
+import type { QuestProgressionController } from './questProgressionController';
 
 interface AreaNavigationControllerOptions {
   store: StoreApi<GameStoreState>;
   eventBus?: GameEventBus;
   saveController?: SaveWriter;
+  questController?: QuestProgressionController;
 }
 
 export class AreaNavigationController {
@@ -19,10 +21,13 @@ export class AreaNavigationController {
 
   private readonly saveController?: SaveWriter;
 
+  private readonly questController?: QuestProgressionController;
+
   constructor(options: AreaNavigationControllerOptions) {
     this.store = options.store;
     this.eventBus = options.eventBus;
     this.saveController = options.saveController;
+    this.questController = options.questController;
   }
 
   async enterArea(
@@ -68,6 +73,10 @@ export class AreaNavigationController {
       areaId: targetArea.id,
       previousAreaId: currentArea?.id,
       unlockedAreaIds: this.store.getState().mapState.unlockedAreaIds,
+    });
+
+    await this.questController?.refreshQuestStatuses({
+      autoSave: false,
     });
 
     if (options?.autoSave ?? true) {

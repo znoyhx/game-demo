@@ -150,15 +150,189 @@ export interface GamePageViewModel {
   }>;
 }
 
+const localizedTokenLabels: Record<string, string> = {
+  town: '城镇',
+  wilderness: '荒野',
+  dungeon: '地下遗迹',
+  ruin: '遗迹',
+  shop: '商铺',
+  boss: '首领区域',
+  hidden: '隐藏区域',
+  npc: '角色',
+  item: '物品',
+  portal: '传送',
+  event: '事件',
+  battle: '战斗',
+  guide: '向导',
+  merchant: '商贩',
+  villager: '居民',
+  scholar: '学者',
+  guard: '守卫',
+  enemy: '敌方',
+  mystic: '秘术师',
+  friendly: '友善',
+  neutral: '中立',
+  suspicious: '戒备',
+  hostile: '敌对',
+  afraid: '畏惧',
+  secretive: '隐秘',
+  locked: '未解锁',
+  available: '可接取',
+  active: '进行中',
+  completed: '已完成',
+  failed: '已失败',
+  main: '主线',
+  side: '支线',
+  tutorial: '引导',
+  dynamic: '动态',
+  talk: '对话',
+  visit: '到访',
+  collect: '收集',
+  trigger: '触发',
+  always: '常驻',
+  'on-enter': '进入时',
+  'on-search': '搜索时',
+  'on-event': '事件触发时',
+  'on-alert': '警戒时',
+  'turn-based': '回合制',
+  'semi-realtime': '半即时',
+  supply: '补给',
+  ore: '矿石',
+  herb: '草药',
+  relic: '遗物',
+  ember: '余烬',
+  cache: '储藏',
+  exploration: '探索',
+  story: '剧情',
+  combat: '战斗',
+  risky: '高风险',
+  cautious: '谨慎',
+  hybrid: '混合',
+  aggressive: '强攻',
+  defensive: '防守',
+  counter: '反击',
+  trap: '陷阱',
+  summon: '召唤',
+  'resource-lock': '资源封锁',
+  'save-load': '存档记录',
+  'agent-decision': '代理决策',
+  'npc-interaction': '角色互动',
+  'domain-event': '领域事件',
+  'explanation-input': '解释输入',
+  'ash-scout': '灰烬斥候',
+  'echo-sentry': '回响哨卫',
+  'seal-ward': '封印守卫',
+  'ember-trap': '余烬陷阱',
+  'shadow-lurker': '暗影潜伏者',
+  'ember-salve': '余烬药膏',
+  cindersage: '烬尾草',
+  'relay-core-fragment': '中继核心碎片',
+  dustbloom: '尘华花',
+  'ember-shard': '余烬碎片',
+  'sealed-relic': '封印遗物',
+  'ember-resin': '余烬树脂',
+  'cinder-tonic': '烬火药剂',
+  'archive-pass': '秘库通行证',
+  'bg-cinder-crossroads': '灰烬岔路口背景',
+  'bg-sunken-archive': '沉没秘库背景',
+  'bg-ember-sanctum': '余烬圣所背景',
+  'bg-ember-grotto': '余烬洞窟背景',
+};
+
+const localizedStageCopy: Record<string, string> = {
+  'Town skyline': '城镇天际线',
+  'Market mist': '市集薄雾',
+  'Courtyard floor': '庭院地面',
+  'Main route': '主干路线',
+  'Reflective canal': '映光水渠',
+  'Roofline west': '西侧屋顶线',
+  'Watchtower east': '东侧瞭望塔',
+  'Merchant stalls': '商贩摊位',
+  'Cartography beacon': '测绘信标',
+  'Guide signal': '向导信号',
+  'Bazaar skyline': '集市天际线',
+  'Lantern haze': '灯火薄霭',
+  'Market ground': '市集地面',
+  'Trade aisle': '交易通道',
+  'Booth row': '摊棚长列',
+  'Merchant stand': '商人站台',
+  'Trade shimmer': '交易微光',
+  'Forest canopy sky': '林冠天幕',
+  'Roving fog': '游移薄雾',
+  'Meadow floor': '草甸地面',
+  'Stream bend': '溪流弯道',
+  'Trail branch': '岔路小径',
+  'Dense grove': '密林树丛',
+  'Stone arch': '石拱门',
+  'Watch perch': '瞭望高台',
+  'Glade shimmer': '林间微光',
+  'Trail signal': '路径信号',
+  'Hidden sky': '隐秘天幕',
+  'Hidden veil': '隐秘帷幕',
+  'Hidden clearing': '隐秘空地',
+  'Secret trail': '密径',
+  'Ancient grove': '古树林地',
+  'Hidden arch': '隐秘拱门',
+  'Secret glow': '秘光',
+  'Shadowed vault': '阴影穹厅',
+  'Rune wash': '符文辉光',
+  'Stone floor': '石质地面',
+  'Dungeon walkway': '地宫步道',
+  'Arcane rift': '奥术裂隙',
+  'Ritual gate': '仪式之门',
+  'Broken spire': '破碎尖塔',
+  'Ritual halo': '仪式光环',
+  'Ruin haze': '遗迹迷雾',
+  'Old glow': '古老辉光',
+  'Crumbling stone': '崩裂石地',
+  'Collapsed route': '坍塌路径',
+  'Broken wall': '残破城墙',
+  'Ruin arch': '遗迹拱门',
+  'Ruin shimmer': '遗迹微光',
+  'Boss vault': '首领穹厅',
+  'Boss aura': '首领气场',
+  'Boss floor': '首领场地',
+  'Challenge lane': '挑战通道',
+  'Threat rift': '威胁裂隙',
+  'Boss gate': '首领之门',
+  'Threat spire': '威压尖塔',
+  'Threat halo': '威胁光环',
+  'Boss signal': '首领信号',
+  'Fallback sky': '备用天幕',
+  'Fallback ground': '备用地面',
+  'Fallback arch': '备用拱门',
+  'Ambient stage glow': '环境舞台微光',
+  'Background Layer': '背景层',
+  'Terrain Layer': '地形层',
+  'Structure Layer': '结构层',
+  'Highlight Layer': '高亮层',
+  'Sky and mood placeholders compatible with later parallax rendering.': '天空与氛围占位层，可兼容后续视差渲染。',
+  'Ground, route, and floor massing isolated from structure art.': '将地面、路线与场地体块从建筑美术中拆分展示。',
+  'Buildings and silhouette props rendered on a separate sprite plane.': '建筑与轮廓道具在独立精灵平面中渲染。',
+  'Signals and event emphasis stay decoupled from domain rules.': '信号与事件强调层保持与领域规则解耦。',
+  'Live event flare': '实时事件闪光',
+  'NPC lane': '角色通道',
+  'Portal route': '传送路线',
+  'Item pickup': '物品拾取',
+  'Battle alert': '战斗预警',
+  'Event trigger': '事件触发',
+};
+
+const localizeStageCopy = (value: string) => localizedStageCopy[value] ?? value;
+
 const humanizeToken = (value: string | undefined) => {
   if (!value) {
-    return 'Unknown';
+    return '未知';
   }
 
-  return value
-    .replace(/^[^:]+:/, '')
-    .replace(/[-_]/g, ' ')
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const sanitized = value.replace(/^[^:]+:/, '');
+
+  return (
+    localizedTokenLabels[sanitized] ??
+    sanitized
+      .replace(/[-_]/g, ' ')
+      .replace(/\b\w/g, (letter) => letter.toUpperCase())
+  );
 };
 
 const formatSaveStatus = (
@@ -169,22 +343,22 @@ const formatSaveStatus = (
 } => {
   switch (saveStatus) {
     case 'saved':
-      return { label: 'Saved', tone: 'success' };
+      return { label: '已保存', tone: 'success' };
     case 'saving':
-      return { label: 'Saving', tone: 'info' };
+      return { label: '保存中', tone: 'info' };
     case 'error':
-      return { label: 'Save Error', tone: 'warning' };
+      return { label: '保存失败', tone: 'warning' };
     case 'dirty':
-      return { label: 'Unsaved Changes', tone: 'warning' };
+      return { label: '有未保存变更', tone: 'warning' };
     case 'hydrated':
-      return { label: 'Loaded', tone: 'info' };
+      return { label: '已载入', tone: 'info' };
     default:
-      return { label: 'Idle', tone: 'default' };
+      return { label: '空闲', tone: 'default' };
   }
 };
 
 const formatIsoSummary = (value: string | undefined) =>
-  value ? value.replace('T', ' · ').slice(0, 16) : 'No save timestamp';
+  value ? value.replace('T', ' · ').slice(0, 16) : '暂无存档时间';
 
 const toPercent = (current: number, total: number) =>
   total === 0 ? 0 : Math.round((current / total) * 100);
@@ -203,7 +377,7 @@ const buildSceneTile = (
   animation: AreaSceneTile['animation'] = 'none',
 ): AreaSceneTile => ({
   id,
-  label,
+  label: localizeStageCopy(label),
   variant,
   tone,
   animation,
@@ -221,8 +395,8 @@ const buildLayer = (
   tiles: AreaSceneTile[],
 ): AreaSceneStageModel['layers'][number] => ({
   id,
-  label,
-  detail,
+  label: localizeStageCopy(label),
+  detail: localizeStageCopy(detail),
   kind,
   tiles,
 });
@@ -381,11 +555,11 @@ const fallbackBlueprint: SceneBlueprint = {
 };
 
 const stageLegend: AreaSceneStageModel['legend'] = [
-  { id: 'legend:npc', label: 'NPC lane', tone: 'success' },
-  { id: 'legend:portal', label: 'Portal route', tone: 'info' },
-  { id: 'legend:item', label: 'Item pickup', tone: 'default' },
-  { id: 'legend:battle', label: 'Battle alert', tone: 'warning' },
-  { id: 'legend:event', label: 'Event trigger', tone: 'warning' },
+  { id: 'legend:npc', label: '角色通道', tone: 'success' },
+  { id: 'legend:portal', label: '传送路线', tone: 'info' },
+  { id: 'legend:item', label: '物品拾取', tone: 'default' },
+  { id: 'legend:battle', label: '战斗预警', tone: 'warning' },
+  { id: 'legend:event', label: '事件触发', tone: 'warning' },
 ];
 
 const buildSceneLayers = (
@@ -450,12 +624,12 @@ const logToneByKind: Record<GameLogRecord['kind'], 'default' | 'success' | 'warn
 };
 
 const markerGlyphByType: Record<Area['interactionPoints'][number]['type'], string> = {
-  battle: 'ATK',
-  event: 'EV',
-  item: 'IT',
-  npc: 'NPC',
-  portal: 'GO',
-  shop: 'SH',
+  battle: '战',
+  event: '事',
+  item: '物',
+  npc: '人',
+  portal: '传',
+  shop: '商',
 };
 
 interface MarkerAccessContext {
@@ -497,7 +671,7 @@ const buildSceneMarker = (
     targetArea &&
     (targetArea.isHiddenUntilDiscovered ?? targetArea.type === 'hidden') &&
     !accessContext.mapState.discoveredAreaIds.includes(targetArea.id);
-  const portalGlyph = point.travelMode === 'teleport' ? 'TP' : 'GO';
+  const portalGlyph = point.travelMode === 'teleport' ? '瞬' : '传';
 
   if (point.type === 'portal' && !isPortalAccessible) {
     return {
@@ -505,10 +679,10 @@ const buildSceneMarker = (
       label: point.label,
       caption:
         point.travelMode === 'teleport'
-          ? 'Locked teleport'
+          ? '瞬移点未解锁'
           : isHiddenRoute
-            ? 'Hidden route sealed'
-            : 'Locked route',
+            ? '隐藏路线已封闭'
+            : '路线未解锁',
       glyph: portalGlyph,
       typeLabel: humanizeToken(point.type),
       type: point.type,
@@ -525,7 +699,7 @@ const buildSceneMarker = (
     return {
       id: point.id,
       label: point.label,
-      caption: 'Offline node',
+      caption: '节点离线',
       glyph: point.type === 'portal' ? portalGlyph : markerGlyphByType[point.type],
       typeLabel: humanizeToken(point.type),
       type: point.type,
@@ -552,34 +726,44 @@ const buildSceneMarker = (
 
   switch (point.type) {
     case 'npc':
-      return { ...baseMarker, caption: 'Talk / trust', feedbackTone: 'success', state: 'focus' };
+      return { ...baseMarker, caption: '对话 / 信任', feedbackTone: 'success', state: 'focus' };
     case 'shop':
-      return { ...baseMarker, caption: 'Trade lane', feedbackTone: 'success', state: 'focus' };
+      return { ...baseMarker, caption: '交易通道', feedbackTone: 'success', state: 'focus' };
     case 'portal':
       return {
         ...baseMarker,
         caption:
           point.travelMode === 'teleport'
-            ? 'Teleport point'
+            ? '瞬移点'
             : isHiddenRoute
-              ? 'Hidden route'
-              : 'Area route',
+              ? '隐藏路线'
+              : '区域路线',
         feedbackTone: point.travelMode === 'teleport' ? 'warning' : 'info',
         state: 'focus',
       };
     case 'battle':
-      return { ...baseMarker, caption: 'Engage battle', feedbackTone: 'warning', state: 'alert' };
+      return { ...baseMarker, caption: '进入战斗', feedbackTone: 'warning', state: 'alert' };
     case 'event':
       return {
         ...baseMarker,
-        caption: isPendingEvent ? 'Pending trigger' : 'World event',
+        caption: isPendingEvent ? '待触发事件' : '世界事件',
         feedbackTone: isPendingEvent ? 'warning' : 'info',
         state: isPendingEvent ? 'alert' : 'focus',
       };
     case 'item':
     default:
-      return { ...baseMarker, caption: 'Collectable', feedbackTone: 'default', state: 'idle' };
+      return { ...baseMarker, caption: '可收集物', feedbackTone: 'default', state: 'idle' };
   }
+};
+
+const getQuestStepList = (definition: QuestDefinition | undefined) => {
+  if (!definition) {
+    return [];
+  }
+
+  return definition.completionConditions.length > 0
+    ? definition.completionConditions
+    : definition.objectives ?? [];
 };
 
 export function buildGamePageViewModel(
@@ -612,16 +796,17 @@ export function buildGamePageViewModel(
     .filter((progress) => progress.status === 'active')
     .map((progress) => {
       const definition = questDefinitionsById[progress.questId];
+      const questSteps = getQuestStepList(definition);
       const objective =
-        definition?.objectives[progress.currentObjectiveIndex] ??
-        definition?.objectives[definition.objectives.length - 1];
+        questSteps[progress.currentObjectiveIndex] ??
+        questSteps[questSteps.length - 1];
 
       return {
         id: progress.questId,
         title: definition?.title ?? humanizeToken(progress.questId),
         status: humanizeToken(progress.status),
-        objective: objective?.label ?? 'Objective ready',
-        progress: `${progress.completedObjectiveIds.length}/${definition?.objectives.length ?? 0} objectives`,
+        objective: objective?.label ?? '目标已就绪',
+        progress: `${progress.completedObjectiveIds.length}/${questSteps.length} 个目标`,
       };
     });
 
@@ -633,7 +818,7 @@ export function buildGamePageViewModel(
     return {
       id: eventId,
       title: event?.title ?? humanizeToken(eventId),
-      detail: event?.description ?? 'Dynamic world trigger available.',
+      detail: event?.description ?? '可触发的动态世界事件已就绪。',
       isPending: pending,
       isTriggered: triggered,
     };
@@ -653,17 +838,17 @@ export function buildGamePageViewModel(
     }),
   );
   const stageModel = areaSceneStageModelSchema.parse({
-    rendererLabel: 'DOM layered stage placeholder',
+    rendererLabel: '分层舞台占位渲染',
     backgroundLabel:
       currentArea?.backgroundKey
-        ? `${humanizeToken(currentArea.backgroundKey)} backdrop`
-        : `${humanizeToken(currentArea?.type)} palette`,
-    engineTargets: ['Phaser-ready', 'Pixi-ready'],
+        ? `${humanizeToken(currentArea.backgroundKey)}`
+        : `${humanizeToken(currentArea?.type)}主色板`,
+    engineTargets: ['场景引擎预留', '像素渲染预留'],
     highlightSummary: pendingEventIds.length
-      ? `${pendingEventIds.length} live stage highlights`
+      ? `当前有 ${pendingEventIds.length} 处场景高亮`
       : stageMarkers.some((marker) => marker.type === 'battle')
-        ? 'Combat route primed for emphasis'
-        : 'Layer stack stable for art upgrade',
+        ? '战斗路线已进入强调态'
+        : '分层结构已稳定，可继续美术升级',
     stageTone: pendingEventIds.length
       ? 'warning'
       : stageMarkers.some((marker) => marker.type === 'battle')
@@ -721,28 +906,28 @@ export function buildGamePageViewModel(
       label: rule.label,
       detail: `${humanizeToken(rule.trigger)} · ${humanizeToken(
         rule.enemyArchetype ?? rule.enemyNpcId ?? rule.encounterId,
-      )} · max ${rule.maxActive}`,
+      )} · 上限 ${rule.maxActive}`,
       tone:
         rule.trigger === 'always' || currentArea?.type === 'boss'
           ? ('warning' as const)
           : ('info' as const),
     })) ?? []),
     ...(source.combatState
-      ? [
-          {
-            id: `combat:${source.combatState.encounterId}`,
-            label: `${source.combatState.enemy.name} engaged`,
-            detail: `Turn ${source.combatState.turn} · Active tactic ${humanizeToken(source.combatState.activeTactic)}`,
-            tone: 'warning' as const,
-          },
-        ]
+        ? [
+            {
+              id: `combat:${source.combatState.encounterId}`,
+              label: `${source.combatState.enemy.name} 已交战`,
+              detail: `第 ${source.combatState.turn} 回合 · 当前战术 ${humanizeToken(source.combatState.activeTactic)}`,
+              tone: 'warning' as const,
+            },
+          ]
       : []),
     ...source.combatEncounters
       .filter((encounter) => encounter.areaId === currentArea?.id)
       .map((encounter) => ({
         id: encounter.id,
         label: encounter.title,
-        detail: `${humanizeToken(encounter.mode)} encounter ready with ${encounter.tacticPool.length} tactic modes`,
+        detail: `${humanizeToken(encounter.mode)}遭遇已就绪，含 ${encounter.tacticPool.length} 种战术模式`,
         tone: 'info' as const,
       })),
     ...currentAreaEvents
@@ -786,7 +971,7 @@ export function buildGamePageViewModel(
       : []),
     ...source.playerModel.rationale.slice(0, 2).map((summary, index) => ({
       id: `player-model:${index}`,
-      title: index === 0 ? 'Player model' : 'Behavior pattern',
+      title: index === 0 ? '玩家模型' : '行为模式',
       summary,
       tone: 'info' as const,
     })),
@@ -797,13 +982,13 @@ export function buildGamePageViewModel(
       tone: explanation.type === 'combat' ? ('warning' as const) : ('success' as const),
     })) ?? []),
     ...(source.eventDirector.pacingNote
-      ? [
-          {
-            id: 'director:pacing',
-            title: 'Game master pacing',
-            summary: source.eventDirector.pacingNote,
-            tone: 'default' as const,
-          },
+        ? [
+            {
+              id: 'director:pacing',
+              title: '游戏主持节奏',
+              summary: source.eventDirector.pacingNote,
+              tone: 'default' as const,
+            },
         ]
       : []),
   ].slice(0, 4);
@@ -812,9 +997,9 @@ export function buildGamePageViewModel(
     topBar: {
       worldName: source.worldSummary.name,
       worldSubtitle: source.worldSummary.subtitle,
-      currentArea: currentArea?.name ?? 'Unknown area',
+      currentArea: currentArea?.name ?? '未知区域',
       areaType: humanizeToken(currentArea?.type),
-      timeWeather: `${source.worldRuntime.timeOfDay ?? 'Unknown time'} · ${source.worldRuntime.weather ?? 'Unknown weather'}`,
+      timeWeather: `${source.worldRuntime.timeOfDay ?? '未知时段'} · ${source.worldRuntime.weather ?? '未知天气'}`,
       saveStatus: saveStatus.label,
       saveDetail: `${source.saveMetadata.label ?? source.saveMetadata.slot ?? source.saveMetadata.id} · ${formatIsoSummary(source.saveMetadata.updatedAt)}`,
       saveTone: saveStatus.tone,
@@ -825,12 +1010,12 @@ export function buildGamePageViewModel(
         name: area.name,
         status:
           area.id === currentArea?.id
-            ? 'Current'
+            ? '当前'
             : source.mapState.unlockedAreaIds.includes(area.id)
-              ? 'Unlocked'
+              ? '已解锁'
               : source.mapState.discoveredAreaIds.includes(area.id)
-                ? 'Known'
-                : 'Sealed',
+                ? '已知'
+                : '封闭',
         isCurrent: area.id === currentArea?.id,
         isDiscovered: source.mapState.discoveredAreaIds.includes(area.id),
         isUnlocked:
@@ -846,29 +1031,29 @@ export function buildGamePageViewModel(
       ),
       progressMetrics: [
         {
-          label: 'Discovered',
+          label: '已发现',
           value: `${source.mapState.discoveredAreaIds.length}/${source.areas.length}`,
         },
         {
-          label: 'Unlocked',
+          label: '已解锁',
           value: `${source.mapState.unlockedAreaIds.length}/${source.areas.length}`,
         },
         {
-          label: 'Visits',
+          label: '到访次数',
           value: `${source.mapState.visitHistory.length}`,
         },
       ],
       areaSummary: currentArea
-        ? `${currentAreaEnvironment?.label ?? humanizeToken(currentArea.type)} · ${currentArea.resourceNodes.length} resource nodes · ${currentArea.enemySpawnRules.length} spawn rules`
-        : 'Explore the current region to uncover more routes.',
+        ? `${currentAreaEnvironment?.label ?? humanizeToken(currentArea.type)} · ${currentArea.resourceNodes.length} 个资源点 · ${currentArea.enemySpawnRules.length} 条刷怪规则`
+        : '继续探索当前区域，解锁更多路线。',
     },
     scene: {
-      areaName: currentArea?.name ?? 'Unknown area',
+      areaName: currentArea?.name ?? '未知区域',
       areaType: humanizeToken(currentArea?.type),
       description: currentArea
         ? `${currentArea.description} 当前环境：${currentAreaEnvironment?.label ?? humanizeToken(currentArea.type)}。`
-        : 'No active area is loaded. Restore or create a world to continue.',
-      sceneStatus: `${stageModel.layers.length} render layers · ${stageModel.markers.length} interaction points · ${currentAreaEvents.length} area events · ${currentArea?.resourceNodes.length ?? 0} resource nodes · ${currentArea?.enemySpawnRules.length ?? 0} spawn rules`,
+        : '当前没有已载入的活动区域，请先恢复存档或创建世界。',
+      sceneStatus: `${stageModel.layers.length} 层渲染 · ${stageModel.markers.length} 个交互点 · ${currentAreaEvents.length} 个区域事件 · ${currentArea?.resourceNodes.length ?? 0} 个资源点 · ${currentArea?.enemySpawnRules.length ?? 0} 条刷怪规则`,
       stage: stageModel,
       npcs: (currentArea?.npcIds ?? []).map((npcId) => {
         const definition = npcDefinitionsById[npcId];
@@ -891,10 +1076,10 @@ export function buildGamePageViewModel(
         : [
             {
               id: 'quest:none',
-              title: 'No active quests',
-              status: 'Idle',
-              objective: 'Use the debug route or interact with NPCs to activate quest beats.',
-              progress: '0/0 objectives',
+              title: '暂无进行中的任务',
+              status: '空闲',
+              objective: '可通过调试入口或与区域角色互动来激活任务节点。',
+              progress: '0/0 个目标',
             },
           ],
       inventory: source.player.inventory.map((item) => ({
@@ -904,19 +1089,19 @@ export function buildGamePageViewModel(
       })),
       playerStatus: [
         {
-          label: 'HP',
+          label: '生命',
           value: `${source.player.hp}/${source.player.maxHp}`,
         },
         {
-          label: 'Energy',
+          label: '精力',
           value: `${source.player.energy ?? 0}`,
         },
         {
-          label: 'Gold',
+          label: '金币',
           value: `${source.player.gold}`,
         },
         {
-          label: 'Dominant Style',
+          label: '主导风格',
           value: humanizeToken(
             source.playerModel.dominantStyle ?? source.playerModel.tags[0],
           ),
@@ -929,8 +1114,8 @@ export function buildGamePageViewModel(
         : [
             {
               id: 'enemy-alert:none',
-              label: 'Threat level stable',
-              detail: 'No current boss escalation or hostile event is pressing this area.',
+              label: '威胁等级稳定',
+              detail: '当前区域没有首领升级压力，也没有敌对事件正在逼近。',
               tone: 'success',
             },
           ],
@@ -940,9 +1125,9 @@ export function buildGamePageViewModel(
       : [
           {
             id: 'log:none',
-            label: 'Awaiting action',
-            detail: 'Interact with the world to populate the runtime feed.',
-            meta: 'Idle',
+            label: '等待行动',
+            detail: '与世界发生互动后，这里会填充新的运行记录。',
+            meta: '空闲',
             tone: 'default',
             emphasis: 'default',
           },
@@ -952,8 +1137,8 @@ export function buildGamePageViewModel(
       : [
           {
             id: 'tip:none',
-            title: 'Explainability pending',
-            summary: 'Talk, fight, or trigger events to surface visible AI rationale here.',
+            title: '可解释信息待生成',
+            summary: '进行对话、战斗或触发事件后，这里会展示清晰可见的智能决策依据。',
             tone: 'default',
           },
         ],

@@ -1,4 +1,4 @@
-export const MOCK_SCHEMA_VERSION = '0.1.0';
+export const MOCK_SCHEMA_VERSION = '0.2.0';
 
 export const mockTimeline = {
   worldCreatedAt: '2026-03-23T00:00:00.000Z',
@@ -34,10 +34,13 @@ export const mockIds = {
     ashWarden: 'npc:ash-warden',
   },
   quests: {
+    tutorial: 'quest:calibrate-the-watchfire',
     main: 'quest:rekindle-the-ward',
     sideSupply: 'quest:brew-cinder-tonic',
     sideArchive: 'quest:catalogue-archive-echoes',
     sidePatrol: 'quest:hold-the-south-gate',
+    hidden: 'quest:recover-the-banned-chant',
+    dynamic: 'quest:contain-the-countermeasure',
   },
   events: {
     ashfallWarning: 'event:ashfall-warning',

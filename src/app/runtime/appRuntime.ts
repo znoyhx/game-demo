@@ -6,6 +6,7 @@ import {
   EventTriggerController,
   NpcInteractionController,
   PlayerModelController,
+  QuestDebugController,
   QuestProgressionController,
   ReviewGenerationController,
   SaveLoadController,
@@ -30,6 +31,12 @@ export const appQuestProgressionController = new QuestProgressionController({
   saveController: appSaveLoadController,
 });
 
+export const appQuestDebugController = new QuestDebugController({
+  store: gameStore,
+  questController: appQuestProgressionController,
+  saveController: appSaveLoadController,
+});
+
 export const appReviewGenerationController = new ReviewGenerationController({
   store: gameStore,
   agents: appAgents,
@@ -50,6 +57,7 @@ export const appAreaNavigationController = new AreaNavigationController({
   store: gameStore,
   eventBus: gameEventBus,
   saveController: appSaveLoadController,
+  questController: appQuestProgressionController,
 });
 
 export const appAreaDebugController = new AreaDebugController({

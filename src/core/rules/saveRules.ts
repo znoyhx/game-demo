@@ -1,6 +1,6 @@
 import { saveSnapshotSchema, type LoadResult, type SaveSnapshot } from '../schemas';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = '0.1.0';
+export const CURRENT_SAVE_SCHEMA_VERSION = '0.2.0';
 
 export interface SaveValidator {
   validate(snapshot: unknown): LoadResult;
@@ -73,7 +73,10 @@ export const migrateSaveSnapshot = (snapshot: unknown): LoadResult =>
 
 export const validateOrMigrateSaveSnapshot = (snapshot: unknown): LoadResult => {
   const validation = validateSaveSnapshot(snapshot);
-  if (validation.ok) {
+  if (
+    validation.ok &&
+    validation.snapshot?.metadata.version === CURRENT_SAVE_SCHEMA_VERSION
+  ) {
     return validation;
   }
 

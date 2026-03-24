@@ -190,6 +190,7 @@ Translate user actions and system triggers into coordinated use cases.
 * `combatController`
 * `saveController`
 * `areaDebugController`
+* `questDebugController`
 * `debugScenarioController`
 
 ---
@@ -466,6 +467,8 @@ Enable short-path verification of every main system.
 * area jump / unlock / relock / environment controls
 * save manager
 * quest controls
+* quest log inspection
+* quest dependency graph inspection
 * NPC relation editor
 * event trigger panel
 * combat entry simulator
@@ -520,6 +523,28 @@ Keep all user-visible shell, page, controller, and logging copy behind one reusa
 * translate only at display boundaries
 * avoid duplicating labels in pages, controllers, and loggers
 * expand the dictionary before adding new hardcoded UI copy
+
+### Strong Simplified Chinese requirement
+
+For this project, Simplified Chinese is the default and required built-in presentation language for all player-facing pages.
+
+This applies to:
+
+* home page
+* game page
+* debug page
+* review page
+* HUD panels
+* buttons, labels, badges, empty states, status text, and hints
+* visible controller/logging copy rendered in-app
+
+Implementation constraints:
+
+* do not ship built-in English UI copy in normal page flows
+* do not expose raw English enums, schema keys, internal ids, engine placeholders, or agent names directly to users
+* any display text derived from rules, controllers, mocks, logs, or view models must be localized before render
+* debug tooling shown inside the app is also covered by this rule
+* tests should assert Chinese display copy where copy correctness is part of visible behavior
 
 ---
 
@@ -595,7 +620,7 @@ User clicks NPC
 ```text
 Trigger occurs
   -> questProgressController
-  -> questRules.evaluateTransition()
+  -> questRules evaluate trigger / dependency / branch legality
   -> if valid: update quest state
   -> emit QUEST_UPDATED
   -> record log
@@ -746,6 +771,18 @@ Contains:
 * completed quests
 * failed quests
 * quest history/log
+
+Quest definitions should carry:
+
+* trigger conditions
+* completion conditions
+* failure conditions
+* dependencies
+* branch results
+
+Quest progress should remain separate from definitions and only store mutable runtime state such as status, completed step ids, selected branch, and update timestamps.
+
+Quest history/log should be persisted to save snapshots so debug tools and review flows can reconstruct why a quest changed state.
 
 ## 8.4 NPC State
 

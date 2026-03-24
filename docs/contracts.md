@@ -331,6 +331,44 @@ export interface QuestObjective {
 }
 ```
 
+## 6.5.1 Quest Condition
+
+```ts
+export type QuestConditionType =
+  | "talk"
+  | "visit"
+  | "collect"
+  | "battle"
+  | "trigger"
+  | "quest-status"
+  | "world-flag"
+  | "npc-trust"
+  | "player-tag"
+  | "event"
+  | "current-area"
+  | "visited-area";
+
+export interface QuestCondition {
+  id: string;
+  label: string;
+  type: QuestConditionType;
+  targetId?: string;
+  requiredStatus?: QuestStatus;
+  requiredCount?: number;
+  minTrust?: number;
+  playerTag?: PlayerProfileTag;
+}
+```
+
+## 6.5.2 Quest Dependency
+
+```ts
+export interface QuestDependency {
+  questId: QuestId;
+  requiredStatus: QuestStatus;
+}
+```
+
 ## 6.6 Quest Definition
 
 ```ts
@@ -340,13 +378,13 @@ export interface QuestDefinition {
   title: string;
   description: string;
   giverNpcId?: NpcId;
-  unlockCondition?: {
-    requiredQuestIds?: QuestId[];
-    requiredWorldFlags?: string[];
-  };
-  objectives: QuestObjective[];
+  triggerConditions: QuestCondition[];
+  completionConditions: QuestCondition[];
+  failureConditions: QuestCondition[];
+  dependencies: QuestDependency[];
+  objectives?: QuestObjective[]; // legacy-compatible ordered steps
   reward?: QuestReward;
-  failureCondition?: string;
+  failureCondition?: string; // legacy-compatible descriptive failure text
   branchResults?: QuestBranchResult[];
 }
 ```
@@ -363,6 +401,16 @@ export interface QuestProgress {
   updatedAt: IsoTimestamp;
 }
 ```
+
+Quest legality should always be evaluated against:
+
+- trigger conditions
+- dependencies
+- ordered completion conditions
+- failure conditions
+- optional branch result conditions
+
+Quest logs should be persisted separately from definitions and progress state.
 
 ---
 
