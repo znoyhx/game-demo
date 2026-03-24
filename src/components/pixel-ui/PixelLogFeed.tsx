@@ -20,7 +20,7 @@ interface PixelLogFeedProps {
 export function PixelLogFeed({
   entries,
   className,
-  emptyMessage = 'No log entries yet.',
+  emptyMessage = '暂时还没有日志记录。',
 }: PixelLogFeedProps) {
   if (entries.length === 0) {
     return <p className={cn('pixel-log-feed__empty', className)}>{emptyMessage}</p>;

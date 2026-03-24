@@ -3,7 +3,7 @@ import type { StoreApi } from 'zustand/vanilla';
 import type { AgentSet } from '../agents';
 import type { GameEventBus } from '../events/domainEvents';
 import type { GameLogger } from '../logging';
-import type { EventLogSource } from '../schemas';
+import type { EventLogSource, WorldEvent } from '../schemas';
 import type { GameStoreState } from '../state';
 import { applyNpcRelationChange, applyEventEffects, evaluateEventTrigger } from '../rules';
 
@@ -50,7 +50,33 @@ export class EventTriggerController {
     this.now = options.now ?? defaultTimestampProvider;
   }
 
-  async triggerEvent(eventId: string, source: EventLogSource = 'manual') {
+  private resolveAreaEntryEvents(areaId: string): WorldEvent[] {
+    const state = this.store.getState();
+    const area = state.areasById[areaId];
+
+    if (!area) {
+      return [];
+    }
+
+    return area.eventIds
+      .map((eventId) => state.eventDefinitionsById[eventId])
+      .filter((event): event is WorldEvent => Boolean(event))
+      .filter((event) =>
+        event.triggerConditions.some(
+          (condition) =>
+            condition.type === 'location' &&
+            (!condition.requiredAreaId || condition.requiredAreaId === areaId),
+        ),
+      );
+  }
+
+  async triggerEvent(
+    eventId: string,
+    source: EventLogSource = 'manual',
+    options?: {
+      autoSave?: boolean;
+    },
+  ) {
     const state = this.store.getState();
     const worldEvent = state.eventDefinitionsById[eventId];
 
@@ -96,7 +122,9 @@ export class EventTriggerController {
     }
 
     for (const questId of effect.startQuestIds) {
-      await this.questController?.activateQuest(questId);
+      await this.questController?.activateQuest(questId, {
+        autoSave: false,
+      });
     }
 
     for (const change of effect.npcTrustChanges) {
@@ -138,16 +166,41 @@ export class EventTriggerController {
       autoSave: false,
     });
 
-    await maybeAutoSave(
-      this.store,
-      this.saveController,
-      source === 'debug' ? 'debug' : 'auto',
-    );
+    if (options?.autoSave !== false) {
+      await maybeAutoSave(
+        this.store,
+        this.saveController,
+        source === 'debug' ? 'debug' : 'auto',
+      );
+    }
 
     return {
       evaluation,
       effect,
     };
+  }
+
+  async triggerAreaEntryEvents(
+    areaId: string,
+    options?: {
+      autoSave?: boolean;
+    },
+  ) {
+    const results = [];
+
+    for (const event of this.resolveAreaEntryEvents(areaId)) {
+      results.push(
+        await this.triggerEvent(event.id, 'location', {
+          autoSave: false,
+        }),
+      );
+    }
+
+    if (options?.autoSave ?? true) {
+      await maybeAutoSave(this.store, this.saveController, 'auto');
+    }
+
+    return results;
   }
 
   async evaluateDirectorEvent() {

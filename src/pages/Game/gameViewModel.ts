@@ -4,12 +4,18 @@ import {
   type AreaSceneStageModel,
   type AreaSceneTile,
 } from '../../components/map/areaSceneStage.contract';
+import { buildPixelSceneRenderModel } from '../../components/map/phaser/buildPixelSceneRenderModel';
+import type { PixelSceneRenderModel } from '../../components/map/phaser/pixelSceneRenderer.contract';
 import type { GameLogRecord } from '../../core/logging/logTypes';
 import {
   evaluateAreaAccess,
   isAreaVisibleInNavigation,
   resolveAreaEnvironmentState,
 } from '../../core/rules';
+import {
+  formatNpcDispositionLabel,
+  formatNpcEmotionalStateLabel,
+} from '../../core/utils/displayLabels';
 import type {
   Area,
   CombatEncounterDefinition,
@@ -89,11 +95,13 @@ export interface GamePageViewModel {
     description: string;
     sceneStatus: string;
     stage: AreaSceneStageModel;
+    renderScene: PixelSceneRenderModel;
     npcs: Array<{
       id: string;
       name: string;
       role: string;
       disposition: string;
+      emotionalState: string;
       trust: number;
       relationship: number;
     }>;
@@ -126,6 +134,7 @@ export interface GamePageViewModel {
       trust: number;
       relationship: number;
       disposition: string;
+      emotionalState: string;
     }>;
     enemyAlerts: Array<{
       id: string;
@@ -639,6 +648,8 @@ interface MarkerAccessContext {
   questProgressEntries: QuestProgress[];
   worldFlags: World['flags'];
   npcStatesById: Record<string, NpcState>;
+  eventDefinitionsById: Record<string, WorldEvent>;
+  eventHistory: EventLogEntry[];
 }
 
 const buildSceneMarker = (
@@ -651,6 +662,17 @@ const buildSceneMarker = (
   const isPendingEvent =
     point.type === 'event' &&
     pendingEventIds.includes(point.targetId ?? point.id);
+  const eventId = point.type === 'event' ? (point.targetId ?? point.id) : null;
+  const eventDefinition = eventId
+    ? accessContext.eventDefinitionsById[eventId]
+    : undefined;
+  const isTriggeredEvent =
+    eventId !== null &&
+    accessContext.eventHistory.some((entry) => entry.eventId === eventId);
+  const isCompletedEvent =
+    point.type === 'event' &&
+    isTriggeredEvent &&
+    eventDefinition?.repeatable === false;
   const targetArea =
     point.type === 'portal' && point.targetId
       ? accessContext.areasById[point.targetId]
@@ -701,6 +723,23 @@ const buildSceneMarker = (
       label: point.label,
       caption: '节点离线',
       glyph: point.type === 'portal' ? portalGlyph : markerGlyphByType[point.type],
+      typeLabel: humanizeToken(point.type),
+      type: point.type,
+      targetId: point.targetId,
+      enabled: false,
+      xPercent: clampPercent((point.x / maxX) * 100),
+      yPercent: clampPercent((point.y / maxY) * 100),
+      feedbackTone: 'default',
+      state: 'disabled',
+    };
+  }
+
+  if (isCompletedEvent) {
+    return {
+      id: point.id,
+      label: point.label,
+      caption: '事件已完成',
+      glyph: markerGlyphByType[point.type],
       typeLabel: humanizeToken(point.type),
       type: point.type,
       targetId: point.targetId,
@@ -788,8 +827,16 @@ export function buildGamePageViewModel(
     ? resolveAreaEnvironmentState(currentArea, source.worldFlags)
     : null;
   const scenePoints = currentArea?.interactionPoints ?? [];
-  const maxX = Math.max(12, ...scenePoints.map((point) => point.x));
-  const maxY = Math.max(8, ...scenePoints.map((point) => point.y));
+  const maxX = Math.max(
+    12,
+    (currentArea?.scene.grid.width ?? 13) - 1,
+    ...scenePoints.map((point) => point.x),
+  );
+  const maxY = Math.max(
+    8,
+    (currentArea?.scene.grid.height ?? 9) - 1,
+    ...scenePoints.map((point) => point.y),
+  );
   const saveStatus = formatSaveStatus(source.saveStatus);
 
   const quests = source.questProgressEntries
@@ -835,6 +882,8 @@ export function buildGamePageViewModel(
       questProgressEntries: source.questProgressEntries,
       worldFlags: source.worldFlags,
       npcStatesById,
+      eventDefinitionsById,
+      eventHistory: source.eventHistory,
     }),
   );
   const stageModel = areaSceneStageModelSchema.parse({
@@ -860,6 +909,11 @@ export function buildGamePageViewModel(
     markers: stageMarkers,
     legend: stageLegend,
   });
+  const renderScene = buildPixelSceneRenderModel({
+    area: currentArea,
+    areaTypeLabel: humanizeToken(currentArea?.type),
+    markers: stageMarkers,
+  });
   const visibleAreas = source.areas.filter(
     (area) =>
       isAreaVisibleInNavigation(
@@ -877,7 +931,8 @@ export function buildGamePageViewModel(
         name: definition?.name ?? humanizeToken(npcState.npcId),
         trust: npcState.trust,
         relationship: npcState.relationship,
-        disposition: humanizeToken(npcState.currentDisposition),
+        disposition: formatNpcDispositionLabel(npcState.currentDisposition),
+        emotionalState: formatNpcEmotionalStateLabel(npcState.emotionalState),
         areaId: definition?.areaId,
       };
     })
@@ -898,6 +953,7 @@ export function buildGamePageViewModel(
       trust: relationship.trust,
       relationship: relationship.relationship,
       disposition: relationship.disposition,
+      emotionalState: relationship.emotionalState,
     }));
 
   const enemyAlerts = [
@@ -1055,6 +1111,7 @@ export function buildGamePageViewModel(
         : '当前没有已载入的活动区域，请先恢复存档或创建世界。',
       sceneStatus: `${stageModel.layers.length} 层渲染 · ${stageModel.markers.length} 个交互点 · ${currentAreaEvents.length} 个区域事件 · ${currentArea?.resourceNodes.length ?? 0} 个资源点 · ${currentArea?.enemySpawnRules.length ?? 0} 条刷怪规则`,
       stage: stageModel,
+      renderScene,
       npcs: (currentArea?.npcIds ?? []).map((npcId) => {
         const definition = npcDefinitionsById[npcId];
         const runtime = npcStatesById[npcId];
@@ -1063,7 +1120,12 @@ export function buildGamePageViewModel(
           id: npcId,
           name: definition?.name ?? humanizeToken(npcId),
           role: humanizeToken(definition?.role),
-          disposition: humanizeToken(runtime?.currentDisposition),
+          disposition: runtime
+            ? formatNpcDispositionLabel(runtime.currentDisposition)
+            : '未知',
+          emotionalState: runtime
+            ? formatNpcEmotionalStateLabel(runtime.emotionalState)
+            : '未知',
           trust: runtime?.trust ?? 0,
           relationship: runtime?.relationship ?? 0,
         };

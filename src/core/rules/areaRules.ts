@@ -67,7 +67,7 @@ export const evaluateAreaAccess = (
     targetArea.connectedAreaIds.includes(currentArea.id);
 
   if (!isConnected) {
-    reasons.push('target area is not connected to the current route');
+    reasons.push('目标区域与当前路线并不连通');
     return {
       ...failRule(reasons[0]),
       areaId: targetArea.id,
@@ -81,10 +81,10 @@ export const evaluateAreaAccess = (
 
   if (alreadyUnlocked) {
     return {
-      ...passRule('area is already unlocked'),
+      ...passRule('区域已经解锁'),
       areaId: targetArea.id,
       shouldUnlock: false,
-      reasons: ['area is already unlocked'],
+      reasons: ['区域已经解锁'],
     };
   }
 
@@ -92,10 +92,10 @@ export const evaluateAreaAccess = (
 
   if (!unlockCondition) {
     return {
-      ...passRule('area has no additional unlock conditions'),
+      ...passRule('该区域没有额外解锁条件'),
       areaId: targetArea.id,
       shouldUnlock: true,
-      reasons: ['area has no additional unlock conditions'],
+      reasons: ['该区域没有额外解锁条件'],
     };
   }
 
@@ -103,14 +103,14 @@ export const evaluateAreaAccess = (
     (questId) => !hasCompletedQuest(questId, questProgress),
   );
   if (missingQuestIds.length > 0) {
-    reasons.push(`missing completed quests: ${missingQuestIds.join(', ')}`);
+    reasons.push(`缺少已完成任务：${missingQuestIds.join('、')}`);
   }
 
   const missingWorldFlags = (unlockCondition.requiredWorldFlags ?? []).filter(
     (flag) => worldFlags[flag] !== true,
   );
   if (missingWorldFlags.length > 0) {
-    reasons.push(`missing world flags: ${missingWorldFlags.join(', ')}`);
+    reasons.push(`缺少世界标记：${missingWorldFlags.join('、')}`);
   }
 
   const missingNpcTrust = (unlockCondition.requiredNpcTrust ?? []).filter(
@@ -119,9 +119,9 @@ export const evaluateAreaAccess = (
   );
   if (missingNpcTrust.length > 0) {
     reasons.push(
-      `missing npc trust thresholds: ${missingNpcTrust
+      `缺少角色信任阈值：${missingNpcTrust
         .map((entry) => `${entry.npcId}:${entry.minTrust}`)
-        .join(', ')}`,
+        .join('、')}`,
     );
   }
 
@@ -135,10 +135,10 @@ export const evaluateAreaAccess = (
   }
 
   return {
-    ...passRule('area unlock conditions satisfied'),
+    ...passRule('区域解锁条件已满足'),
     areaId: targetArea.id,
     shouldUnlock: true,
-    reasons: ['area unlock conditions satisfied'],
+    reasons: ['区域解锁条件已满足'],
   };
 };
 

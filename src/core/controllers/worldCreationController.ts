@@ -168,20 +168,40 @@ const buildNpcStates = (
   request: WorldCreationRequest,
   world: World,
   areas: Area[],
+  questDefinitions: QuestDefinition[],
+  questProgressEntries: QuestProgress[],
   timestamp: string,
 ): NpcState[] => {
   const firstArea = areas[0] ?? mockSaveSnapshot.areas[0];
   const secondArea = areas[1] ?? mockSaveSnapshot.areas[1];
   const thirdArea = areas[2] ?? mockSaveSnapshot.areas[2];
-  const mainQuestId =
-    mockQuestDefinitions.find((quest) => quest.type === 'main')?.id ?? mockQuestDefinitions[0]?.id;
-  const merchantQuestId =
-    mockQuestDefinitions.find((quest) => quest.giverNpcId === mockNpcDefinitions[1]?.id)?.id;
-  const scholarQuestId =
-    mockQuestDefinitions.find((quest) => quest.giverNpcId === mockNpcDefinitions[2]?.id)?.id;
-  const guardQuestId =
-    mockQuestDefinitions.find((quest) => quest.giverNpcId === mockNpcDefinitions[3]?.id)?.id;
   const sharedLongTerm = worldCreationText.sharedLongTerm(request.gameGoal.trim());
+  const issuedQuestIdsByNpcId = questDefinitions.reduce<Record<string, string[]>>(
+    (accumulator, definition) => {
+      const progress = questProgressEntries.find(
+        (entry) => entry.questId === definition.id,
+      );
+
+      if (
+        !definition.giverNpcId ||
+        !progress ||
+        (progress.status !== 'active' &&
+          progress.status !== 'completed' &&
+          progress.status !== 'failed')
+      ) {
+        return accumulator;
+      }
+
+      return {
+        ...accumulator,
+        [definition.giverNpcId]: [
+          ...(accumulator[definition.giverNpcId] ?? []),
+          definition.id,
+        ],
+      };
+    },
+    {},
+  );
 
   return mockNpcStates.map((state) =>
     npcStateSchema.parse({
@@ -232,15 +252,10 @@ const buildNpcStates = (
             ? worldCreationText.npcGoals.merchant(request.gameGoal.trim())
             : state.npcId === mockNpcDefinitions[2]?.id
               ? worldCreationText.npcGoals.scholar(request.gameGoal.trim())
-              : state.npcId === mockNpcDefinitions[3]?.id
-                ? worldCreationText.npcGoals.guard(secondArea.name)
-                : worldCreationText.npcGoals.boss(request.gameGoal.trim()),
-      hasGivenQuestIds: [
-        state.npcId === mockNpcDefinitions[0]?.id ? mainQuestId : undefined,
-        state.npcId === mockNpcDefinitions[1]?.id ? merchantQuestId : undefined,
-        state.npcId === mockNpcDefinitions[2]?.id ? scholarQuestId : undefined,
-        state.npcId === mockNpcDefinitions[3]?.id ? guardQuestId : undefined,
-      ].filter((value): value is string => Boolean(value)),
+          : state.npcId === mockNpcDefinitions[3]?.id
+            ? worldCreationText.npcGoals.guard(secondArea.name)
+            : worldCreationText.npcGoals.boss(request.gameGoal.trim()),
+      hasGivenQuestIds: issuedQuestIdsByNpcId[state.npcId] ?? [],
       flags: {
         ...state.flags,
         quickStartSeeded: request.quickStartEnabled,
@@ -483,7 +498,15 @@ const buildSnapshot = (options: {
 }): SaveSnapshot => {
   const { request, timestamp, world, areas, questDefinitions, storyPremise } = options;
   const npcDefinitions = buildNpcDefinitions(request, world, areas);
-  const npcStates = buildNpcStates(request, world, areas, timestamp);
+  const questState = buildQuestProgressEntries(questDefinitions, world, timestamp);
+  const npcStates = buildNpcStates(
+    request,
+    world,
+    areas,
+    questDefinitions,
+    questState.progress,
+    timestamp,
+  );
   const playerTags = derivePlayerTags(request.preferredMode);
   const player = buildPlayerState(request, world, playerTags);
   const playerModel = buildPlayerModelState(request, world, playerTags, timestamp);
@@ -499,7 +522,6 @@ const buildSnapshot = (options: {
     randomnessDisabled: request.devModeEnabled,
   };
   const combatEncounter = buildCombatEncounter(areas, npcDefinitions, world);
-  const questState = buildQuestProgressEntries(questDefinitions, world, timestamp);
   const config = buildGameConfig(request, storyPremise);
   const resources = buildResourceState(request, world, areas, npcDefinitions);
 

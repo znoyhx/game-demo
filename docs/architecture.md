@@ -4,8 +4,8 @@
 
 
 # PixelForge Agent Architecture
-Version: v0.2  
-Status: Initial architecture draft
+Version: v0.3
+Status: Active architecture draft
 
 ---
 
@@ -102,6 +102,9 @@ Render the game interface and present the current world state.
 
 * home/start page
 * game scene
+* Phaser-based pixel scene canvas wrapper
+* runtime-generated sprite sheet registry and animation adapter
+* scene entity rendering layer for player / NPC / portal / event nodes
 * dialogue panel
 * quest panel
 * combat panel
@@ -117,6 +120,7 @@ Render the game interface and present the current world state.
 * surface save/load, area, NPC, quest, combat, and explanation data
 * accept pre-shaped presentation models so DOM placeholders can later swap to Phaser/Pixi renderers without moving domain rules into components
 * support isolated renderer slices and debug preview compositions so map layers, marker overlays, dialogue panels, and quest panels can be tested without full progression
+* keep generated or real art assets behind renderer-only adapters so sprite swaps do not leak into rules, state, controllers, or persistence
 
 ### Must not do
 
@@ -132,6 +136,8 @@ Render the game interface and present the current world state.
 * `GameLayout`
 * `MapViewport`
 * `AreaSceneStage`
+* `PhaserAreaSceneViewport`
+* `PixelAreaScene`
 * `DialoguePanel`
 * `QuestSidebar`
 * `CombatPanel`
@@ -470,6 +476,9 @@ Enable short-path verification of every main system.
 * quest log inspection
 * quest dependency graph inspection
 * NPC relation editor
+* direct NPC dialogue opening
+* NPC trust / relationship / memory injection
+* deterministic NPC branch testing with rollback
 * event trigger panel
 * combat entry simulator
 * player model injection
@@ -548,6 +557,37 @@ Implementation constraints:
 
 ---
 
+## 5.6 Phaser Scene Rendering Adapter
+
+### Purpose
+
+Provide a real-time top-down pixel gameplay viewport without moving domain logic into the renderer.
+
+### Structure
+
+* React wrapper mounts and destroys the Phaser runtime
+* pure presentation builder converts validated area scene data plus localized marker state into a renderer-safe scene model
+* Phaser scene owns only:
+  * tile drawing
+  * placeholder art registry resolution
+  * ambient effect rendering
+  * player movement input
+  * camera follow
+  * collision bodies
+  * entity click / proximity detection
+* callbacks hand control back to existing controllers for NPC dialogue, portal travel, events, and combat
+
+### Boundary Rules
+
+* Phaser runtime must not call rules or persistence directly
+* renderer state such as camera, prompt focus, and movement remains UI-local
+* all cross-layer inputs into the renderer should come from a schema-validated presentation contract
+* the renderer must consume explicit per-area scene definitions (grid, tiles, spawns, portals, decorative layers) instead of inventing layout from area metadata at render time
+* swapping placeholder textures for shipped art must not require controller or store changes
+* art source selection and placeholder-to-atlas migration must stay inside the Phaser rendering adapter
+
+---
+
 # 6. Data Flow Patterns
 
 ## 6.0 World Creation Flow
@@ -606,8 +646,10 @@ User clicks NPC
   -> read NPC state + quest state + player state
   -> call NpcBrainService with typed input
   -> validate response
-  -> apply npcRules / questRules
+  -> apply npcRules / questRules / trade rules
   -> update state
+  -> append memory, reveal gated info, and persist network changes
+  -> build concise interaction explanation payload
   -> emit NPC_INTERACTED / QUEST_UPDATED if needed
   -> trigger autosave if key change occurred
   -> update logs and explanation payloads
@@ -635,6 +677,14 @@ Trigger occurs
 User selects destination
   -> areaController.requestEnter(areaId)
   -> areaRules.checkAccess()
+
+### Scene-driven entry note
+
+When the player sprite overlaps a portal or activates a route marker inside the Phaser scene:
+
+* renderer emits a portal activation callback
+* React route shell forwards it to `areaNavigationController`
+* controller still owns legality, unlock, autosave, and event emission
   -> if allowed: update current area
   -> emit AREA_ENTERED
   -> evaluate event triggers
@@ -698,6 +748,8 @@ src/
     layout/
     pixel-ui/
     map/
+      phaser/
+        runtime/
     npc/
     quest/
     combat/
@@ -760,6 +812,12 @@ Contains:
 * discovered areas
 * unlocked areas
 * area-specific environmental modifiers
+* explicit area scene definitions with:
+  * grid dimensions
+  * blocked/walkable tile data
+  * NPC spawn positions
+  * interaction and portal positions
+  * optional decorative layers
 
 ## 8.3 Quest State
 
@@ -790,7 +848,10 @@ Contains:
 
 * NPC records
 * relationship/trust values
+* emotional state
 * memory summaries
+* revealed fact / secret history
+* relationship-network edges
 * local goals
 * reveal states
 * faction alignment snapshots
@@ -869,6 +930,7 @@ Contains:
 Contains:
 
 * active UI panel and selections
+* selected NPC dialogue targets for direct-open debug flows
 * debug scenario overrides
 * forced encounter/event/tactic state
 * route history and session hydration metadata

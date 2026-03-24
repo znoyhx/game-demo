@@ -136,27 +136,43 @@ export const sampleLevelBuilderOutput: LevelBuilderOutput = {
 export const sampleNpcBrainInput: NpcBrainInput = {
   npcDefinition: sampleNpcDefinition,
   npcState: sampleNpcState,
-  activeQuests: mockQuestProgress.filter((entry) => entry.status === 'active'),
+  questDefinitions: mockQuestDefinitions,
+  questProgressEntries: mockQuestProgress,
   playerState: samplePlayerState,
+  playerModel: samplePlayerModelState,
   recentDialogue: [
     {
       speaker: 'player',
-      text: 'Can the archive route really open the sanctum?',
+      text: '沉没秘库那条路真的还能把圣所打开吗？',
     },
     {
       speaker: 'npc',
-      text: 'It can, if the relay core is restored before the seal hardens again.',
+      text: '可以，但你得先把中继核心重新接上，别让封印彻底硬化。',
     },
   ],
 };
 
 export const sampleNpcBrainOutput: NpcBrainOutput = {
-  npcReply: 'Take Rowan with you and restore the relay before you face the Ash Warden.',
-  updatedDisposition: 'friendly',
+  npcReply: '带上罗文，把中继重新点亮，然后再去面对灰烬守卫。',
   trustDelta: 4,
   relationshipDelta: 6,
-  unlockedQuestIds: [mockIds.quests.sidePatrol],
-  explanationHint: 'Lyra trusts the player after the archive progress and supply delivery.',
+  memoryNote: '莱拉记下了玩家继续沿秘库路线推进。',
+  longTermMemoryNote: '莱拉判断玩家正在稳住前线协作链路。',
+  questOfferIds: [mockIds.quests.sidePatrol],
+  itemTransfers: [],
+  playerGoldDelta: 0,
+  relationshipNetworkChanges: [
+    {
+      targetNpcId: mockIds.npcs.rowan,
+      delta: 6,
+      bond: '协防链路',
+    },
+  ],
+  decisionBasis: [
+    '当前交互意图是任务',
+    '玩家近期到过沉没秘库，相关线索会影响回答',
+  ],
+  explanationHint: '莱拉根据秘库推进、玩家历史与当前语气给出了更明确的回应。',
 };
 
 export const sampleEnemyTacticianInput: EnemyTacticianInput = {

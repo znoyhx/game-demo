@@ -8,21 +8,21 @@ import { areaSceneStageModelSchema } from '../../src/components/map/areaSceneSta
 describe('area scene stage', () => {
   it('renders renderer-ready layers and interaction markers', () => {
     const model = areaSceneStageModelSchema.parse({
-      rendererLabel: 'DOM layered stage placeholder',
-      backgroundLabel: 'Town palette',
-      engineTargets: ['Phaser-ready', 'Pixi-ready'],
-      highlightSummary: '2 live stage highlights',
+      rendererLabel: '分层舞台占位渲染',
+      backgroundLabel: '城镇主色板',
+      engineTargets: ['场景引擎预留', '像素渲染预留'],
+      highlightSummary: '2 处实时舞台高亮',
       stageTone: 'warning',
       layers: [
         {
           id: 'background',
-          label: 'Background Layer',
-          detail: 'Backdrop placeholder',
+          label: '背景层',
+          detail: '背景占位层',
           kind: 'background',
           tiles: [
             {
               id: 'sky',
-              label: 'Sky',
+              label: '天空',
               variant: 'sky',
               tone: 'info',
               animation: 'shimmer',
@@ -35,13 +35,13 @@ describe('area scene stage', () => {
         },
         {
           id: 'terrain',
-          label: 'Terrain Layer',
-          detail: 'Terrain placeholder',
+          label: '地形层',
+          detail: '地形占位层',
           kind: 'terrain',
           tiles: [
             {
               id: 'ground',
-              label: 'Ground',
+              label: '地面',
               variant: 'ground',
               tone: 'default',
               animation: 'none',
@@ -54,13 +54,13 @@ describe('area scene stage', () => {
         },
         {
           id: 'structures',
-          label: 'Structure Layer',
-          detail: 'Structure placeholder',
+          label: '结构层',
+          detail: '结构占位层',
           kind: 'structures',
           tiles: [
             {
               id: 'roof',
-              label: 'Roof',
+              label: '屋顶',
               variant: 'roof',
               tone: 'warning',
               animation: 'none',
@@ -73,13 +73,13 @@ describe('area scene stage', () => {
         },
         {
           id: 'highlights',
-          label: 'Highlight Layer',
-          detail: 'Highlight placeholder',
+          label: '高亮层',
+          detail: '高亮占位层',
           kind: 'highlights',
           tiles: [
             {
               id: 'glow',
-              label: 'Glow',
+              label: '辉光',
               variant: 'glow',
               tone: 'warning',
               animation: 'pulse',
@@ -94,10 +94,10 @@ describe('area scene stage', () => {
       markers: [
         {
           id: 'marker:npc',
-          label: 'Archivist Nera',
-          caption: 'Talk / trust',
-          glyph: 'NPC',
-          typeLabel: 'Npc',
+          label: '档案守望者内拉',
+          caption: '对话 / 信任',
+          glyph: '角',
+          typeLabel: '角色',
           type: 'npc',
           targetId: 'npc:nera',
           enabled: true,
@@ -108,10 +108,10 @@ describe('area scene stage', () => {
         },
         {
           id: 'marker:event',
-          label: 'Storm Bell',
-          caption: 'Pending trigger',
-          glyph: 'EV',
-          typeLabel: 'Event',
+          label: '风暴警钟',
+          caption: '待触发',
+          glyph: '事',
+          typeLabel: '事件',
           type: 'event',
           targetId: 'event:storm-bell',
           enabled: true,
@@ -122,25 +122,25 @@ describe('area scene stage', () => {
         },
       ],
       legend: [
-        { id: 'legend:npc', label: 'NPC lane', tone: 'success' },
-        { id: 'legend:event', label: 'Event trigger', tone: 'warning' },
+        { id: 'legend:npc', label: '角色通道', tone: 'success' },
+        { id: 'legend:event', label: '事件触发', tone: 'warning' },
       ],
     });
 
     const markup = renderToStaticMarkup(
       createElement(AreaSceneStage, {
-        areaName: 'Lantern Rest',
-        areaType: 'Town',
+        areaName: '灯栖镇',
+        areaType: '城镇',
         model,
         onMarkerActivate: () => {},
       }),
     );
 
-    expect(markup).toContain('DOM layered stage placeholder');
-    expect(markup).toContain('Phaser-ready');
-    expect(markup).toContain('Pixi-ready');
+    expect(markup).toContain('分层舞台占位渲染');
+    expect(markup).toContain('场景引擎预留');
+    expect(markup).toContain('像素渲染预留');
     expect(markup).toContain('data-layer-kind="terrain"');
-    expect(markup).toContain('Archivist Nera');
-    expect(markup).toContain('Storm Bell');
+    expect(markup).toContain('档案守望者内拉');
+    expect(markup).toContain('风暴警钟');
   });
 });

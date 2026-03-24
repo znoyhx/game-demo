@@ -6,12 +6,15 @@ import { eventLogEntrySchema } from './event.schema';
 import {
   areaIdSchema,
   eventIdSchema,
+  itemIdSchema,
   nonEmptyStringSchema,
   nonNegativeIntegerSchema,
+  npcIdSchema,
+  positiveIntegerSchema,
   questIdSchema,
 } from './shared';
-import { npcDefinitionSchema, npcDialogueTurnSchema, npcDispositionSchema, npcStateSchema } from './npc.schema';
-import { playerProfileTagSchema, playerStateSchema } from './player.schema';
+import { npcDefinitionSchema, npcDialogueTurnSchema, npcStateSchema } from './npc.schema';
+import { playerModelStateSchema, playerProfileTagSchema, playerStateSchema } from './player.schema';
 import { questDefinitionSchema, questProgressSchema } from './quest.schema';
 import { reviewPayloadSchema } from './review.schema';
 import { factionSchema, worldModeSchema, worldSchema } from './world.schema';
@@ -79,12 +82,30 @@ export const levelBuilderOutputSchema = z
   })
   .strict();
 
+export const npcTradeTransferSchema = z
+  .object({
+    itemId: itemIdSchema,
+    quantity: positiveIntegerSchema,
+    direction: z.enum(['to-player', 'from-player']),
+  })
+  .strict();
+
+export const npcRelationshipNetworkChangeSchema = z
+  .object({
+    targetNpcId: npcIdSchema,
+    delta: z.number().min(-100).max(100),
+    bond: nonEmptyStringSchema.optional(),
+  })
+  .strict();
+
 export const npcBrainInputSchema = z
   .object({
     npcDefinition: npcDefinitionSchema,
     npcState: npcStateSchema,
-    activeQuests: z.array(questProgressSchema),
+    questDefinitions: z.array(questDefinitionSchema),
+    questProgressEntries: z.array(questProgressSchema),
     playerState: playerStateSchema,
+    playerModel: playerModelStateSchema,
     recentDialogue: z.array(npcDialogueTurnSchema),
   })
   .strict();
@@ -92,10 +113,17 @@ export const npcBrainInputSchema = z
 export const npcBrainOutputSchema = z
   .object({
     npcReply: nonEmptyStringSchema,
-    updatedDisposition: npcDispositionSchema.optional(),
     trustDelta: z.number().min(-100).max(100).optional(),
     relationshipDelta: z.number().min(-100).max(100).optional(),
-    unlockedQuestIds: z.array(questIdSchema).optional(),
+    memoryNote: nonEmptyStringSchema.optional(),
+    longTermMemoryNote: nonEmptyStringSchema.optional(),
+    questOfferIds: z.array(questIdSchema).default([]),
+    itemTransfers: z.array(npcTradeTransferSchema).default([]),
+    playerGoldDelta: z.number().int().default(0),
+    relationshipNetworkChanges: z
+      .array(npcRelationshipNetworkChangeSchema)
+      .default([]),
+    decisionBasis: z.array(nonEmptyStringSchema).default([]),
     explanationHint: nonEmptyStringSchema.optional(),
   })
   .strict();
@@ -222,6 +250,10 @@ export type QuestDesignerInput = z.infer<typeof questDesignerInputSchema>;
 export type QuestDesignerOutput = z.infer<typeof questDesignerOutputSchema>;
 export type LevelBuilderInput = z.infer<typeof levelBuilderInputSchema>;
 export type LevelBuilderOutput = z.infer<typeof levelBuilderOutputSchema>;
+export type NpcTradeTransfer = z.infer<typeof npcTradeTransferSchema>;
+export type NpcRelationshipNetworkChange = z.infer<
+  typeof npcRelationshipNetworkChangeSchema
+>;
 export type NpcBrainInput = z.infer<typeof npcBrainInputSchema>;
 export type NpcBrainOutput = z.infer<typeof npcBrainOutputSchema>;
 export type EnemyTacticianInput = z.infer<typeof enemyTacticianInputSchema>;

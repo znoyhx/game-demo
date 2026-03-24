@@ -1,5 +1,6 @@
 export * from './agent.schema';
 export * from './area.schema';
+export * from './areaScene.schema';
 export * from './combat.schema';
 export * from './config.schema';
 export * from './creation.schema';

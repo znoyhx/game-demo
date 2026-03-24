@@ -26,8 +26,7 @@ export interface EventTriggerResult extends RuleResult {
 const hasTriggeredEvent = (
   event: WorldEvent,
   eventHistory: EventLogEntry[],
-): boolean =>
-  eventHistory.some((entry) => entry.eventId === event.id);
+): boolean => eventHistory.some((entry) => entry.eventId === event.id);
 
 const hasQuestInScope = (
   questId: string,
@@ -82,7 +81,7 @@ export const evaluateEventTrigger = (
       condition.requiredNpcId &&
       !context.npcStatesById?.[condition.requiredNpcId]
     ) {
-      reasons.push(`需要 NPC 状态 ${condition.requiredNpcId}`);
+      reasons.push(`需要角色状态 ${condition.requiredNpcId}`);
     }
   }
 
@@ -104,8 +103,7 @@ export const evaluateEventTrigger = (
 export const findTriggerableEvents = (
   events: WorldEvent[],
   context: EventEvaluationContext,
-): WorldEvent[] =>
-  events.filter((event) => evaluateEventTrigger(event, context).ok);
+): WorldEvent[] => events.filter((event) => evaluateEventTrigger(event, context).ok);
 
 export interface AppliedEventEffect {
   worldFlagsToSet: string[];

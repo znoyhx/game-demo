@@ -13,6 +13,7 @@ import {
   npcIdSchema,
   questIdSchema,
 } from './shared';
+import { areaSceneDefinitionSchema } from './areaScene.schema';
 
 export const areaTypeSchema = z.enum([
   'town',
@@ -133,7 +134,7 @@ export const areaEnvironmentSchema = z
   })
   .strict();
 
-export const areaSchema = z
+const areaSchemaBase = z
   .object({
     id: nonEmptyStringSchema,
     name: nonEmptyStringSchema,
@@ -153,8 +154,169 @@ export const areaSchema = z
     connectedAreaIds: z.array(nonEmptyStringSchema),
     backgroundKey: nonEmptyStringSchema.optional(),
     musicKey: nonEmptyStringSchema.optional(),
+    scene: areaSceneDefinitionSchema,
   })
   .strict();
+
+export const legacyAreaSchema = areaSchemaBase.omit({
+  scene: true,
+});
+
+export const areaSchema = areaSchemaBase.superRefine((area, ctx) => {
+  const pointIds = new Set(area.interactionPoints.map((point) => point.id));
+  const npcIds = new Set(area.npcIds);
+  const npcSpawnById = new Map(
+    area.scene.npcSpawns.map((spawn) => [spawn.npcId, spawn]),
+  );
+  const interactionSpawnById = new Map(
+    area.scene.interactionSpawns.map((spawn) => [spawn.interactionId, spawn]),
+  );
+  const portalSpawnById = new Map(
+    area.scene.portalSpawns.map((spawn) => [spawn.interactionId, spawn]),
+  );
+
+  area.npcIds.forEach((npcId, index) => {
+    if (!npcSpawnById.has(npcId)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['scene', 'npcSpawns'],
+        message: `missing NPC spawn for "${npcId}" at npcIds[${index}]`,
+      });
+    }
+  });
+
+  area.scene.npcSpawns.forEach((spawn, index) => {
+    if (!npcIds.has(spawn.npcId)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['scene', 'npcSpawns', index, 'npcId'],
+        message: `scene NPC spawn "${spawn.npcId}" does not belong to area.npcIds`,
+      });
+    }
+  });
+
+  area.interactionPoints.forEach((point, index) => {
+    if (point.type === 'npc' || point.type === 'shop') {
+      if (!point.targetId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['interactionPoints', index, 'targetId'],
+          message: 'npc/shop interaction points require a targetId',
+        });
+        return;
+      }
+
+      const spawn = npcSpawnById.get(point.targetId);
+      if (!spawn) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['scene', 'npcSpawns'],
+          message: `missing scene NPC spawn for interaction target "${point.targetId}"`,
+        });
+        return;
+      }
+
+      if (spawn.x !== point.x || spawn.y !== point.y) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['scene', 'npcSpawns'],
+          message: `scene NPC spawn for "${point.targetId}" must match interaction point coordinates`,
+        });
+      }
+
+      return;
+    }
+
+    if (point.type === 'portal') {
+      const spawn = portalSpawnById.get(point.id);
+      if (!spawn) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['scene', 'portalSpawns'],
+          message: `missing portal scene spawn for "${point.id}"`,
+        });
+        return;
+      }
+
+      if (spawn.x !== point.x || spawn.y !== point.y) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['scene', 'portalSpawns'],
+          message: `portal scene spawn "${point.id}" must match interaction point coordinates`,
+        });
+      }
+
+      if (point.targetId && spawn.targetAreaId !== point.targetId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['scene', 'portalSpawns'],
+          message: `portal scene spawn "${point.id}" must match interaction target`,
+        });
+      }
+
+      if (point.travelMode && spawn.travelMode !== point.travelMode) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['scene', 'portalSpawns'],
+          message: `portal scene spawn "${point.id}" must match travel mode`,
+        });
+      }
+
+      return;
+    }
+
+    const spawn = interactionSpawnById.get(point.id);
+    if (!spawn) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['scene', 'interactionSpawns'],
+        message: `missing interaction scene spawn for "${point.id}"`,
+      });
+      return;
+    }
+
+    if (spawn.x !== point.x || spawn.y !== point.y) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['scene', 'interactionSpawns'],
+        message: `interaction scene spawn "${point.id}" must match interaction point coordinates`,
+      });
+    }
+  });
+
+  area.scene.interactionSpawns.forEach((spawn, index) => {
+    if (!pointIds.has(spawn.interactionId)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['scene', 'interactionSpawns', index, 'interactionId'],
+        message: `scene interaction spawn "${spawn.interactionId}" does not exist in interactionPoints`,
+      });
+    }
+  });
+
+  area.scene.portalSpawns.forEach((spawn, index) => {
+    const point = area.interactionPoints.find(
+      (interactionPoint) => interactionPoint.id === spawn.interactionId,
+    );
+
+    if (!point) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['scene', 'portalSpawns', index, 'interactionId'],
+        message: `scene portal spawn "${spawn.interactionId}" does not exist in interactionPoints`,
+      });
+      return;
+    }
+
+    if (point.type !== 'portal') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['scene', 'portalSpawns', index, 'interactionId'],
+        message: `scene portal spawn "${spawn.interactionId}" must reference a portal interaction point`,
+      });
+    }
+  });
+});
 
 export const mapStateSchema = z
   .object({
@@ -179,5 +341,6 @@ export type AreaEnvironmentHazard = z.infer<typeof areaEnvironmentHazardSchema>;
 export type AreaEnvironmentActivation = z.infer<typeof areaEnvironmentActivationSchema>;
 export type AreaEnvironmentState = z.infer<typeof areaEnvironmentStateSchema>;
 export type AreaEnvironment = z.infer<typeof areaEnvironmentSchema>;
+export type LegacyArea = z.infer<typeof legacyAreaSchema>;
 export type Area = z.infer<typeof areaSchema>;
 export type MapState = z.infer<typeof mapStateSchema>;

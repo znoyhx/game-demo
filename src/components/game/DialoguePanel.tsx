@@ -17,6 +17,7 @@ interface DialoguePanelProps {
   dialogueTitle: string;
   dialogueSpeaker: string;
   dialogueLines: DialogueLine[];
+  attitudeSummary?: Array<{ label: string; value: string }>;
   controls: ControlButton[];
   statusMessage: string;
   onControlSelect: (controlId: string) => void;
@@ -28,6 +29,7 @@ export function DialoguePanel({
   dialogueTitle,
   dialogueSpeaker,
   dialogueLines,
+  attitudeSummary,
   controls,
   statusMessage,
   onControlSelect,
@@ -36,12 +38,22 @@ export function DialoguePanel({
 }: DialoguePanelProps) {
   return (
     <GamePanel
-      title="Dialogue Box"
+      title="对话框"
       eyebrow={dialogueTitle}
       description={dialogueSpeaker}
       footer={statusMessage}
       className={className}
     >
+      {attitudeSummary && attitudeSummary.length > 0 ? (
+        <dl className="game-dialogue__attitude">
+          {attitudeSummary.map((item) => (
+            <div key={item.label} className="game-dialogue__attitude-item">
+              <dt>{item.label}</dt>
+              <dd>{item.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
       <div className="game-dialogue">
         {dialogueLines.map((line, index) => (
           <div key={`${line.speaker}-${index}`} className="game-dialogue__line">
@@ -51,7 +63,7 @@ export function DialoguePanel({
         ))}
       </div>
       <div className="game-control-row">
-        <h4>Interaction Controls</h4>
+        <h4>交互控制</h4>
         <div className="game-control-row__buttons">
           {controls.map((control) => (
             <PixelButton
@@ -62,7 +74,7 @@ export function DialoguePanel({
               onClick={() => onControlSelect(control.id)}
               disabled={control.disabled || activeControlId === control.id}
             >
-              {activeControlId === control.id ? 'Working...' : control.label}
+              {activeControlId === control.id ? '处理中...' : control.label}
             </PixelButton>
           ))}
         </div>

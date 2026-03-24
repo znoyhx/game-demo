@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { AreaNavigationController } from '../../src/core/controllers/areaNavigationController';
+import { EventTriggerController } from '../../src/core/controllers/eventTriggerController';
+import { QuestProgressionController } from '../../src/core/controllers/questProgressionController';
+import { createMockAgentSet } from '../../src/core/agents';
 import { createGameEventBus } from '../../src/core/events/domainEvents';
 import { mockIds, mockSaveSnapshot } from '../../src/core/mocks/mvp';
 import { createGameStore, selectMapState } from '../../src/core/state';
@@ -101,5 +104,42 @@ describe('area navigation controller', () => {
     expect(store.getState().mapState.discoveredAreaIds).toContain(mockIds.areas.grotto);
     expect(exportedSnapshot.map?.currentAreaId).toBe(mockIds.areas.grotto);
     expect(exportedSnapshot.map?.unlockedAreaIds).toContain(mockIds.areas.grotto);
+  });
+
+  it('triggers eligible location events on area enter without adding an extra autosave', async () => {
+    const snapshot = structuredClone(mockSaveSnapshot);
+    snapshot.world.flags.ashfallWarningSeen = false;
+    snapshot.events.history = snapshot.events.history.filter(
+      (entry) => entry.eventId !== mockIds.events.ashfallWarning,
+    );
+
+    const store = createGameStore(snapshot);
+    const saveWriter = new SaveWriterSpy();
+    const questController = new QuestProgressionController({
+      store,
+      saveController: saveWriter,
+    });
+    const eventController = new EventTriggerController({
+      store,
+      agents: createMockAgentSet(),
+      saveController: saveWriter,
+      questController,
+    });
+    const controller = new AreaNavigationController({
+      store,
+      saveController: saveWriter,
+      questController,
+      eventController,
+    });
+
+    const result = await controller.enterArea(mockIds.areas.crossroads);
+    const triggeredEvent = store
+      .getState()
+      .eventHistory.find((entry) => entry.eventId === mockIds.events.ashfallWarning);
+
+    expect(result?.ok).toBe(true);
+    expect(triggeredEvent?.source).toBe('location');
+    expect(store.getState().worldRuntime.flags.ashfallWarningSeen).toBe(true);
+    expect(saveWriter.calls).toEqual(['auto']);
   });
 });

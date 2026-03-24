@@ -1,4 +1,5 @@
 import type { AreaSceneStageModel } from '../map/areaSceneStage.contract';
+import type { PixelSceneRenderModel } from '../map/phaser/pixelSceneRenderer.contract';
 import { GameBottomDock } from './GameBottomDock';
 import { GameLeftSidebar } from './GameLeftSidebar';
 import { GameRightSidebar } from './GameRightSidebar';
@@ -37,11 +38,13 @@ interface GameHudProps {
     description: string;
     sceneStatus: string;
     stage: AreaSceneStageModel;
+    renderScene: PixelSceneRenderModel;
     npcs: Array<{
       id: string;
       name: string;
       role: string;
       disposition: string;
+      emotionalState: string;
       trust: number;
       relationship: number;
     }>;
@@ -52,6 +55,7 @@ interface GameHudProps {
       isPending: boolean;
       isTriggered: boolean;
     }>;
+    interactionLocked?: boolean;
   };
   rightSidebar: {
     quests: Array<{
@@ -74,6 +78,7 @@ interface GameHudProps {
       trust: number;
       relationship: number;
       disposition: string;
+      emotionalState: string;
     }>;
     enemyAlerts: Array<{
       id: string;
@@ -86,6 +91,10 @@ interface GameHudProps {
     dialogueTitle: string;
     dialogueSpeaker: string;
     dialogueLines: Array<{ speaker: string; text: string }>;
+    attitudeSummary?: Array<{
+      label: string;
+      value: string;
+    }>;
     controls: Array<{
       id: string;
       label: string;
@@ -113,7 +122,7 @@ interface GameHudProps {
   onManualSave: () => void;
   onAreaSelect: (areaId: string) => void;
   onNpcSelect: (npcId: string) => void;
-  onMarkerActivate: (markerId: string) => void;
+  onMarkerActivate: (markerId: string, source?: 'manual' | 'approach') => void;
   onEventActivate: (eventId: string) => void;
   onControlSelect: (controlId: string) => void;
 }

@@ -4,11 +4,13 @@ import { useShallow } from 'zustand/react/shallow';
 
 import {
   appAreaDebugController,
+  appDebugScenarioController,
   appQuestDebugController,
   appWorldCreationController,
 } from '../../app/runtime/appRuntime';
 import { RenderingPreviewGallery } from '../../components/debug/RenderingPreviewGallery';
 import { DebugPanel } from '../../components/debug/DebugPanel';
+import { NpcDebugPanel } from '../../components/debug/NpcDebugPanel';
 import { QuestDebugPanel } from '../../components/debug/QuestDebugPanel';
 import { PageFrame } from '../../components/layout/PageFrame';
 import { SectionCard } from '../../components/layout/SectionCard';
@@ -16,6 +18,12 @@ import { Badge } from '../../components/pixel-ui/Badge';
 import { useGameLogStore } from '../../core/logging';
 import { debugPanels } from '../../core/mocks/shellContent';
 import { resolveAreaEnvironmentState } from '../../core/rules';
+import type {
+  NpcDialogueIntent,
+  NpcDisposition,
+  NpcEmotionalState,
+  NpcState,
+} from '../../core/schemas';
 import {
   selectAreas,
   selectCombatEncounters,
@@ -40,6 +48,11 @@ import {
   selectWorldSummary,
   useGameStore,
 } from '../../core/state';
+import {
+  npcDispositionLabels,
+  npcDialogueIntentLabels,
+  npcEmotionalStateLabels,
+} from '../../core/utils/displayLabels';
 import { locale } from '../../core/utils/locale';
 import { buildRenderingPreviewViewModel } from './renderingPreviewViewModel';
 
@@ -85,6 +98,30 @@ export function DebugPage() {
   const [selectedQuestBranchId, setSelectedQuestBranchId] = useState('');
   const [questDebugStatusMessage, setQuestDebugStatusMessage] = useState<string | null>(null);
   const [busyQuestDebugActionId, setBusyQuestDebugActionId] = useState<string | null>(null);
+  const [selectedNpcId, setSelectedNpcId] = useState<string | null>(null);
+  const [npcTrustValue, setNpcTrustValue] = useState('0');
+  const [npcRelationshipValue, setNpcRelationshipValue] = useState('0');
+  const [npcDispositionValue, setNpcDispositionValue] =
+    useState<NpcDisposition>('neutral');
+  const [npcEmotionalStateValue, setNpcEmotionalStateValue] =
+    useState<NpcEmotionalState>('calm');
+  const [npcShortTermMemoryValue, setNpcShortTermMemoryValue] = useState('');
+  const [npcLongTermMemoryValue, setNpcLongTermMemoryValue] = useState('');
+  const [npcCurrentGoalValue, setNpcCurrentGoalValue] = useState('');
+  const [npcDebugStatusMessage, setNpcDebugStatusMessage] = useState<string | null>(null);
+  const [busyNpcDebugActionId, setBusyNpcDebugActionId] = useState<string | null>(null);
+  const [latestNpcOutcome, setLatestNpcOutcome] = useState<{
+    npcName: string;
+    optionLabel: string;
+    attitudeLabel: string;
+    emotionalStateLabel: string;
+    trustDelta: number;
+    relationshipDelta: number;
+    trustReasons: string[];
+    relationshipReasons: string[];
+    decisionBasis: string[];
+    debugSummary: string;
+  } | null>(null);
   const logs = useMemo(() => logEntries.slice(0, 8), [logEntries]);
 
   useEffect(() => {
@@ -103,6 +140,12 @@ export function DebugPage() {
     }
   }, [questDefinitions, selectedQuestId]);
 
+  useEffect(() => {
+    if (!selectedNpcId || !npcDefinitions.some((npc) => npc.id === selectedNpcId)) {
+      setSelectedNpcId(currentArea?.npcIds[0] ?? npcDefinitions[0]?.id ?? null);
+    }
+  }, [currentArea?.npcIds, npcDefinitions, selectedNpcId]);
+
   const selectedArea = useMemo(
     () => areas.find((area) => area.id === selectedAreaId) ?? currentArea ?? areas[0] ?? null,
     [areas, currentArea, selectedAreaId],
@@ -115,6 +158,47 @@ export function DebugPage() {
         : null,
     [selectedArea, worldFlags],
   );
+
+  const selectedNpc = useMemo(() => {
+    if (!selectedNpcId) {
+      return null;
+    }
+
+    const definition = npcDefinitions.find((npc) => npc.id === selectedNpcId);
+    const state = npcStates.find((npc) => npc.npcId === selectedNpcId);
+    const areaName =
+      areas.find((area) => area.id === definition?.areaId)?.name ?? '未分配区域';
+
+    if (!definition || !state) {
+      return null;
+    }
+
+    return {
+      definition,
+      state,
+      areaName,
+    };
+  }, [areas, npcDefinitions, npcStates, selectedNpcId]);
+
+  const syncNpcDebugInputs = useCallback((npcState: NpcState) => {
+    setNpcTrustValue(String(npcState.trust));
+    setNpcRelationshipValue(String(npcState.relationship));
+    setNpcDispositionValue(npcState.currentDisposition);
+    setNpcEmotionalStateValue(npcState.emotionalState);
+    setNpcShortTermMemoryValue(npcState.memory.shortTerm.join('\n'));
+    setNpcLongTermMemoryValue(npcState.memory.longTerm.join('\n'));
+    setNpcCurrentGoalValue(npcState.currentGoal ?? '');
+  }, []);
+
+  useEffect(() => {
+    if (!selectedNpc) {
+      return;
+    }
+
+    syncNpcDebugInputs(selectedNpc.state);
+    setNpcDebugStatusMessage(null);
+    setLatestNpcOutcome(null);
+  }, [selectedNpc, syncNpcDebugInputs]);
 
   useEffect(() => {
     if (!selectedArea) {
@@ -188,6 +272,51 @@ export function DebugPage() {
   );
 
   const questDebugSnapshot = appQuestDebugController.getDebugSnapshot();
+  const npcDispositionOptions = useMemo(
+    () =>
+      Object.entries(npcDispositionLabels).map(([value, label]) => ({
+        value: value as NpcDisposition,
+        label,
+      })),
+    [],
+  );
+  const npcEmotionalStateOptions = useMemo(
+    () =>
+      Object.entries(npcEmotionalStateLabels).map(([value, label]) => ({
+        value: value as NpcEmotionalState,
+        label,
+      })),
+    [],
+  );
+  const npcDebugViewModels = useMemo(
+    () =>
+      npcDefinitions
+        .map((definition) => {
+          const runtime = npcStates.find((entry) => entry.npcId === definition.id);
+          const areaName =
+            areas.find((area) => area.id === definition.areaId)?.name ?? '未分配区域';
+
+          if (!runtime) {
+            return null;
+          }
+
+          return {
+            id: definition.id,
+            name: definition.name,
+            role: definition.identity,
+            areaName,
+            disposition: npcDispositionLabels[runtime.currentDisposition],
+            emotionalState: npcEmotionalStateLabels[runtime.emotionalState],
+            trust: runtime.trust,
+            relationship: runtime.relationship,
+            shortTermMemory: runtime.memory.shortTerm,
+            longTermMemory: runtime.memory.longTerm,
+            currentGoal: runtime.currentGoal,
+          };
+        })
+        .filter((entry): entry is NonNullable<typeof entry> => entry !== null),
+    [areas, npcDefinitions, npcStates],
+  );
 
   const selectedQuestSummary = useMemo(
     () =>
@@ -330,6 +459,43 @@ export function DebugPage() {
     },
     [],
   );
+
+  const runNpcDebugTask = useCallback(
+    async <T,>(actionId: string, task: () => Promise<T>) => {
+      setBusyNpcDebugActionId(actionId);
+      setNpcDebugStatusMessage(null);
+
+      try {
+        return await task();
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : '角色调试执行失败。';
+        setNpcDebugStatusMessage(message);
+        return null;
+      } finally {
+        setBusyNpcDebugActionId(null);
+      }
+    },
+    [],
+  );
+
+  const parseMemoryLines = useCallback(
+    (value: string, limit: number) =>
+      Array.from(
+        new Set(
+          value
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter((line) => line.length > 0),
+        ),
+      ).slice(0, limit),
+    [],
+  );
+
+  const normalizeScoreInput = useCallback((value: string, fallback: number) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.round(parsed) : fallback;
+  }, []);
 
   const handleActivateQuest = useCallback(
     (questId: string) => {
@@ -492,6 +658,132 @@ export function DebugPage() {
     },
     [questDebugSnapshot.quests, runQuestDebugTask],
   );
+
+  const handleApplyNpcInjection = useCallback(() => {
+    if (!selectedNpc) {
+      setNpcDebugStatusMessage('未找到要调试的角色。');
+      return;
+    }
+
+    void runNpcDebugTask('npc-inject', async () => {
+      const nextState = await appDebugScenarioController.injectNpcState({
+        npcId: selectedNpc.definition.id,
+        trust: normalizeScoreInput(npcTrustValue, selectedNpc.state.trust),
+        relationship: normalizeScoreInput(
+          npcRelationshipValue,
+          selectedNpc.state.relationship,
+        ),
+        currentDisposition: npcDispositionValue,
+        emotionalState: npcEmotionalStateValue,
+        shortTermMemory: parseMemoryLines(npcShortTermMemoryValue, 5),
+        longTermMemory: parseMemoryLines(npcLongTermMemoryValue, 8),
+        currentGoal: npcCurrentGoalValue.trim() || undefined,
+      });
+
+      if (!nextState) {
+        setNpcDebugStatusMessage('角色状态注入失败。');
+        return null;
+      }
+
+      setNpcDebugStatusMessage(`已写入 ${selectedNpc.definition.name} 的调试状态。`);
+      return nextState;
+    });
+  }, [
+    normalizeScoreInput,
+    npcCurrentGoalValue,
+    npcDispositionValue,
+    npcEmotionalStateValue,
+    npcRelationshipValue,
+    npcShortTermMemoryValue,
+    npcLongTermMemoryValue,
+    npcTrustValue,
+    parseMemoryLines,
+    runNpcDebugTask,
+    selectedNpc,
+  ]);
+
+  const handleOpenNpcDialogue = useCallback(() => {
+    if (!selectedNpc) {
+      setNpcDebugStatusMessage('未找到要打开对话的角色。');
+      return;
+    }
+
+    void runNpcDebugTask('npc-open', async () => {
+      const session = await appDebugScenarioController.openNpcDialogue(
+        selectedNpc.definition.id,
+      );
+
+      if (!session) {
+        setNpcDebugStatusMessage('当前无法直接打开该角色对话。');
+        return null;
+      }
+
+      navigate('/game');
+      return session;
+    });
+  }, [navigate, runNpcDebugTask, selectedNpc]);
+
+  const handleTestNpcBranch = useCallback(
+    (intent: NpcDialogueIntent) => {
+      if (!selectedNpc) {
+        setNpcDebugStatusMessage('未找到要测试的角色。');
+        return;
+      }
+
+      void runNpcDebugTask(`npc-branch:${intent}`, async () => {
+        const result = await appDebugScenarioController.testNpcDialogueBranch(
+          selectedNpc.definition.id,
+          intent,
+        );
+
+        if (!result?.explanation) {
+          setNpcDebugStatusMessage('角色分支测试失败。');
+          return null;
+        }
+
+        setLatestNpcOutcome({
+          npcName: result.npcName,
+          optionLabel: npcDialogueIntentLabels[intent],
+          attitudeLabel: result.explanation.attitudeLabel,
+          emotionalStateLabel: result.explanation.emotionalStateLabel,
+          trustDelta: result.explanation.trust.delta,
+          relationshipDelta: result.explanation.relationship.delta,
+          trustReasons: result.explanation.trust.reasons,
+          relationshipReasons: result.explanation.relationship.reasons,
+          decisionBasis: result.explanation.decisionBasis,
+          debugSummary: result.explanation.debugSummary,
+        });
+        setNpcDebugStatusMessage(
+          `已完成 ${selectedNpc.definition.name} 的${npcDialogueIntentLabels[intent]}分支测试。`,
+        );
+        return result;
+      });
+    },
+    [runNpcDebugTask, selectedNpc],
+  );
+
+  const handleResetNpcDebug = useCallback(() => {
+    if (!selectedNpc) {
+      setNpcDebugStatusMessage('未找到要回滚的角色。');
+      return;
+    }
+
+    void runNpcDebugTask('npc-reset', async () => {
+      const restoredState = await appDebugScenarioController.resetNpcDebugState(
+        selectedNpc.definition.id,
+      );
+
+      if (!restoredState) {
+        setNpcDebugStatusMessage('当前角色还没有可回滚的测试快照。');
+        return null;
+      }
+
+      syncNpcDebugInputs(restoredState);
+      setLatestNpcOutcome(null);
+      setNpcDebugStatusMessage(`已回滚 ${selectedNpc.definition.name} 的调试测试快照。`);
+      return restoredState;
+    });
+  }, [runNpcDebugTask, selectedNpc, syncNpcDebugInputs]);
 
   const handleJumpToArea = useCallback(
     (openGameRoute: boolean) => {
@@ -817,6 +1109,35 @@ export function DebugPage() {
         onJumpToStage={handleJumpQuestStage}
         onSimulateCondition={handleSimulateQuestCondition}
         onResetQuest={handleResetQuestDebug}
+      />
+
+      <NpcDebugPanel
+        npcs={npcDebugViewModels}
+        selectedNpcId={selectedNpc?.definition.id ?? null}
+        trustValue={npcTrustValue}
+        relationshipValue={npcRelationshipValue}
+        dispositionValue={npcDispositionValue}
+        emotionalStateValue={npcEmotionalStateValue}
+        shortTermMemoryValue={npcShortTermMemoryValue}
+        longTermMemoryValue={npcLongTermMemoryValue}
+        currentGoalValue={npcCurrentGoalValue}
+        statusMessage={npcDebugStatusMessage}
+        busyActionId={busyNpcDebugActionId}
+        latestOutcome={latestNpcOutcome}
+        dispositionOptions={npcDispositionOptions}
+        emotionalStateOptions={npcEmotionalStateOptions}
+        onSelectNpc={setSelectedNpcId}
+        onTrustChange={setNpcTrustValue}
+        onRelationshipChange={setNpcRelationshipValue}
+        onDispositionChange={setNpcDispositionValue}
+        onEmotionalStateChange={setNpcEmotionalStateValue}
+        onShortTermMemoryChange={setNpcShortTermMemoryValue}
+        onLongTermMemoryChange={setNpcLongTermMemoryValue}
+        onCurrentGoalChange={setNpcCurrentGoalValue}
+        onApplyInjection={handleApplyNpcInjection}
+        onOpenDialogue={handleOpenNpcDialogue}
+        onTestBranch={handleTestNpcBranch}
+        onResetOutcome={handleResetNpcDebug}
       />
 
       <RenderingPreviewGallery

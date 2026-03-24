@@ -4,6 +4,7 @@ import type { AgentModuleId } from '../agents';
 import type { AnyGameDomainEvent, GameEventBus } from '../events/domainEvents';
 import type {
   EnemyTacticType,
+  NpcInteractionExplanation,
   NpcDialogueTurn,
   PlayerProfileTag,
 } from '../schemas';
@@ -144,6 +145,7 @@ export class GameLogger {
     trustDelta: number;
     relationshipDelta: number;
     unlockedQuestIds: string[];
+    explanation?: NpcInteractionExplanation;
   }) {
     this.append({
       id: this.nextId('log:npc-detail', options.createdAt),
@@ -156,6 +158,7 @@ export class GameLogger {
       unlockedQuestIds: options.unlockedQuestIds,
       dialogue: options.dialogue,
       reply: options.reply,
+      explanation: options.explanation,
     });
   }
 

@@ -4,8 +4,8 @@
 
 ```md
 # PixelForge Agent Contracts
-Version: v0.2  
-Status: Initial contract draft
+Version: v0.3
+Status: Active contract draft
 
 ---
 
@@ -240,7 +240,71 @@ export interface AreaEnvironment {
 }
 ```
 
-## 5.7 Area Contract
+## 5.7 Area Scene Definition
+
+```ts
+export interface AreaSceneTile {
+  id: string;
+  x: number;
+  y: number;
+  kind:
+    | "grass"
+    | "path"
+    | "stone"
+    | "wood"
+    | "water"
+    | "foliage"
+    | "wall"
+    | "ember"
+    | "void"
+    | "bridge";
+  layer: "ground" | "overlay";
+  blocked: boolean;
+}
+
+export interface AreaSceneDefinition {
+  grid: {
+    width: number;
+    height: number;
+  };
+  playerSpawn: {
+    x: number;
+    y: number;
+  };
+  tiles: AreaSceneTile[];
+  decorativeLayers: Array<{
+    id: string;
+    label: string;
+    layer: "ground" | "overlay";
+    tiles: AreaSceneTile[];
+  }>;
+  npcSpawns: Array<{
+    npcId: NpcId;
+    x: number;
+    y: number;
+  }>;
+  interactionSpawns: Array<{
+    interactionId: string;
+    x: number;
+    y: number;
+  }>;
+  portalSpawns: Array<{
+    interactionId: string;
+    targetAreaId: AreaId;
+    travelMode: "walk" | "teleport";
+    x: number;
+    y: number;
+  }>;
+}
+```
+
+This contract is gameplay-scene data, not a renderer implementation detail:
+
+* it belongs to core state and save payloads
+* it keeps tile collisions, NPC placements, and portal placements explicit
+* UI renderers may adapt it into Phaser/Pixi presentation contracts without owning the source map layout
+
+## 5.8 Area Contract
 
 ```ts
 export interface Area {
@@ -262,6 +326,7 @@ export interface Area {
   connectedAreaIds: AreaId[];
   backgroundKey?: string;
   musicKey?: string;
+  scene: AreaSceneDefinition;
 }
 ```
 
@@ -467,6 +532,7 @@ export interface NpcRevealableInfo {
 export interface NpcDefinition {
   id: NpcId;
   name: string;
+  identity: string;
   role: NpcRole;
   factionId?: FactionId;
   areaId: AreaId;
@@ -484,8 +550,24 @@ export interface NpcState {
   relationship: number; // suggested range: -100 to 100
   trust: number; // suggested range: 0 to 100
   currentDisposition: NpcDisposition;
+  emotionalState:
+    | "calm"
+    | "hopeful"
+    | "wary"
+    | "tense"
+    | "angry"
+    | "grateful"
+    | "resolute"
+    | "fearful";
   memory: NpcMemorySummary;
   revealableInfo: NpcRevealableInfo;
+  revealedFacts: string[];
+  revealedSecrets: string[];
+  relationshipNetwork: Array<{
+    targetNpcId: NpcId;
+    bond: string;
+    strength: number;
+  }>;
   currentGoal?: string;
   hasGivenQuestIds: QuestId[];
   flags?: Record<string, boolean>;
@@ -514,6 +596,48 @@ export interface NpcDialogueOption {
 export interface NpcDialogueTurn {
   speaker: "player" | "npc" | "system";
   text: string;
+}
+```
+
+## 7.8 NPC Interaction Explanation
+
+```ts
+export interface NpcInteractionExplanation {
+  npcId: NpcId;
+  npcName: string;
+  attitudeLabel: string;
+  emotionalStateLabel: string;
+  trust: {
+    before: number;
+    after: number;
+    delta: number;
+    reasons: string[];
+  };
+  relationship: {
+    before: number;
+    after: number;
+    delta: number;
+    reasons: string[];
+  };
+  decisionBasis: string[];
+  disclosedInfo: string[];
+  debugSummary: string;
+}
+```
+
+## 7.9 NPC Debug State Injection
+
+```ts
+export interface NpcDebugStateInjection {
+  npcId: NpcId;
+  trust?: number;
+  relationship?: number;
+  currentDisposition?: NpcDisposition;
+  emotionalState?: NpcEmotionalState;
+  shortTermMemory?: string[];
+  longTermMemory?: string[];
+  lastInteractionAt?: IsoTimestamp | null;
+  currentGoal?: string;
 }
 ```
 
@@ -1032,8 +1156,10 @@ export interface LevelBuilderOutput {
 export interface NpcBrainInput {
   npcDefinition: NpcDefinition;
   npcState: NpcState;
-  activeQuests: QuestProgress[];
+  questDefinitions: QuestDefinition[];
+  questProgressEntries: QuestProgress[];
   playerState: PlayerState;
+  playerModel: PlayerModelState;
   recentDialogue: NpcDialogueTurn[];
 }
 ```
@@ -1043,10 +1169,23 @@ export interface NpcBrainInput {
 ```ts
 export interface NpcBrainOutput {
   npcReply: string;
-  updatedDisposition?: NpcDisposition;
   trustDelta?: number;
   relationshipDelta?: number;
-  unlockedQuestIds?: QuestId[];
+  memoryNote?: string;
+  longTermMemoryNote?: string;
+  questOfferIds: QuestId[];
+  itemTransfers: Array<{
+    itemId: ItemId;
+    quantity: number;
+    direction: "to-player" | "from-player";
+  }>;
+  playerGoldDelta: number;
+  relationshipNetworkChanges: Array<{
+    targetNpcId: NpcId;
+    delta: number;
+    bond?: string;
+  }>;
+  decisionBasis: string[];
   explanationHint?: string;
 }
 ```
@@ -1166,6 +1305,31 @@ This contract is presentation-only:
 * it should be derivable from validated state and selectors
 * it should stay compatible with both DOM placeholders and future Phaser/Pixi scene renderers
 
+## 14.2 Pixel Scene Render Model
+
+The Phaser gameplay canvas now consumes a second presentation-only contract that is still derived from validated domain state rather than from ad hoc component logic.
+
+It should include:
+
+* renderer id
+* area id / display labels
+* tile viewport metadata
+* deterministic tile grid entries
+* player spawn position
+* in-scene entities for NPCs, shops, portals, events, battles, and items
+* prompt copy and summary metrics
+
+It should now be derived from explicit `Area.scene` tile data plus localized marker metadata, rather than procedurally inventing a map from area type alone.
+
+It must not include:
+
+* direct controller references
+* rule evaluation functions
+* save writers
+* raw mutable store access
+
+This contract exists specifically so the real-time renderer can stay modular, testable, and replaceable while continuing to respect the same UI-layer boundary as the rest of the application.
+
 ---
 
 # 15. Controller Service Contracts
@@ -1207,6 +1371,41 @@ export interface CombatController {
   startEncounter(encounterId: EncounterId): Promise<void>;
   submitPlayerAction(actionType: string): Promise<void>;
   endEncounter(): Promise<void>;
+}
+```
+
+## 15.5 Area Navigation Controller
+
+```ts
+export interface AreaNavigationController {
+  enterArea(
+    areaId: AreaId,
+    options?: {
+      ignoreConnectivity?: boolean;
+      autoSave?: boolean;
+    },
+  ): Promise<RuleResult | null>;
+}
+```
+
+## 15.6 Event Trigger Controller
+
+```ts
+export interface EventTriggerController {
+  triggerEvent(
+    eventId: EventId,
+    source?: EventLogSource,
+    options?: {
+      autoSave?: boolean;
+    },
+  ): Promise<unknown>;
+
+  triggerAreaEntryEvents(
+    areaId: AreaId,
+    options?: {
+      autoSave?: boolean;
+    },
+  ): Promise<unknown[]>;
 }
 ```
 

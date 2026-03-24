@@ -14,7 +14,7 @@ export function InteractionPointLayer({
     <SceneMarkerLayer
       markers={markers}
       onMarkerActivate={onMarkerActivate}
-      emptyState="No interaction points in this area."
+      emptyState="这个区域里暂时没有可用交互点。"
     />
   );
 }

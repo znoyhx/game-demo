@@ -399,6 +399,23 @@ readable dialogue area
 obvious interaction affordances
 strong demo readability at 1920x1080
 
+### 15.1 Strong Simplified Chinese Localization Requirement
+All player-facing pages and UI surfaces must use Simplified Chinese by default.
+
+This is a hard product constraint:
+
+- Do not ship built-in English copy in page titles, buttons, labels, panels, badges, empty states, status text, hints, logs, debug controls, review views, or error messages.
+- Do not expose raw English enum values, schema keys, internal identifiers, engine placeholders, or agent/module names directly to users.
+- Any display text derived from domain state, rules results, mock data, controllers, or view models must be localized before rendering.
+- Debug pages are not exempt; developer-facing in-app controls and visible diagnostics should also be localized unless a task explicitly requires otherwise.
+- If user-provided free text is shown back to the user, handle it separately from built-in UI copy; never use this exception to justify shipping English defaults.
+
+When implementing or reviewing UI changes, assume the target standard is:
+
+- users should not see built-in English anywhere in normal page flows
+- tests should assert localized Chinese copy where relevant
+- new modules must include localized display labels instead of leaking internal tokens
+
 When uncertain, optimize for live presentation clarity.
 
 16. Documentation Update Rules

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 
 import {
@@ -12,8 +12,9 @@ import {
 } from '../../app/runtime/appRuntime';
 import { GameHud } from '../../components/game/GameHud';
 import { selectLogEntries, useGameLogStore } from '../../core/logging';
-import type { NpcDialogueTurn } from '../../core/schemas';
+import type { NpcDialogueSession } from '../../core/schemas';
 import {
+  selectActivePanel,
   selectAreas,
   selectCombatEncounters,
   selectCombatState,
@@ -38,6 +39,10 @@ import {
   useGameStore,
 } from '../../core/state';
 import { buildForcedRenderMapState } from '../../core/state/renderPreview';
+import {
+  formatNpcDispositionLabel,
+  formatNpcEmotionalStateLabel,
+} from '../../core/utils/displayLabels';
 import { buildGamePageViewModel } from './gameViewModel';
 
 export function GamePage() {
@@ -48,6 +53,8 @@ export function GamePage() {
   const areas = useGameStore(useShallow(selectAreas));
   const mapState = useGameStore(selectMapState);
   const debugTools = useGameStore(selectDebugToolsState);
+  const activePanel = useGameStore(selectActivePanel);
+  const selectedNpcId = useGameStore((state) => state.ui.selectedNpcId);
   const patchDebugToolsState = useGameStore((state) => state.patchDebugToolsState);
   const questDefinitions = useGameStore(useShallow(selectQuestDefinitions));
   const questProgressEntries = useGameStore(useShallow(selectQuestProgressEntries));
@@ -72,11 +79,7 @@ export function GamePage() {
   );
   const isForcedRender = forcedArea !== null;
 
-  const [dialogueState, setDialogueState] = useState<{
-    npcId: string;
-    npcName: string;
-    history: NpcDialogueTurn[];
-  } | null>(null);
+  const [dialogueState, setDialogueState] = useState<NpcDialogueSession | null>(null);
   const [statusMessage, setStatusMessage] = useState(
     '请选择角色、传送门、事件高亮或战斗标记，开始当前演示。',
   );
@@ -132,6 +135,34 @@ export function GamePage() {
       worldSummary,
     ],
   );
+
+  useEffect(() => {
+    if (activePanel !== 'npc' || !selectedNpcId) {
+      setDialogueState(null);
+      return;
+    }
+
+    const existingDialogue = appNpcInteractionController.getDialogueState(selectedNpcId);
+
+    if (existingDialogue) {
+      setDialogueState(existingDialogue);
+      return;
+    }
+
+    let cancelled = false;
+
+    void appNpcInteractionController.startDialogue(selectedNpcId).then((result) => {
+      if (cancelled || !result) {
+        return;
+      }
+
+      setDialogueState(result);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activePanel, selectedNpcId]);
 
   const closeDialogue = useCallback(async () => {
     if (!dialogueState) {
@@ -252,7 +283,7 @@ export function GamePage() {
   );
 
   const handleMarkerActivate = useCallback(
-    async (markerId: string) => {
+    async (markerId: string, activationSource: 'manual' | 'approach' = 'manual') => {
       const marker = sceneMarkersById[markerId];
 
       if (!marker) {
@@ -293,7 +324,10 @@ export function GamePage() {
       if (marker.type === 'event') {
         const eventId = marker.targetId ?? marker.id;
         const result = await runControlTask(`event:${eventId}`, () =>
-          appEventTriggerController.triggerEvent(eventId, 'manual'),
+          appEventTriggerController.triggerEvent(
+            eventId,
+            activationSource === 'approach' ? 'location' : 'manual',
+          ),
         );
 
         if (result && 'ok' in result && !result.ok) {
@@ -413,9 +447,11 @@ export function GamePage() {
         }
 
         setDialogueState({
-          npcId: dialogueState.npcId,
-          npcName: dialogueState.npcName,
+          npcId: result.npcId,
+          npcName: result.npcName,
           history: result.history,
+          state: result.state,
+          explanation: result.explanation,
         });
         setStatusMessage(`已推进与 ${dialogueState.npcName} 的对话，信任与任务状态可能已经变化。`);
         return;
@@ -469,6 +505,70 @@ export function GamePage() {
             : '系统',
       text: line.text,
     }));
+    const attitudeSummary = dialogueState
+      ? [
+          {
+            label: '当前态度',
+            value: dialogueState.explanation?.attitudeLabel ??
+              formatNpcDispositionLabel(dialogueState.state.currentDisposition),
+          },
+          {
+            label: '当前情绪',
+            value: dialogueState.explanation?.emotionalStateLabel ??
+              formatNpcEmotionalStateLabel(dialogueState.state.emotionalState),
+          },
+          {
+            label: '信任 / 关系',
+            value: `${dialogueState.state.trust} / ${dialogueState.state.relationship}`,
+          },
+          ...(debugTools.debugModeEnabled && dialogueState.state.memory.shortTerm.length > 0
+            ? [
+                {
+                  label: '短期记忆',
+                  value: dialogueState.state.memory.shortTerm.slice(-1)[0],
+                },
+              ]
+            : []),
+        ]
+      : undefined;
+    const dialogueTips = dialogueState?.explanation
+      ? [
+          {
+            id: `npc-trust:${dialogueState.npcId}`,
+            title: `${dialogueState.npcName} · 信任变化`,
+            summary:
+              dialogueState.explanation.trust.reasons.length > 0
+                ? `${dialogueState.explanation.trust.delta >= 0 ? '+' : ''}${dialogueState.explanation.trust.delta}：${dialogueState.explanation.trust.reasons.join('；')}`
+                : `${dialogueState.explanation.trust.delta >= 0 ? '+' : ''}${dialogueState.explanation.trust.delta}`,
+            tone:
+              dialogueState.explanation.trust.delta >= 0
+                ? ('success' as const)
+                : ('warning' as const),
+          },
+          {
+            id: `npc-relationship:${dialogueState.npcId}`,
+            title: `${dialogueState.npcName} · 关系变化`,
+            summary:
+              dialogueState.explanation.relationship.reasons.length > 0
+                ? `${dialogueState.explanation.relationship.delta >= 0 ? '+' : ''}${dialogueState.explanation.relationship.delta}：${dialogueState.explanation.relationship.reasons.join('；')}`
+                : `${dialogueState.explanation.relationship.delta >= 0 ? '+' : ''}${dialogueState.explanation.relationship.delta}`,
+            tone:
+              dialogueState.explanation.relationship.delta >= 0
+                ? ('success' as const)
+                : ('warning' as const),
+          },
+          ...(debugTools.debugModeEnabled && dialogueState.explanation.decisionBasis.length > 0
+            ? [
+                {
+                  id: `npc-debug:${dialogueState.npcId}`,
+                  title: '对话判定依据',
+                  summary: dialogueState.explanation.decisionBasis.join('；'),
+                  tone: 'info' as const,
+                },
+              ]
+            : []),
+        ]
+      : [];
 
     const controls = combatState
       ? [
@@ -528,13 +628,15 @@ export function GamePage() {
         ],
       controls,
       logs: viewModel.logs,
-      tips: viewModel.tips,
+      tips: [...dialogueTips, ...viewModel.tips].slice(0, 4),
       statusMessage,
       activeControlId: busyControlId,
+      attitudeSummary,
     };
   }, [
     busyControlId,
     combatState,
+    debugTools.debugModeEnabled,
     dialogueState,
     isForcedRender,
     statusMessage,
@@ -544,6 +646,41 @@ export function GamePage() {
     viewModel.tips,
   ]);
 
+  const handleHudAreaSelect = useCallback(
+    (areaId: string) => {
+      void handleAreaSelect(areaId);
+    },
+    [handleAreaSelect],
+  );
+
+  const handleHudNpcSelect = useCallback(
+    (npcId: string) => {
+      void handleNpcSelect(npcId);
+    },
+    [handleNpcSelect],
+  );
+
+  const handleHudMarkerActivate = useCallback(
+    (markerId: string, source?: 'manual' | 'approach') => {
+      void handleMarkerActivate(markerId, source ?? 'manual');
+    },
+    [handleMarkerActivate],
+  );
+
+  const handleHudEventActivate = useCallback(
+    (eventId: string) => {
+      void handleEventActivate(eventId);
+    },
+    [handleEventActivate],
+  );
+
+  const handleHudControlSelect = useCallback(
+    (controlId: string) => {
+      void handleControlSelect(controlId);
+    },
+    [handleControlSelect],
+  );
+
   return (
     <GameHud
       topBar={{
@@ -551,26 +688,19 @@ export function GamePage() {
         isSaving: busyControlId === 'manual-save' || saveStatus === 'saving',
       }}
       leftSidebar={viewModel.leftSidebar}
-      scene={viewModel.scene}
+      scene={{
+        ...viewModel.scene,
+        interactionLocked: dialogueState !== null || combatState !== null,
+      }}
       rightSidebar={viewModel.rightSidebar}
       bottom={bottomModel}
       busyAreaId={busyAreaId}
       onManualSave={handleManualSave}
-      onAreaSelect={(areaId) => {
-        void handleAreaSelect(areaId);
-      }}
-      onNpcSelect={(npcId) => {
-        void handleNpcSelect(npcId);
-      }}
-      onMarkerActivate={(markerId) => {
-        void handleMarkerActivate(markerId);
-      }}
-      onEventActivate={(eventId) => {
-        void handleEventActivate(eventId);
-      }}
-      onControlSelect={(controlId) => {
-        void handleControlSelect(controlId);
-      }}
+      onAreaSelect={handleHudAreaSelect}
+      onNpcSelect={handleHudNpcSelect}
+      onMarkerActivate={handleHudMarkerActivate}
+      onEventActivate={handleHudEventActivate}
+      onControlSelect={handleHudControlSelect}
     />
   );
 }

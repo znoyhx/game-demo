@@ -54,7 +54,7 @@ export function AreaSceneMap({
           model.stageTone === 'success' && 'area-scene-stage__viewport--success',
           model.stageTone === 'info' && 'area-scene-stage__viewport--info',
         )}
-        aria-label={`${areaName} stage placeholder`}
+        aria-label={`${areaName} 场景占位视窗`}
       >
         {model.layers.map((layer) => (
           <div

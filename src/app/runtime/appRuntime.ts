@@ -3,6 +3,7 @@ import {
   AreaDebugController,
   AreaNavigationController,
   CombatController,
+  DebugScenarioController,
   EventTriggerController,
   NpcInteractionController,
   PlayerModelController,
@@ -53,11 +54,21 @@ export const appPlayerModelController = new PlayerModelController({
   logger: gameLogger,
 });
 
+export const appEventTriggerController = new EventTriggerController({
+  store: gameStore,
+  agents: appAgents,
+  eventBus: gameEventBus,
+  saveController: appSaveLoadController,
+  questController: appQuestProgressionController,
+  logger: gameLogger,
+});
+
 export const appAreaNavigationController = new AreaNavigationController({
   store: gameStore,
   eventBus: gameEventBus,
   saveController: appSaveLoadController,
   questController: appQuestProgressionController,
+  eventController: appEventTriggerController,
 });
 
 export const appAreaDebugController = new AreaDebugController({
@@ -75,15 +86,6 @@ export const appNpcInteractionController = new NpcInteractionController({
   logger: gameLogger,
 });
 
-export const appEventTriggerController = new EventTriggerController({
-  store: gameStore,
-  agents: appAgents,
-  eventBus: gameEventBus,
-  saveController: appSaveLoadController,
-  questController: appQuestProgressionController,
-  logger: gameLogger,
-});
-
 export const appCombatController = new CombatController({
   store: gameStore,
   agents: appAgents,
@@ -91,6 +93,18 @@ export const appCombatController = new CombatController({
   saveController: appSaveLoadController,
   reviewController: appReviewGenerationController,
   logger: gameLogger,
+});
+
+export const appDebugScenarioController = new DebugScenarioController({
+  store: gameStore,
+  saveController: appSaveLoadController,
+  areaDebugController: appAreaDebugController,
+  areaController: appAreaNavigationController,
+  questController: appQuestProgressionController,
+  npcController: appNpcInteractionController,
+  combatController: appCombatController,
+  eventController: appEventTriggerController,
+  playerModelController: appPlayerModelController,
 });
 
 export const appWorldCreationController = new WorldCreationController({

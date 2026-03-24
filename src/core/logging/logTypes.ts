@@ -3,6 +3,7 @@ import type { AnyGameDomainEvent, GameDomainEventName } from '../events/domainEv
 import type {
   CombatResult,
   EnemyTacticType,
+  NpcInteractionExplanation,
   NpcDialogueTurn,
   PlayerProfileTag,
 } from '../schemas';
@@ -36,6 +37,7 @@ export interface NpcInteractionLogRecord extends BaseLogRecord {
   unlockedQuestIds: string[];
   dialogue?: NpcDialogueTurn[];
   reply?: string;
+  explanation?: NpcInteractionExplanation;
 }
 
 export interface CombatLogRecord extends BaseLogRecord {

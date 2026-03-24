@@ -1,5 +1,6 @@
 import { Badge } from '../pixel-ui/Badge';
 import { PixelLogFeed } from '../pixel-ui/PixelLogFeed';
+import { uiToneLabels } from '../../core/utils/displayLabels';
 import { DialoguePanel } from './DialoguePanel';
 import { GamePanel } from './GamePanel';
 
@@ -35,6 +36,7 @@ interface GameBottomDockProps {
   dialogueTitle: string;
   dialogueSpeaker: string;
   dialogueLines: DialogueLine[];
+  attitudeSummary?: Array<{ label: string; value: string }>;
   controls: ControlButton[];
   logs: LogEntryViewModel[];
   tips: TipViewModel[];
@@ -47,6 +49,7 @@ export function GameBottomDock({
   dialogueTitle,
   dialogueSpeaker,
   dialogueLines,
+  attitudeSummary,
   controls,
   logs,
   tips,
@@ -60,29 +63,30 @@ export function GameBottomDock({
         dialogueTitle={dialogueTitle}
         dialogueSpeaker={dialogueSpeaker}
         dialogueLines={dialogueLines}
+        attitudeSummary={attitudeSummary}
         controls={controls}
         statusMessage={statusMessage}
         onControlSelect={onControlSelect}
         activeControlId={activeControlId}
       />
       <GamePanel
-        title="Logs"
-        eyebrow="Action Feed"
-        description="Latest runtime and interaction events."
+        title="日志"
+        eyebrow="行动流"
+        description="展示最新的运行与交互事件。"
       >
         <PixelLogFeed entries={logs} />
       </GamePanel>
       <GamePanel
-        title="Explainability Tips"
-        eyebrow="Agent Notes"
-        description="Make AI decisions legible during live presentation."
+        title="可解释提示"
+        eyebrow="代理备注"
+        description="让智能决策在现场演示中也能一眼看懂。"
       >
         <div className="game-list">
           {tips.map((tip) => (
             <article key={tip.id} className="game-list__card">
               <div className="game-list__card-header">
                 <strong>{tip.title}</strong>
-                <Badge tone={tip.tone}>{tip.tone}</Badge>
+                <Badge tone={tip.tone}>{uiToneLabels[tip.tone]}</Badge>
               </div>
               <p>{tip.summary}</p>
             </article>

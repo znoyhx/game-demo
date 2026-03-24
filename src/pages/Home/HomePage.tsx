@@ -31,7 +31,7 @@ const toTitleCase = (value: string) =>
     .join(' ');
 
 const pickFocusWord = (value: string) =>
-  toTitleCase(value).split(' ').find(Boolean) ?? 'Forge';
+  toTitleCase(value).split(' ').find(Boolean) ?? '锻炉';
 
 const toSentenceCase = (value: string) => {
   const trimmed = value.trim();

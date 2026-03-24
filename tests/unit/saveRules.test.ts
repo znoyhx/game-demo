@@ -27,4 +27,32 @@ describe('save rules', () => {
     expect(result.ok).toBe(true);
     expect(result.snapshot?.metadata.version).toBe(CURRENT_SAVE_SCHEMA_VERSION);
   });
+
+  it('backfills explicit area scene data for legacy saves that only stored area metadata', () => {
+    const legacySnapshot = {
+      ...mockSaveSnapshot,
+      metadata: {
+        ...mockSaveSnapshot.metadata,
+        version: '0.2.0',
+      },
+      areas: mockSaveSnapshot.areas.map((area) => {
+        const legacyArea = { ...area };
+        Reflect.deleteProperty(legacyArea, 'scene');
+        return legacyArea;
+      }),
+    };
+
+    const result = migrateSaveSnapshot(legacySnapshot);
+
+    expect(result.ok).toBe(true);
+    expect(result.snapshot?.metadata.version).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+    expect(
+      result.snapshot?.areas.every(
+        (area) =>
+          area.scene.tiles.length > 0 &&
+          area.scene.grid.width >= 12 &&
+          area.scene.grid.height >= 8,
+      ),
+    ).toBe(true);
+  });
 });

@@ -15,7 +15,7 @@ export function NpcMarkerLayer({
       markers={markers}
       onMarkerActivate={onMarkerActivate}
       filter={(marker) => marker.type === 'npc' || marker.type === 'shop'}
-      emptyState="No NPC render markers in this area."
+      emptyState="当前区域没有可渲染的角色标记。"
     />
   );
 }

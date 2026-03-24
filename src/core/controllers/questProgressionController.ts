@@ -138,6 +138,7 @@ export class QuestProgressionController {
   async activateQuest(
     questId: string,
     options?: {
+      autoSave?: boolean;
       saveSource?: 'auto' | 'manual' | 'debug';
     },
   ) {
@@ -183,11 +184,13 @@ export class QuestProgressionController {
 
     this.emitQuestUpdated(nextProgress);
 
-    await maybeAutoSave(
-      this.store,
-      this.saveController,
-      options?.saveSource ?? 'auto',
-    );
+    if (options?.autoSave !== false) {
+      await maybeAutoSave(
+        this.store,
+        this.saveController,
+        options?.saveSource ?? 'auto',
+      );
+    }
 
     return nextProgress;
   }
@@ -345,6 +348,7 @@ export class QuestProgressionController {
     questId?: string,
     options?: {
       saveSource?: 'auto' | 'manual' | 'debug';
+      autoSave?: boolean;
     },
   ) {
     const state = this.store.getState();
@@ -388,11 +392,13 @@ export class QuestProgressionController {
       await this.refreshQuestStatuses({
         autoSave: false,
       });
-      await maybeAutoSave(
-        this.store,
-        this.saveController,
-        options?.saveSource ?? 'auto',
-      );
+      if (options?.autoSave !== false) {
+        await maybeAutoSave(
+          this.store,
+          this.saveController,
+          options?.saveSource ?? 'auto',
+        );
+      }
     }
 
     return results;

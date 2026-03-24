@@ -6,11 +6,16 @@ import { useShellStore } from '../../core/state/shellStore';
 
 export function RouteStatusSync() {
   const location = useLocation();
+  const currentRoute = useShellStore((state) => state.currentRoute);
   const setCurrentRoute = useShellStore((state) => state.setCurrentRoute);
 
   useEffect(() => {
+    if (currentRoute.path === location.pathname) {
+      return;
+    }
+
     setCurrentRoute(findRouteMeta(location.pathname));
-  }, [location.pathname, setCurrentRoute]);
+  }, [currentRoute.path, location.pathname, setCurrentRoute]);
 
   return null;
 }

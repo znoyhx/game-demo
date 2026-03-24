@@ -1,5 +1,6 @@
 import type { Area } from '../../schemas';
 
+import { mockAreaSceneDefinitions } from './areaScenes';
 import { mockIds } from './constants';
 
 export const mockAreas: Area[] = [
@@ -39,6 +40,15 @@ export const mockAreas: Area[] = [
         targetId: mockIds.areas.archive,
         enabled: true,
         travelMode: 'walk',
+      },
+      {
+        id: 'interaction:crossroads-ashfall-bell',
+        label: '靠近灰落警报钟',
+        type: 'event',
+        x: 10,
+        y: 7,
+        targetId: mockIds.events.ashfallWarning,
+        enabled: true,
       },
     ],
     enemySpawnRules: [
@@ -100,6 +110,7 @@ export const mockAreas: Area[] = [
     connectedAreaIds: [mockIds.areas.archive],
     backgroundKey: 'bg-cinder-crossroads',
     musicKey: 'music-crossroads-watch',
+    scene: mockAreaSceneDefinitions[mockIds.areas.crossroads],
   },
   {
     id: mockIds.areas.archive,
@@ -147,6 +158,15 @@ export const mockAreas: Area[] = [
         targetId: mockIds.areas.grotto,
         enabled: true,
         travelMode: 'teleport',
+      },
+      {
+        id: 'interaction:archive-echo-core',
+        label: '聆听秘库回响',
+        type: 'event',
+        x: 12,
+        y: 4,
+        targetId: mockIds.events.archiveEchoes,
+        enabled: true,
       },
     ],
     enemySpawnRules: [
@@ -220,6 +240,7 @@ export const mockAreas: Area[] = [
     ],
     backgroundKey: 'bg-sunken-archive',
     musicKey: 'music-archive-echoes',
+    scene: mockAreaSceneDefinitions[mockIds.areas.archive],
   },
   {
     id: mockIds.areas.sanctum,
@@ -251,6 +272,15 @@ export const mockAreas: Area[] = [
         targetId: mockIds.areas.archive,
         enabled: true,
         travelMode: 'walk',
+      },
+      {
+        id: 'interaction:sanctum-countermeasure-sigil',
+        label: '触碰反制纹章',
+        type: 'event',
+        x: 7,
+        y: 4,
+        targetId: mockIds.events.wardenCountermeasure,
+        enabled: true,
       },
     ],
     enemySpawnRules: [
@@ -323,6 +353,7 @@ export const mockAreas: Area[] = [
     connectedAreaIds: [mockIds.areas.archive],
     backgroundKey: 'bg-ember-sanctum',
     musicKey: 'music-sanctum-warden',
+    scene: mockAreaSceneDefinitions[mockIds.areas.sanctum],
   },
   {
     id: mockIds.areas.grotto,
@@ -414,5 +445,6 @@ export const mockAreas: Area[] = [
     connectedAreaIds: [mockIds.areas.archive, mockIds.areas.crossroads],
     backgroundKey: 'bg-ember-grotto',
     musicKey: 'music-grotto-resonance',
+    scene: mockAreaSceneDefinitions[mockIds.areas.grotto],
   },
 ];

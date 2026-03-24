@@ -1,6 +1,21 @@
-import { saveSnapshotSchema, type LoadResult, type SaveSnapshot } from '../schemas';
+import { z } from 'zod';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = '0.2.0';
+import {
+  areaSchema,
+  legacyAreaSchema,
+  saveSnapshotSchema,
+  type LoadResult,
+  type SaveSnapshot,
+} from '../schemas';
+import { ensureAreaSceneDefinition } from '../utils/areaSceneDefinition';
+
+export const CURRENT_SAVE_SCHEMA_VERSION = '0.4.0';
+
+const migrateableSaveSnapshotSchema = saveSnapshotSchema.extend({
+  areas: z.array(z.union([areaSchema, legacyAreaSchema])),
+});
+
+type MigrateableSaveSnapshot = z.infer<typeof migrateableSaveSnapshotSchema>;
 
 export interface SaveValidator {
   validate(snapshot: unknown): LoadResult;
@@ -32,7 +47,7 @@ export class VersionedSaveMigrator implements SaveMigrator {
   constructor(private readonly currentVersion = CURRENT_SAVE_SCHEMA_VERSION) {}
 
   migrate(snapshot: unknown): LoadResult {
-    const parsedSnapshot = saveSnapshotSchema.safeParse(snapshot);
+    const parsedSnapshot = migrateableSaveSnapshotSchema.safeParse(snapshot);
 
     if (!parsedSnapshot.success) {
       return {
@@ -41,27 +56,23 @@ export class VersionedSaveMigrator implements SaveMigrator {
       };
     }
 
-    if (parsedSnapshot.data.metadata.version === this.currentVersion) {
-      return {
-        ok: true,
-        snapshot: parsedSnapshot.data,
-      };
-    }
+    const normalizedSnapshot = this.upgradeToCurrentVersion(parsedSnapshot.data);
 
     return {
       ok: true,
-      snapshot: this.upgradeToCurrentVersion(parsedSnapshot.data),
+      snapshot: normalizedSnapshot,
     };
   }
 
-  private upgradeToCurrentVersion(snapshot: SaveSnapshot): SaveSnapshot {
-    return {
+  private upgradeToCurrentVersion(snapshot: MigrateableSaveSnapshot): SaveSnapshot {
+    return saveSnapshotSchema.parse({
       ...snapshot,
+      areas: snapshot.areas.map((area) => ensureAreaSceneDefinition(area)),
       metadata: {
         ...snapshot.metadata,
         version: this.currentVersion,
       },
-    };
+    });
   }
 }
 

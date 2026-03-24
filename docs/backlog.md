@@ -224,11 +224,13 @@ Prove the core loop end-to-end with one small but complete playable scenario.
 - render one area scene
 - show interaction markers
 - show current area info in UI
+- keep the main scene backed by explicit tile scene data instead of text-only metadata
 
 **Acceptance criteria**
 - game page renders area without errors
 - at least one NPC/interaction point is visible
 - area metadata is visible
+- the scene renderer consumes validated tile scene data
 
 **Dependencies**
 - M1-1
@@ -324,11 +326,13 @@ Expand the MVP into a recognizably game-like exploration flow.
 - define 3 areas
 - add area metadata and transitions
 - add locked/unlocked conditions
+- keep each area represented by explicit tile-based scene data so switching areas updates the live renderer
 
 **Acceptance criteria**
 - player can move between areas
 - locked area remains inaccessible until condition is met
 - unlock state persists in save data
+- rendered scene updates with area transitions, not only side-panel metadata
 
 **Dependencies**
 - M1 complete

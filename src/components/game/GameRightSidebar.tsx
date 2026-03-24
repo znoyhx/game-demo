@@ -23,6 +23,7 @@ interface RelationshipViewModel {
   trust: number;
   relationship: number;
   disposition: string;
+  emotionalState: string;
 }
 
 interface EnemyAlertViewModel {
@@ -97,7 +98,7 @@ export function GameRightSidebar({
             <div key={relationship.id} className="game-relationship-row">
               <div>
                 <strong>{relationship.name}</strong>
-                <span>{relationship.disposition}</span>
+                <span>{relationship.disposition} · {relationship.emotionalState}</span>
               </div>
               <div>
                 <span>信任 {relationship.trust}</span>

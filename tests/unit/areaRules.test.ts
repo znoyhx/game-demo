@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { mockAreas, mockIds, mockNpcStates, mockQuestProgress, mockWorld } from '../../src/core/mocks';
+import {
+  mockAreas,
+  mockIds,
+  mockNpcStates,
+  mockQuestProgress,
+  mockWorld,
+} from '../../src/core/mocks';
 import {
   buildAreaEnvironmentDebugMutation,
   evaluateAreaAccess,
@@ -66,7 +72,7 @@ describe('area rules', () => {
     });
 
     expect(result.ok).toBe(false);
-    expect(result.reasons[0]).toContain('not connected');
+    expect(result.reasons[0]).toContain('并不连通');
   });
 
   it('resolves environment state from world flags', () => {

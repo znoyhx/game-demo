@@ -32,6 +32,17 @@ export const npcDispositionSchema = z.enum([
   'secretive',
 ]);
 
+export const npcEmotionalStateSchema = z.enum([
+  'calm',
+  'hopeful',
+  'wary',
+  'tense',
+  'angry',
+  'grateful',
+  'resolute',
+  'fearful',
+]);
+
 export const npcMemorySummarySchema = z
   .object({
     shortTerm: z.array(nonEmptyStringSchema),
@@ -55,10 +66,19 @@ export const npcRevealableInfoSchema = z
   })
   .strict();
 
+export const npcRelationshipNetworkEdgeSchema = z
+  .object({
+    targetNpcId: npcIdSchema,
+    bond: nonEmptyStringSchema,
+    strength: relationshipScoreSchema,
+  })
+  .strict();
+
 export const npcDefinitionSchema = z
   .object({
     id: npcIdSchema,
     name: nonEmptyStringSchema,
+    identity: nonEmptyStringSchema,
     role: npcRoleSchema,
     factionId: factionIdSchema.optional(),
     areaId: areaIdSchema,
@@ -74,10 +94,14 @@ export const npcStateSchema = z
     relationship: relationshipScoreSchema,
     trust: trustScoreSchema,
     currentDisposition: npcDispositionSchema,
+    emotionalState: npcEmotionalStateSchema.default('calm'),
     memory: npcMemorySummarySchema,
     revealableInfo: npcRevealableInfoSchema,
+    revealedFacts: z.array(nonEmptyStringSchema).default([]),
+    revealedSecrets: z.array(nonEmptyStringSchema).default([]),
+    relationshipNetwork: z.array(npcRelationshipNetworkEdgeSchema).default([]),
     currentGoal: nonEmptyStringSchema.optional(),
-    hasGivenQuestIds: z.array(questIdSchema),
+    hasGivenQuestIds: z.array(questIdSchema).default([]),
     flags: booleanFlagRecordSchema.optional(),
   })
   .strict();
@@ -100,13 +124,84 @@ export const npcDialogueTurnSchema = z
   })
   .strict();
 
+export const npcInteractionTrustExplanationSchema = z
+  .object({
+    before: trustScoreSchema,
+    after: trustScoreSchema,
+    delta: z.number().int().min(-100).max(100),
+    reasons: z.array(nonEmptyStringSchema).default([]),
+  })
+  .strict();
+
+export const npcInteractionRelationshipExplanationSchema = z
+  .object({
+    before: relationshipScoreSchema,
+    after: relationshipScoreSchema,
+    delta: z.number().int().min(-100).max(100),
+    reasons: z.array(nonEmptyStringSchema).default([]),
+  })
+  .strict();
+
+export const npcInteractionExplanationSchema = z
+  .object({
+    npcId: npcIdSchema,
+    npcName: nonEmptyStringSchema,
+    attitudeLabel: nonEmptyStringSchema,
+    emotionalStateLabel: nonEmptyStringSchema,
+    trust: npcInteractionTrustExplanationSchema,
+    relationship: npcInteractionRelationshipExplanationSchema,
+    decisionBasis: z.array(nonEmptyStringSchema).default([]),
+    disclosedInfo: z.array(nonEmptyStringSchema).default([]),
+    debugSummary: nonEmptyStringSchema,
+  })
+  .strict();
+
+export const npcDialogueSessionSchema = z
+  .object({
+    npcId: npcIdSchema,
+    npcName: nonEmptyStringSchema,
+    history: z.array(npcDialogueTurnSchema),
+    state: npcStateSchema,
+    explanation: npcInteractionExplanationSchema.optional(),
+  })
+  .strict();
+
+export const npcDebugStateInjectionSchema = z
+  .object({
+    npcId: npcIdSchema,
+    trust: trustScoreSchema.optional(),
+    relationship: relationshipScoreSchema.optional(),
+    currentDisposition: npcDispositionSchema.optional(),
+    emotionalState: npcEmotionalStateSchema.optional(),
+    shortTermMemory: z.array(nonEmptyStringSchema).max(5).optional(),
+    longTermMemory: z.array(nonEmptyStringSchema).max(8).optional(),
+    lastInteractionAt: isoTimestampSchema.nullable().optional(),
+    currentGoal: nonEmptyStringSchema.optional(),
+  })
+  .strict();
+
 export type NpcRole = z.infer<typeof npcRoleSchema>;
 export type NpcDisposition = z.infer<typeof npcDispositionSchema>;
+export type NpcEmotionalState = z.infer<typeof npcEmotionalStateSchema>;
 export type NpcMemorySummary = z.infer<typeof npcMemorySummarySchema>;
 export type NpcRevealableInfo = z.infer<typeof npcRevealableInfoSchema>;
+export type NpcRelationshipNetworkEdge = z.infer<typeof npcRelationshipNetworkEdgeSchema>;
 export type NpcDefinition = z.infer<typeof npcDefinitionSchema>;
 export type NpcState = z.infer<typeof npcStateSchema>;
 export type NpcDialogueIntent = z.infer<typeof npcDialogueIntentSchema>;
 export type NpcDialogueSpeaker = z.infer<typeof npcDialogueSpeakerSchema>;
 export type NpcDialogueOption = z.infer<typeof npcDialogueOptionSchema>;
 export type NpcDialogueTurn = z.infer<typeof npcDialogueTurnSchema>;
+export type NpcInteractionTrustExplanation = z.infer<
+  typeof npcInteractionTrustExplanationSchema
+>;
+export type NpcInteractionRelationshipExplanation = z.infer<
+  typeof npcInteractionRelationshipExplanationSchema
+>;
+export type NpcInteractionExplanation = z.infer<
+  typeof npcInteractionExplanationSchema
+>;
+export type NpcDialogueSession = z.infer<typeof npcDialogueSessionSchema>;
+export type NpcDebugStateInjection = z.infer<
+  typeof npcDebugStateInjectionSchema
+>;
