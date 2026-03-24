@@ -5,16 +5,16 @@ import { mockIds } from './constants';
 export const mockAreas: Area[] = [
   {
     id: mockIds.areas.crossroads,
-    name: 'Cinder Crossroads',
+    name: '余烬前哨',
     type: 'town',
-    description: 'A fortified trading square lit by braziers and ash lanterns.',
+    description: '被火盆与灰灯照亮的防御型集市广场。',
     difficulty: 1,
     unlockedByDefault: true,
     npcIds: [mockIds.npcs.lyra, mockIds.npcs.brom],
     interactionPoints: [
       {
         id: 'interaction:crossroads-lyra',
-        label: 'Speak with Lyra',
+        label: '与莱拉交谈',
         type: 'npc',
         x: 5,
         y: 4,
@@ -23,7 +23,7 @@ export const mockAreas: Area[] = [
       },
       {
         id: 'interaction:crossroads-brom',
-        label: 'Trade with Brom',
+        label: '与布罗姆交易',
         type: 'shop',
         x: 8,
         y: 3,
@@ -32,7 +32,7 @@ export const mockAreas: Area[] = [
       },
       {
         id: 'interaction:crossroads-archive-gate',
-        label: 'Take the archive road',
+        label: '前往秘库道路',
         type: 'portal',
         x: 11,
         y: 6,
@@ -47,16 +47,16 @@ export const mockAreas: Area[] = [
   },
   {
     id: mockIds.areas.archive,
-    name: 'Sunken Archive',
+    name: '沉没秘库',
     type: 'ruin',
-    description: 'Collapsed archives where ember records still whisper through the dust.',
+    description: '坍塌的秘库遗址，尘埃中仍回荡着余烬记录的低语。',
     difficulty: 2,
     unlockedByDefault: true,
     npcIds: [mockIds.npcs.mirel, mockIds.npcs.rowan],
     interactionPoints: [
       {
         id: 'interaction:archive-mirel',
-        label: 'Inspect records with Mirel',
+        label: '与米蕾尔检查记录',
         type: 'npc',
         x: 4,
         y: 6,
@@ -65,7 +65,7 @@ export const mockAreas: Area[] = [
       },
       {
         id: 'interaction:archive-rowan',
-        label: 'Report to Rowan',
+        label: '向罗文汇报',
         type: 'npc',
         x: 9,
         y: 5,
@@ -74,7 +74,7 @@ export const mockAreas: Area[] = [
       },
       {
         id: 'interaction:archive-sanctum-seal',
-        label: 'Approach the sanctum seal',
+        label: '接近圣所封印',
         type: 'portal',
         x: 12,
         y: 2,
@@ -89,9 +89,9 @@ export const mockAreas: Area[] = [
   },
   {
     id: mockIds.areas.sanctum,
-    name: 'Ember Sanctum',
+    name: '余烬圣所',
     type: 'boss',
-    description: 'The sealed inner fire chamber where the Ash Warden keeps watch.',
+    description: '被封印的内焰殿堂，灰烬守卫正在此镇守。',
     difficulty: 4,
     unlockedByDefault: false,
     unlockCondition: {
@@ -101,7 +101,7 @@ export const mockAreas: Area[] = [
     interactionPoints: [
       {
         id: 'interaction:sanctum-warden',
-        label: 'Challenge the Ash Warden',
+        label: '挑战灰烬守卫',
         type: 'battle',
         x: 7,
         y: 2,

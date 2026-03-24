@@ -6,8 +6,8 @@ export const mockQuestDefinitions: QuestDefinition[] = [
   {
     id: mockIds.quests.main,
     type: 'main',
-    title: 'Rekindle the Ward',
-    description: 'Restore the archive relay and open the way into the Ember Sanctum.',
+    title: '重燃守护火线',
+    description: '修复秘库中继，让通往余烬圣所的道路重新开启。',
     giverNpcId: mockIds.npcs.lyra,
     unlockCondition: {
       requiredWorldFlags: ['tutorialCompleted'],
@@ -15,26 +15,26 @@ export const mockQuestDefinitions: QuestDefinition[] = [
     objectives: [
       {
         id: 'objective:main-brief-lyra',
-        label: 'Receive Lyra\'s briefing at the crossroads',
+        label: '在路口听取莱拉的简报',
         type: 'talk',
         targetId: mockIds.npcs.lyra,
       },
       {
         id: 'objective:main-recover-relay-core',
-        label: 'Recover the relay core from the Sunken Archive',
+        label: '从沉没秘库取回中继核心',
         type: 'collect',
         targetId: 'item:relay-core',
         requiredCount: 1,
       },
       {
         id: 'objective:main-open-sanctum',
-        label: 'Break the sanctum seal',
+        label: '打破圣所封印',
         type: 'trigger',
         targetId: 'flag:sanctumSealBroken',
       },
       {
         id: 'objective:main-defeat-warden',
-        label: 'Defeat the Ash Warden',
+        label: '击败灰烬守卫',
         type: 'battle',
         targetId: mockIds.encounter,
       },
@@ -44,12 +44,12 @@ export const mockQuestDefinitions: QuestDefinition[] = [
       gold: 90,
       worldFlags: ['sanctumSealBroken'],
     },
-    failureCondition: 'The archive relay collapses before the sanctum can be reached.',
+    failureCondition: '若在抵达圣所前秘库中继彻底崩塌，则任务失败。',
     branchResults: [
       {
         id: 'branch:main-trust-rowan',
-        label: 'Secure Rowan\'s patrol support',
-        description: 'The archive route becomes safer, but the boss prepares earlier.',
+        label: '争取罗文的巡逻支援',
+        description: '秘库路线会更安全，但首领也会更早完成准备。',
         reward: {
           exp: 20,
         },
@@ -66,20 +66,20 @@ export const mockQuestDefinitions: QuestDefinition[] = [
   {
     id: mockIds.quests.sideSupply,
     type: 'side',
-    title: 'Brew Cinder Tonic',
-    description: 'Help Brom restock his ember tonic before the next ash wind.',
+    title: '调制余烬药剂',
+    description: '在下一波灰风到来前，帮布罗姆补齐他的余烬药剂材料。',
     giverNpcId: mockIds.npcs.brom,
     objectives: [
       {
         id: 'objective:supply-gather-herbs',
-        label: 'Gather dusk herbs from the archive edge',
+        label: '在秘库边缘采集暮色草药',
         type: 'collect',
         targetId: 'item:dusk-herb',
         requiredCount: 3,
       },
       {
         id: 'objective:supply-return-brom',
-        label: 'Return the herbs to Brom',
+        label: '把草药带回给布罗姆',
         type: 'talk',
         targetId: mockIds.npcs.brom,
       },
@@ -94,8 +94,8 @@ export const mockQuestDefinitions: QuestDefinition[] = [
   {
     id: mockIds.quests.sideArchive,
     type: 'side',
-    title: 'Catalogue Archive Echoes',
-    description: 'Assist Mirel in logging the whispers that react to the ward line.',
+    title: '记录秘库回响',
+    description: '协助米蕾尔记录那些会对守护火线产生反应的低语。',
     giverNpcId: mockIds.npcs.mirel,
     unlockCondition: {
       requiredQuestIds: [mockIds.quests.main],
@@ -103,13 +103,13 @@ export const mockQuestDefinitions: QuestDefinition[] = [
     objectives: [
       {
         id: 'objective:archive-inspect-plinth',
-        label: 'Inspect the speaking plinth',
+        label: '检查会说话的石座',
         type: 'visit',
         targetId: 'point:speaking-plinth',
       },
       {
         id: 'objective:archive-report-mirel',
-        label: 'Report the echo pattern back to Mirel',
+        label: '把回响规律汇报给米蕾尔',
         type: 'talk',
         targetId: mockIds.npcs.mirel,
       },
@@ -123,19 +123,19 @@ export const mockQuestDefinitions: QuestDefinition[] = [
   {
     id: mockIds.quests.sidePatrol,
     type: 'side',
-    title: 'Hold the South Gate',
-    description: 'Help Rowan secure the archive approach before the Ash Warden reacts.',
+    title: '守住南侧关口',
+    description: '在灰烬守卫作出反应前，协助罗文稳住通往秘库的入口。',
     giverNpcId: mockIds.npcs.rowan,
     objectives: [
       {
         id: 'objective:patrol-check-barrier',
-        label: 'Inspect the south barrier',
+        label: '检查南侧屏障',
         type: 'visit',
         targetId: 'point:south-barrier',
       },
       {
         id: 'objective:patrol-report-rowan',
-        label: 'Return to Rowan with the patrol report',
+        label: '带着巡逻报告返回找罗文',
         type: 'talk',
         targetId: mockIds.npcs.rowan,
       },
@@ -183,13 +183,13 @@ export const mockQuestHistory: QuestHistoryEntry[] = [
   {
     questId: mockIds.quests.sideSupply,
     status: 'completed',
-    note: 'Brom trusted the player with a tonic reserve after the herb delivery.',
+    note: '玩家交回草药后，布罗姆把一份备用药剂交给了你。',
     updatedAt: mockTimeline.bromInteractionAt,
   },
   {
     questId: mockIds.quests.main,
     status: 'active',
-    note: 'Lyra advanced the main route once the archive relay was located.',
+    note: '找到秘库中继后，莱拉推动了主线路线继续向前。',
     updatedAt: mockTimeline.archiveEventAt,
   },
 ];

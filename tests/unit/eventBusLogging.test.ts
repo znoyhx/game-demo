@@ -51,7 +51,11 @@ describe('typed event bus and logging', () => {
     expect(entries).toHaveLength(2);
     expect(entries[0]?.kind).toBe('npc-interaction');
     expect(entries[1]?.kind).toBe('domain-event');
-    expect(entries[0]?.summary).toContain('npc:test');
+    expect(entries[0]?.summary).toBe('已记录一次 NPC 互动结果。');
+    expect(entries[0] && 'npcId' in entries[0] ? entries[0].npcId : null).toBe('npc:test');
+    expect(entries[1] && 'eventName' in entries[1] ? entries[1].eventName : null).toBe(
+      'NPC_INTERACTED',
+    );
   });
 
   it('records agent decisions and explanation inputs explicitly', () => {
@@ -79,6 +83,7 @@ describe('typed event bus and logging', () => {
 
     expect(entries[0]?.kind).toBe('explanation-input');
     expect(entries[1]?.kind).toBe('agent-decision');
-    expect(entries[1]?.summary).toContain('npc-brain');
+    expect(entries[1]?.summary).toContain('NPC 思维代理');
+    expect(entries[1] && 'agentId' in entries[1] ? entries[1].agentId : null).toBe('npc-brain');
   });
 });

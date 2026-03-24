@@ -3,6 +3,7 @@ import type { StoreApi } from 'zustand/vanilla';
 import type { GameEventBus } from '../events/domainEvents';
 import type { QuestDefinition, QuestProgress, QuestStatus } from '../schemas';
 import type { GameStoreState } from '../state';
+import { locale } from '../utils/locale';
 import {
   applyNpcRelationChange,
   applyQuestTrigger,
@@ -79,7 +80,7 @@ export class QuestProgressionController {
     state.appendQuestHistory({
       questId,
       status: nextProgress.status,
-      note: `Quest "${definition.title}" became active.`,
+      note: locale.controllers.questProgression.activationNote(definition.title),
       updatedAt: nextProgress.updatedAt,
     });
 
@@ -172,7 +173,9 @@ export class QuestProgressionController {
           applyNpcRelationChange(npcState, {
             relationshipDelta: relationChange.delta,
             timestamp: this.now(),
-            memoryNote: `Quest branch ${result.branchResult?.id ?? 'default'} affected this NPC.`,
+            memoryNote: locale.controllers.questProgression.branchMemoryNote(
+              result.branchResult?.id ?? 'default',
+            ),
           }).state,
         );
       }
@@ -218,7 +221,9 @@ export class QuestProgressionController {
     state.appendQuestHistory({
       questId,
       status,
-      note: `Quest status forced to ${status} in debug flow.`,
+      note: locale.controllers.questProgression.forceStatusNote(
+        locale.labels.questStatuses[status],
+      ),
       updatedAt: now,
     });
 

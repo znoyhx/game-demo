@@ -6,6 +6,8 @@ import type { GameLogger } from '../logging';
 import type { CombatActionType } from '../rules';
 import type { GameStoreState } from '../state';
 import { resolveCombatRound } from '../rules';
+import { formatEnemyTacticLabel, formatPlayerTagLabel } from '../utils/displayLabels';
+import { locale } from '../utils/locale';
 
 import {
   defaultTimestampProvider,
@@ -71,7 +73,7 @@ export class CombatController {
       activeTactic: initialTactic,
       player: {
         id: 'combatant:player',
-        name: 'Player',
+        name: locale.controllers.combat.playerCombatantName,
         hp: state.player.hp,
         maxHp: state.player.maxHp,
       },
@@ -116,8 +118,14 @@ export class CombatController {
     this.logger?.recordAgentDecision({
       agentId: 'enemy-tactician',
       createdAt,
-      inputSummary: `Encounter=${encounter.id}, turn=${combatState.turn}, tags=${state.playerModel.tags.join(',')}`,
-      outputSummary: `Selected tactic ${tacticSelection.selectedTactic}`,
+      inputSummary: locale.controllers.combat.logs.tacticianInput(
+        encounter.id,
+        combatState.turn,
+        state.playerModel.tags.map(formatPlayerTagLabel),
+      ),
+      outputSummary: locale.controllers.combat.logs.tacticianOutput(
+        formatEnemyTacticLabel(tacticSelection.selectedTactic),
+      ),
       input: {
         encounterId: encounter.id,
         turn: combatState.turn,

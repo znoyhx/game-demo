@@ -1,23 +1,11 @@
 import type { ReactNode } from 'react';
-
-import { cn } from '../../core/utils/cn';
+import { PixelBadge } from './PixelBadge';
 
 interface BadgeProps {
   children: ReactNode;
-  tone?: 'default' | 'success' | 'warning' | 'info';
+  tone?: 'default' | 'success' | 'warning' | 'info' | 'danger';
 }
 
 export function Badge({ children, tone = 'default' }: BadgeProps) {
-  return (
-    <span
-      className={cn(
-        'badge',
-        tone === 'success' && 'badge--success',
-        tone === 'warning' && 'badge--warning',
-        tone === 'info' && 'badge--info',
-      )}
-    >
-      {children}
-    </span>
-  );
+  return <PixelBadge tone={tone}>{children}</PixelBadge>;
 }

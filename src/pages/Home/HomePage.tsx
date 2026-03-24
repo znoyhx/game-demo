@@ -10,6 +10,7 @@ import {
   mockNpcDefinitions,
   worldCreationTemplates,
 } from '../../core/mocks';
+import type { WorldCreationRequest } from '../../core/schemas';
 import {
   selectRecoveryNotice,
   selectSaveMetadata,
@@ -17,7 +18,10 @@ import {
   selectWorldSummary,
   useGameStore,
 } from '../../core/state';
-import type { WorldCreationRequest } from '../../core/schemas';
+import { locale } from '../../core/utils/locale';
+
+const homeText = locale.pages.home;
+const preferredModeLabels = locale.labels.preferredModes;
 
 const toTitleCase = (value: string) =>
   value
@@ -41,15 +45,19 @@ const toSentenceCase = (value: string) => {
 
 const buildDraftPreview = (request: WorldCreationRequest) => {
   const focusWord = pickFocusWord(request.theme);
-  const worldName = `${focusWord} Reach`;
+  const worldName = homeText.preview.worldName(focusWord);
 
   return {
     worldName,
-    regions: [`${focusWord} Crossroads`, `${focusWord} Archive`, `${focusWord} Sanctum`],
-    factions: [`${focusWord} Wardens`, `${focusWord} Court`],
+    regions: homeText.preview.regions(focusWord),
+    factions: homeText.preview.factions(focusWord),
     mainQuestSeed: toSentenceCase(request.gameGoal),
-    resourceSetup: `${toTitleCase(request.worldStyle)} tileset, layered regional backdrops, and a boss-route score`,
-    storyPremise: `${worldName} is a ${request.worldStyle} realm where you must ${request.gameGoal.trim()} before the final wardline collapses.`,
+    resourceSetup: homeText.preview.resourceSetup(toTitleCase(request.worldStyle)),
+    storyPremise: homeText.preview.storyPremise(
+      worldName,
+      request.worldStyle,
+      request.gameGoal.trim(),
+    ),
   };
 };
 
@@ -63,6 +71,8 @@ export function HomePage() {
   const [isCreating, setIsCreating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const preview = buildDraftPreview(draft);
+  const worldReadyFromSave = startupSource === 'save';
+  const worldReadyFromCreation = startupSource === 'generated';
 
   const runControllerTask = async (task: () => Promise<unknown>) => {
     setIsCreating(true);
@@ -73,9 +83,7 @@ export function HomePage() {
       navigate('/game');
     } catch (error) {
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : 'World creation failed before a valid fallback could be prepared.',
+        error instanceof Error ? error.message : homeText.unknownCreationError,
       );
     } finally {
       setIsCreating(false);
@@ -86,33 +94,33 @@ export function HomePage() {
     runControllerTask(() => appWorldCreationController.createWorld(request));
 
   return (
-    <PageFrame
-      title="World Creation Module"
-      description="Create a new PixelForge Agent run in under a minute with presets, one-click defaults, quick play, and a dev/test world seed backed by schema-validated mock agents."
-    >
+    <PageFrame title={homeText.title} description={homeText.description}>
       <section className="hero-callout">
         <div className="hero-callout__header">
           <div>
-            <p className="hero-callout__kicker">Current World</p>
+            <p className="hero-callout__kicker">{homeText.currentWorld.kicker}</p>
             <h3 className="hero-callout__title">{worldSummary.name}</h3>
           </div>
           <div className="hero-callout__badges">
-            <Badge tone={startupSource === 'save' ? 'success' : 'warning'}>
-              {startupSource === 'save' ? 'Continue Ready' : 'Mock Seed Active'}
+            <Badge
+              tone={worldReadyFromSave || worldReadyFromCreation ? 'success' : 'warning'}
+            >
+              {worldReadyFromSave
+                ? homeText.currentWorld.continueBadge
+                : worldReadyFromCreation
+                  ? homeText.currentWorld.generatedWorldBadge
+                  : homeText.currentWorld.sampleWorldBadge}
             </Badge>
             <Badge tone="info">{saveMetadata.label ?? saveMetadata.slot ?? saveMetadata.id}</Badge>
           </div>
         </div>
-        <p>
-          Resume the latest world immediately, or forge a new one through the World
-          Architect, Quest Designer, and Level Builder mock pipeline.
-        </p>
+        <p>{homeText.currentWorld.description}</p>
         <div className="hero-callout__actions">
           <Link className="pixel-button" to="/game">
-            Continue Current World
+            {homeText.currentWorld.continueAction}
           </Link>
           <Link className="pixel-button pixel-button--ghost" to="/debug">
-            Open Debug Route
+            {homeText.currentWorld.debugAction}
           </Link>
           <button
             className="pixel-button pixel-button--ghost"
@@ -120,31 +128,31 @@ export function HomePage() {
             type="button"
             onClick={() => void runControllerTask(() => appWorldCreationController.createDefaultWorld())}
           >
-            Generate Default World
+            {homeText.currentWorld.defaultWorldAction}
           </button>
         </div>
       </section>
 
       {recoveryNotice ? (
         <section className="startup-status-card">
-          <Badge tone="warning">Fallback Notice</Badge>
+          <Badge tone="warning">{homeText.recoveryBadge}</Badge>
           <p className="startup-status-card__body">{recoveryNotice}</p>
         </section>
       ) : null}
 
       {errorMessage ? (
         <section className="startup-status-card startup-status-card--error">
-          <Badge tone="warning">Creation Error</Badge>
+          <Badge tone="warning">{homeText.creationErrorBadge}</Badge>
           <p className="startup-status-card__body">{errorMessage}</p>
         </section>
       ) : null}
 
       <div className="panel-grid panel-grid--two">
         <SectionCard
-          title="Preset Templates"
-          eyebrow="Start Fast"
-          description="Apply a tuned configuration first, then adjust the fields below if needed."
-          footer="Each preset stays within the PRD input contract and seeds a full opening world."
+          title={homeText.templates.title}
+          eyebrow={homeText.templates.eyebrow}
+          description={homeText.templates.description}
+          footer={homeText.templates.footer}
         >
           <div className="creation-template-list">
             {worldCreationTemplates.map((template) => (
@@ -160,8 +168,11 @@ export function HomePage() {
                   {template.description}
                 </span>
                 <span className="creation-template-card__meta">
-                  {template.featuredOutputs.regions} regions / {template.featuredOutputs.factions}{' '}
-                  factions / {template.featuredOutputs.npcs} NPCs
+                  {homeText.templates.meta(
+                    template.featuredOutputs.regions,
+                    template.featuredOutputs.factions,
+                    template.featuredOutputs.npcs,
+                  )}
                 </span>
               </button>
             ))}
@@ -173,7 +184,7 @@ export function HomePage() {
               type="button"
               onClick={() => void runControllerTask(() => appWorldCreationController.createQuickPlayWorld())}
             >
-              Quick Play Mode
+              {homeText.templates.quickPlayAction}
             </button>
             <button
               className="pixel-button pixel-button--ghost"
@@ -181,44 +192,44 @@ export function HomePage() {
               type="button"
               onClick={() => void runControllerTask(() => appWorldCreationController.createDevTestWorld())}
             >
-              Dev/Test Mode
+              {homeText.templates.devModeAction}
             </button>
           </div>
         </SectionCard>
 
         <SectionCard
-          title="Prepared Outputs"
-          eyebrow="Preview"
-          description="The creation controller will prepare these assets before hydrating state and saving the opening snapshot."
-          footer="Outputs are finalized by the mock agent pipeline and validated again at save-snapshot boundaries."
+          title={homeText.preview.title}
+          eyebrow={homeText.preview.eyebrow}
+          description={homeText.preview.description}
+          footer={homeText.preview.footer}
         >
           <dl className="creation-preview-list">
             <div>
-              <dt>World Name</dt>
+              <dt>{homeText.preview.worldNameLabel}</dt>
               <dd>{preview.worldName}</dd>
             </div>
             <div>
-              <dt>Map Regions</dt>
+              <dt>{homeText.preview.regionsLabel}</dt>
               <dd>{preview.regions.join(' / ')}</dd>
             </div>
             <div>
-              <dt>Core Factions</dt>
+              <dt>{homeText.preview.factionsLabel}</dt>
               <dd>{preview.factions.join(' / ')}</dd>
             </div>
             <div>
-              <dt>Main Quest Seed</dt>
+              <dt>{homeText.preview.mainQuestSeedLabel}</dt>
               <dd>{preview.mainQuestSeed}</dd>
             </div>
             <div>
-              <dt>Initial NPC Set</dt>
+              <dt>{homeText.preview.initialNpcSetLabel}</dt>
               <dd>{mockNpcDefinitions.map((npc) => npc.name).join(', ')}</dd>
             </div>
             <div>
-              <dt>Initial Resource Setup</dt>
+              <dt>{homeText.preview.initialResourceSetupLabel}</dt>
               <dd>{preview.resourceSetup}</dd>
             </div>
             <div>
-              <dt>Initial Story Premise</dt>
+              <dt>{homeText.preview.initialStoryPremiseLabel}</dt>
               <dd>{preview.storyPremise}</dd>
             </div>
           </dl>
@@ -226,10 +237,10 @@ export function HomePage() {
       </div>
 
       <SectionCard
-        title="Forge a Custom World"
-        eyebrow="Input Contract"
-        description="All required PRD inputs are captured here and passed into the world-creation pipeline."
-        footer="The creation controller handles schema validation, snapshot hydration, persistence, and fallback generation."
+        title={homeText.customWorld.title}
+        eyebrow={homeText.customWorld.eyebrow}
+        description={homeText.customWorld.description}
+        footer={homeText.customWorld.footer}
       >
         <form
           className="world-creation-form"
@@ -239,7 +250,7 @@ export function HomePage() {
           }}
         >
           <label className="world-creation-form__field">
-            <span>Game Theme</span>
+            <span>{homeText.customWorld.fields.theme}</span>
             <input
               disabled={isCreating}
               name="theme"
@@ -256,7 +267,7 @@ export function HomePage() {
           </label>
 
           <label className="world-creation-form__field">
-            <span>World Style</span>
+            <span>{homeText.customWorld.fields.worldStyle}</span>
             <input
               disabled={isCreating}
               name="worldStyle"
@@ -273,7 +284,7 @@ export function HomePage() {
           </label>
 
           <label className="world-creation-form__field">
-            <span>Difficulty</span>
+            <span>{homeText.customWorld.fields.difficulty}</span>
             <select
               disabled={isCreating}
               name="difficulty"
@@ -285,14 +296,14 @@ export function HomePage() {
                 }))
               }
             >
-              <option value="easy">Easy</option>
-              <option value="normal">Normal</option>
-              <option value="hard">Hard</option>
+              <option value="easy">{homeText.customWorld.difficultyOptions.easy}</option>
+              <option value="normal">{homeText.customWorld.difficultyOptions.normal}</option>
+              <option value="hard">{homeText.customWorld.difficultyOptions.hard}</option>
             </select>
           </label>
 
           <label className="world-creation-form__field world-creation-form__field--wide">
-            <span>Game Goal</span>
+            <span>{homeText.customWorld.fields.gameGoal}</span>
             <input
               disabled={isCreating}
               name="gameGoal"
@@ -309,7 +320,7 @@ export function HomePage() {
           </label>
 
           <label className="world-creation-form__field world-creation-form__field--wide">
-            <span>Learning Goal (Optional)</span>
+            <span>{homeText.customWorld.fields.learningGoal}</span>
             <input
               disabled={isCreating}
               name="learningGoal"
@@ -325,7 +336,7 @@ export function HomePage() {
           </label>
 
           <fieldset className="world-creation-form__field world-creation-form__field--wide">
-            <legend>Preference</legend>
+            <legend>{homeText.customWorld.fields.preference}</legend>
             <div className="world-creation-form__radio-group">
               {(['story', 'exploration', 'combat', 'hybrid'] as const).map((mode) => (
                 <label key={mode} className="world-creation-form__radio">
@@ -342,7 +353,7 @@ export function HomePage() {
                       }))
                     }
                   />
-                  <span>{toTitleCase(mode)}</span>
+                  <span>{preferredModeLabels[mode]}</span>
                 </label>
               ))}
             </div>
@@ -361,7 +372,7 @@ export function HomePage() {
                   }))
                 }
               />
-              <span>Quick Play Mode</span>
+              <span>{homeText.customWorld.fields.quickStart}</span>
             </label>
 
             <label className="world-creation-form__toggle">
@@ -376,13 +387,15 @@ export function HomePage() {
                   }))
                 }
               />
-              <span>Dev/Test Mode</span>
+              <span>{homeText.customWorld.fields.devMode}</span>
             </label>
           </div>
 
           <div className="hero-callout__actions">
             <button className="pixel-button" disabled={isCreating} type="submit">
-              {isCreating ? 'Forging World...' : 'Forge Custom World'}
+              {isCreating
+                ? homeText.customWorld.creatingAction
+                : homeText.customWorld.createAction}
             </button>
             <button
               className="pixel-button pixel-button--ghost"
@@ -390,7 +403,7 @@ export function HomePage() {
               type="button"
               onClick={() => setDraft(defaultWorldCreationRequest)}
             >
-              Reset to Default
+              {homeText.customWorld.resetAction}
             </button>
           </div>
         </form>

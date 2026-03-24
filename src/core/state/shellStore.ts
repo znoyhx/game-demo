@@ -1,12 +1,13 @@
 import { create } from 'zustand';
 
+import { routeMeta } from '../../app/router/routeMeta';
 import type { RouteMeta, ShellState } from '../types/appShell';
+import { locale } from '../utils/locale';
 
-const defaultRoute: RouteMeta = {
+const defaultRoute: RouteMeta = routeMeta[0] ?? {
   id: 'home',
   path: '/',
-  label: 'Home',
-  summary: 'Competition-first entry for the PixelForge Agent vertical slice.',
+  ...locale.routes.home,
 };
 
 export const useShellStore = create<ShellState>((set) => ({

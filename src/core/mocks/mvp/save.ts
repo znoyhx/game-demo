@@ -16,7 +16,7 @@ export const mockSaveSnapshot: SaveSnapshot = {
     id: mockIds.save,
     version: MOCK_SCHEMA_VERSION,
     slot: 'slot-1',
-    label: 'Emberfall archive checkpoint',
+    label: '烬陨镇秘库存档点',
     createdAt: mockTimeline.saveCreatedAt,
     updatedAt: mockTimeline.saveUpdatedAt,
     source: 'auto',

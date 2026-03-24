@@ -29,7 +29,7 @@ export class MockGameMasterAgent
     ) {
       return {
         eventToTrigger: mockIds.events.ashfallWarning,
-        pacingNote: 'Open with the ashfall pressure beat to establish the valley threat.',
+        pacingNote: '先用灰烬预警这一拍建立山谷危机感。',
       };
     }
 
@@ -40,7 +40,7 @@ export class MockGameMasterAgent
     ) {
       return {
         eventToTrigger: mockIds.events.archiveEchoes,
-        pacingNote: 'Escalate archive mystery once the main quest is active.',
+        pacingNote: '主线一旦激活，就抬高秘库谜团的压力。',
       };
     }
 
@@ -50,12 +50,12 @@ export class MockGameMasterAgent
     ) {
       return {
         eventToTrigger: mockIds.events.wardenCountermeasure,
-        pacingNote: 'High-risk play in the sanctum should wake the defensive sweep.',
+        pacingNote: '玩家在圣所采取高风险打法时，应触发防御清扫。',
       };
     }
 
     return {
-      pacingNote: 'Hold the current beat and let exploration breathe before the next event.',
+      pacingNote: '先稳住当前节奏，让探索留一点呼吸空间，再推进下一个事件。',
     };
   }
 }

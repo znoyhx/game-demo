@@ -5,9 +5,9 @@ import { mockIds, mockTimeline } from './constants';
 export const mockWorld: World = {
   summary: {
     id: mockIds.world,
-    name: 'Emberfall',
-    subtitle: 'A fading frontier built around a sealed sanctum',
-    theme: 'cinder frontier',
+    name: '烬陨镇',
+    subtitle: '一座围绕封印圣所建立、正在衰败的边境城镇',
+    theme: '灰烬前线',
     tone: 'mysterious',
     mode: 'hybrid',
     createdAt: mockTimeline.worldCreatedAt,
@@ -15,21 +15,21 @@ export const mockWorld: World = {
   factions: [
     {
       id: mockIds.factions.wardens,
-      name: 'Cinder Wardens',
-      description: 'A civic order guarding the roads and relic fires.',
+      name: '灰烬守望者',
+      description: '守护道路与遗火的边镇秩序组织。',
       stance: 'friendly',
     },
     {
       id: mockIds.factions.ashbound,
-      name: 'Ashbound Court',
-      description: 'Fanatics who want the sanctum fire to consume the valley.',
+      name: '烬缚议庭',
+      description: '妄图让圣所之火吞没整片山谷的狂热派。',
       stance: 'hostile',
     },
   ],
   areaIds: [mockIds.areas.crossroads, mockIds.areas.archive, mockIds.areas.sanctum],
   startingAreaId: mockIds.areas.crossroads,
-  weather: 'ash wind',
-  timeOfDay: 'late dusk',
+  weather: '灰风',
+  timeOfDay: '暮色将尽',
   flags: {
     tutorialCompleted: true,
     ashfallWarningSeen: true,

@@ -15,17 +15,17 @@ describe('home page world creation flow', () => {
       ),
     );
 
-    expect(markup).toContain('World Creation Module');
-    expect(markup).toContain('Game Theme');
-    expect(markup).toContain('World Style');
-    expect(markup).toContain('Difficulty');
-    expect(markup).toContain('Game Goal');
-    expect(markup).toContain('Learning Goal (Optional)');
-    expect(markup).toContain('Preference');
-    expect(markup).toContain('Generate Default World');
-    expect(markup).toContain('Quick Play Mode');
-    expect(markup).toContain('Dev/Test Mode');
-    expect(markup).toContain('Forge Custom World');
-    expect(markup).toContain('Prepared Outputs');
+    expect(markup).toContain('世界创建模块');
+    expect(markup).toContain('游戏主题');
+    expect(markup).toContain('世界风格');
+    expect(markup).toContain('难度');
+    expect(markup).toContain('游戏目标');
+    expect(markup).toContain('学习目标（可选）');
+    expect(markup).toContain('偏好');
+    expect(markup).toContain('一键生成默认世界');
+    expect(markup).toContain('快速开局');
+    expect(markup).toContain('开发/测试模式');
+    expect(markup).toContain('生成自定义世界');
+    expect(markup).toContain('预计生成结果');
   });
 });

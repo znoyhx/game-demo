@@ -7,9 +7,21 @@ import type {
   NpcDialogueTurn,
   PlayerProfileTag,
 } from '../schemas';
-
+import {
+  formatCombatResultLabel,
+  formatEnemyTacticLabel,
+  saveSourceLabels,
+} from '../utils/displayLabels';
+import { locale } from '../utils/locale';
 import type { GameLogRecord } from './logTypes';
 import type { GameLogState } from './logStore';
+
+const agentLabels: Record<AgentModuleId, string> = locale.labels.agentLabels;
+
+const domainEventLabels: Record<AnyGameDomainEvent['name'], string> =
+  locale.labels.domainEvents;
+
+const combatActionLabels: Record<string, string> = locale.labels.combatActions;
 
 export class GameLogger {
   private sequence = 0;
@@ -30,7 +42,7 @@ export class GameLogger {
       id: this.nextId('log:domain', event.createdAt),
       kind: 'domain-event',
       createdAt: event.createdAt,
-      summary: `Domain event ${event.name} emitted.`,
+      summary: locale.logging.domainEventSummary(domainEventLabels[event.name]),
       eventName: event.name,
       event,
     });
@@ -41,7 +53,7 @@ export class GameLogger {
           id: this.nextId('log:npc', event.createdAt),
           kind: 'npc-interaction',
           createdAt: event.createdAt,
-          summary: `NPC ${event.payload.npcId} interaction recorded.`,
+          summary: locale.logging.npcInteractionSummary,
           npcId: event.payload.npcId,
           trustDelta: event.payload.trustDelta,
           relationshipDelta: event.payload.relationshipDelta,
@@ -53,7 +65,7 @@ export class GameLogger {
           id: this.nextId('log:combat', event.createdAt),
           kind: 'combat',
           createdAt: event.createdAt,
-          summary: `Combat ${event.payload.encounterId} started.`,
+          summary: locale.logging.combatStartedSummary,
           encounterId: event.payload.encounterId,
           tactic: event.payload.initialTactic,
         });
@@ -63,7 +75,9 @@ export class GameLogger {
           id: this.nextId('log:combat', event.createdAt),
           kind: 'combat',
           createdAt: event.createdAt,
-          summary: `Combat tactic changed to ${event.payload.nextTactic}.`,
+          summary: locale.logging.tacticChangedSummary(
+            formatEnemyTacticLabel(event.payload.nextTactic),
+          ),
           encounterId: event.payload.encounterId,
           tactic: event.payload.nextTactic,
           phaseId: event.payload.phaseId,
@@ -74,7 +88,9 @@ export class GameLogger {
           id: this.nextId('log:combat', event.createdAt),
           kind: 'combat',
           createdAt: event.createdAt,
-          summary: `Combat ${event.payload.encounterId} ended with ${event.payload.result}.`,
+          summary: locale.logging.combatEndedSummary(
+            formatCombatResultLabel(event.payload.result),
+          ),
           encounterId: event.payload.encounterId,
           tactic: event.payload.finalTactic,
           result: event.payload.result,
@@ -85,7 +101,7 @@ export class GameLogger {
           id: this.nextId('log:save', event.createdAt),
           kind: 'save-load',
           createdAt: event.createdAt,
-          summary: `Save ${event.payload.saveId} created.`,
+          summary: locale.logging.saveCreatedSummary,
           operation: 'save-created',
           saveId: event.payload.saveId,
           source: event.payload.source,
@@ -96,7 +112,7 @@ export class GameLogger {
           id: this.nextId('log:save', event.createdAt),
           kind: 'save-load',
           createdAt: event.createdAt,
-          summary: `Save ${event.payload.saveId} restored.`,
+          summary: locale.logging.saveRestoredSummary,
           operation: 'save-restored',
           saveId: event.payload.saveId,
         });
@@ -106,7 +122,9 @@ export class GameLogger {
           id: this.nextId('log:save', event.createdAt),
           kind: 'save-load',
           createdAt: event.createdAt,
-          summary: `World ${event.payload.worldId} loaded from ${event.payload.source}.`,
+          summary: locale.logging.worldLoadedSummary(
+            saveSourceLabels[event.payload.source],
+          ),
           operation: 'world-loaded',
           saveId: event.payload.saveId,
           source: event.payload.source,
@@ -131,7 +149,7 @@ export class GameLogger {
       id: this.nextId('log:npc-detail', options.createdAt),
       kind: 'npc-interaction',
       createdAt: options.createdAt,
-      summary: `NPC ${options.npcId} produced a reply and state delta.`,
+      summary: locale.logging.npcDetailSummary,
       npcId: options.npcId,
       trustDelta: options.trustDelta,
       relationshipDelta: options.relationshipDelta,
@@ -153,7 +171,11 @@ export class GameLogger {
       id: this.nextId('log:combat-detail', options.createdAt),
       kind: 'combat',
       createdAt: options.createdAt,
-      summary: `Combat ${options.encounterId} resolved action ${options.actionType} on turn ${options.turn}.`,
+      summary: locale.logging.combatDetailSummary(
+        options.turn,
+        combatActionLabels[options.actionType] ?? options.actionType,
+        formatEnemyTacticLabel(options.tactic),
+      ),
       encounterId: options.encounterId,
       actionType: options.actionType,
       turn: options.turn,
@@ -174,7 +196,7 @@ export class GameLogger {
       id: this.nextId('log:agent', options.createdAt),
       kind: 'agent-decision',
       createdAt: options.createdAt,
-      summary: `${options.agentId} produced a deterministic decision.`,
+      summary: locale.logging.agentDecisionSummary(agentLabels[options.agentId]),
       agentId: options.agentId,
       inputSummary: options.inputSummary,
       outputSummary: options.outputSummary,
@@ -195,7 +217,7 @@ export class GameLogger {
       id: this.nextId('log:explanation', options.createdAt),
       kind: 'explanation-input',
       createdAt: options.createdAt,
-      summary: 'Explanation payload inputs captured for debug and review.',
+      summary: locale.logging.explanationInputSummary,
       encounterId: options.encounterId,
       questIds: options.questIds,
       eventIds: options.eventIds,

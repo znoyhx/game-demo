@@ -115,6 +115,8 @@ Render the game interface and present the current world state.
 * dispatch user intents
 * render current system state clearly
 * surface save/load, area, NPC, quest, combat, and explanation data
+* accept pre-shaped presentation models so DOM placeholders can later swap to Phaser/Pixi renderers without moving domain rules into components
+* support isolated renderer slices and debug preview compositions so map layers, marker overlays, dialogue panels, and quest panels can be tested without full progression
 
 ### Must not do
 
@@ -129,6 +131,7 @@ Render the game interface and present the current world state.
 
 * `GameLayout`
 * `MapViewport`
+* `AreaSceneStage`
 * `DialoguePanel`
 * `QuestSidebar`
 * `CombatPanel`
@@ -494,6 +497,27 @@ Make AI and rules behavior visible for demo, explanation, and debugging.
 * review page generation
 * judge-facing explanation moments
 * issue reproduction
+
+---
+
+## 5.5 Locale and Display Dictionary
+
+### Purpose
+
+Keep all user-visible shell, page, controller, and logging copy behind one reusable dictionary boundary.
+
+### Current approach
+
+* `src/core/utils/locale/` owns the active locale object
+* page/layout/controller display copy should read from the locale layer, not inline literals
+* thin adapters like `displayLabels` may re-export localized labels for existing domain/UI call sites
+
+### Rules
+
+* keep domain enums, save metadata fields, and schema values language-neutral
+* translate only at display boundaries
+* avoid duplicating labels in pages, controllers, and loggers
+* expand the dictionary before adding new hardcoded UI copy
 
 ---
 

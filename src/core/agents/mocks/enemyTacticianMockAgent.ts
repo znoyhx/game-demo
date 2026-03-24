@@ -4,6 +4,7 @@ import {
   type EnemyTacticianInput,
   type EnemyTacticianOutput,
 } from '../../schemas';
+import { formatEnemyTacticLabel } from '../../utils/displayLabels';
 
 import type { EnemyTacticianAgent } from '../interfaces';
 import { ValidatedMockAgent } from './baseMockAgent';
@@ -40,8 +41,8 @@ export class MockEnemyTacticianAgent
       selectedTactic,
       reason:
         selectedTactic === 'counter'
-          ? 'The player pattern looks aggressive, so the mock tactician punishes direct pressure.'
-          : `The mock tactician selected ${selectedTactic} from the encounter pool.`,
+          ? '玩家的行动模式偏向强攻，因此 mock 战术代理选择用反击惩罚正面压制。'
+          : `mock 战术代理从遭遇战术池中选择了${formatEnemyTacticLabel(selectedTactic)}。`,
     };
   }
 }

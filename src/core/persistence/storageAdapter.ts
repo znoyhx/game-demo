@@ -50,7 +50,7 @@ export class LocalStorageAdapter implements StorageAdapter {
         label:
           parsedSave.data.metadata.label ??
           parsedSave.data.metadata.slot ??
-          'Latest Save',
+          '最近存档',
         updatedAt: parsedSave.data.metadata.updatedAt,
       },
     ];

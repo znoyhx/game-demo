@@ -13,7 +13,7 @@ const toQuestTitle = (goal: string) => {
   const trimmed = goal.trim();
 
   if (!trimmed) {
-    return 'Stabilize the world';
+    return '稳定世界秩序';
   }
 
   return `${trimmed[0].toUpperCase()}${trimmed.slice(1)}`;
@@ -34,16 +34,23 @@ export class MockQuestDesignerAgent
       .map((quest) => ({
         ...quest,
         title: toQuestTitle(input.gameGoal),
-        description: `${input.storyPremise} Main route: ${quest.description}`,
+        description: `${input.storyPremise} 主线目标：${quest.description}`,
       }));
     const sideQuests = mockQuestDefinitions
       .filter((quest) => quest.type === 'side')
       .slice(0, input.questCount.side)
       .map((quest, index) => ({
         ...quest,
-        description: `${quest.description} This optional route reinforces ${input.world.summary.mode} play in region ${
-          input.areas[index % input.areas.length]?.name ?? 'the current zone'
-        }.${input.learningGoal ? ` Learning hook: ${input.learningGoal}.` : ''}`,
+        description: `${quest.description} 这条可选路线会在${
+          input.areas[index % input.areas.length]?.name ?? '当前区域'
+        }进一步强化${{
+          story: '剧情',
+          exploration: '探索',
+          combat: '战斗',
+          hybrid: '混合',
+        }[input.world.summary.mode]}玩法。${
+          input.learningGoal ? ` 学习提示：${input.learningGoal}。` : ''
+        }`,
       }));
 
     return {

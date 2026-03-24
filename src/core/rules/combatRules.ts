@@ -19,6 +19,24 @@ export const allowedCombatActions = [
 
 export type CombatActionType = (typeof allowedCombatActions)[number];
 
+const combatActionLabels: Record<CombatActionType, string> = {
+  attack: '攻击',
+  guard: '防御',
+  heal: '治疗',
+  analyze: '解析',
+  special: '特技',
+  retreat: '撤退',
+};
+
+const enemyTacticLabels: Record<EnemyTacticType, string> = {
+  aggressive: '强攻',
+  defensive: '防守',
+  counter: '反击',
+  trap: '陷阱',
+  summon: '召唤',
+  'resource-lock': '资源封锁',
+};
+
 const tacticDamageTable: Record<EnemyTacticType, number> = {
   aggressive: 9,
   defensive: 4,
@@ -52,11 +70,11 @@ export const evaluateCombatActionLegality = (
   const reasons: string[] = [];
 
   if (combatState.result) {
-    reasons.push('combat encounter is already resolved');
+    reasons.push('这场战斗遭遇已经结算完成');
   }
 
   if (!allowedCombatActions.includes(actionType as CombatActionType)) {
-    reasons.push(`unsupported combat action: ${actionType}`);
+    reasons.push(`不支持的战斗动作：${actionType}`);
   }
 
   if (reasons.length > 0) {
@@ -68,9 +86,9 @@ export const evaluateCombatActionLegality = (
   }
 
   return {
-    ...passRule('combat action is legal'),
+    ...passRule('战斗动作合法'),
     actionType,
-    reasons: ['combat action is legal'],
+    reasons: ['战斗动作合法'],
   };
 };
 
@@ -136,7 +154,7 @@ export const resolveCombatRound = (options: {
 
   if (!legality.ok) {
     return {
-      ...failRule(legality.reason ?? 'combat action is illegal'),
+      ...failRule(legality.reason ?? '战斗动作不合法'),
       legality,
       phase: {
         previousPhaseId: options.combatState.currentPhaseId,
@@ -163,7 +181,7 @@ export const resolveCombatRound = (options: {
             {
               actor: 'player',
               actionType: 'retreat',
-              description: 'The player disengages from the encounter.',
+              description: '玩家脱离了这场遭遇战。',
             },
           ],
         },
@@ -171,7 +189,7 @@ export const resolveCombatRound = (options: {
     };
 
     return {
-      ...passRule('combat round resolved'),
+      ...passRule('战斗回合已结算'),
       legality,
       phase: {
         previousPhaseId: options.combatState.currentPhaseId,
@@ -222,7 +240,7 @@ export const resolveCombatRound = (options: {
     {
       actor: 'player',
       actionType: options.playerActionType,
-      description: `The player uses ${options.playerActionType}.`,
+      description: `玩家使用了${combatActionLabels[options.playerActionType]}。`,
       value:
         options.playerActionType === 'heal'
           ? 6
@@ -233,7 +251,7 @@ export const resolveCombatRound = (options: {
     {
       actor: 'enemy',
       actionType: options.enemyTactic,
-      description: `The enemy responds with ${options.enemyTactic}.`,
+      description: `敌人以${enemyTacticLabels[options.enemyTactic]}战术作出回应。`,
       value: playerDamageTaken,
     },
   ];
@@ -254,10 +272,13 @@ export const resolveCombatRound = (options: {
 
   const phase = resolveCombatPhase(options.encounter, baseState);
   if (phase.changed) {
+    const nextPhaseLabel =
+      options.encounter.bossPhases?.find((entry) => entry.id === phase.nextPhaseId)?.label ??
+      phase.nextPhaseId;
     logActions.unshift({
       actor: 'system',
       actionType: 'phase-shift',
-      description: `The encounter shifts into ${phase.nextPhaseId}.`,
+      description: `战斗已切换到“${nextPhaseLabel}”阶段。`,
     });
   }
 
@@ -284,7 +305,7 @@ export const resolveCombatRound = (options: {
   };
 
   return {
-    ...passRule('combat round resolved'),
+    ...passRule('战斗回合已结算'),
     legality,
     phase,
     combatState,

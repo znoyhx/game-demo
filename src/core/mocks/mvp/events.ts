@@ -5,8 +5,8 @@ import { mockIds, mockTimeline } from './constants';
 export const mockWorldEvents: WorldEvent[] = [
   {
     id: mockIds.events.ashfallWarning,
-    title: 'Ashfall Warning',
-    description: 'The crossroads watch sounds a warning as hot ash starts to drift down.',
+    title: '灰烬预警',
+    description: '当灼热灰烬开始飘落时，路口哨塔发出了警报。',
     triggerConditions: [
       {
         type: 'location',
@@ -27,8 +27,8 @@ export const mockWorldEvents: WorldEvent[] = [
   },
   {
     id: mockIds.events.archiveEchoes,
-    title: 'Archive Echoes',
-    description: 'The sealed records murmur back when the relay core is nearby.',
+    title: '秘库回响',
+    description: '当中继核心靠近时，被封存的记录会低声回应。',
     triggerConditions: [
       {
         type: 'quest',
@@ -44,8 +44,8 @@ export const mockWorldEvents: WorldEvent[] = [
   },
   {
     id: mockIds.events.wardenCountermeasure,
-    title: 'Warden Countermeasure',
-    description: 'The sanctum reacts to reckless movement by activating a defensive sweep.',
+    title: '守卫反制',
+    description: '圣所会对鲁莽行动作出反应，启动一轮防御清扫。',
     triggerConditions: [
       {
         type: 'playerModel',
@@ -82,6 +82,6 @@ export const mockEventHistory: EventLogEntry[] = [
 export const mockEventDirectorState: EventDirectorState = {
   pendingEventIds: [mockIds.events.wardenCountermeasure],
   worldTension: 68,
-  pacingNote: 'The sanctum arc should escalate after the archive route stabilizes.',
+  pacingNote: '等秘库路线稳定后，圣所线的压力应该继续升级。',
   randomnessDisabled: false,
 };

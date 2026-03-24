@@ -1,4 +1,5 @@
 import type { FeaturePanel } from '../../core/types/appShell';
+import { formatFeaturePanelStatus } from '../layout/featurePanelStatus';
 import { SectionCard } from '../layout/SectionCard';
 
 interface CombatPanelProps {
@@ -9,7 +10,7 @@ export function CombatPanel({ panel }: CombatPanelProps) {
   return (
     <SectionCard
       title={panel.title}
-      eyebrow={panel.status}
+      eyebrow={formatFeaturePanelStatus(panel.status)}
       description={panel.description}
       footer={panel.footer}
     >

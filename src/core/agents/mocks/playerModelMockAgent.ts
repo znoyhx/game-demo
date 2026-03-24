@@ -22,26 +22,26 @@ export class MockPlayerModelAgent
 
     if (new Set(input.recentAreaVisits).size >= 2) {
       tags.add('exploration');
-      rationale.push('The player keeps rotating through multiple areas.');
+      rationale.push('玩家持续在多个区域之间切换探索。');
     }
 
     if (input.npcInteractionCount >= 3 || input.recentQuestChoices.length > 0) {
       tags.add('story');
-      rationale.push('Dialogue and quest branch interactions remain a major driver.');
+      rationale.push('对话与任务分支互动仍然是主要驱动力。');
     }
 
     if (input.combatSummary) {
       tags.add('combat');
-      rationale.push('A recent combat summary is present, so the player has engaged the tactical loop.');
+      rationale.push('最近存在战斗摘要，说明玩家已经进入了战术循环。');
       if (input.combatSummary.activeTactic === 'counter') {
         tags.add('risky');
-        rationale.push('The player is still pressing through enemy counterplay.');
+        rationale.push('即使敌人进入反击节奏，玩家仍在持续施压。');
       }
     }
 
     if (tags.size === 0) {
       tags.add('cautious');
-      rationale.push('The available signals are sparse, so the model defaults to cautious.');
+      rationale.push('当前可用信号较少，因此模型默认给出谨慎判断。');
     }
 
     return {

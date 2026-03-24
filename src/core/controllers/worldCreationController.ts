@@ -46,6 +46,7 @@ import {
   worldCreationResultSchema,
 } from '../schemas';
 import type { GameStoreState } from '../state';
+import { locale } from '../utils/locale';
 
 import { evaluateQuestAvailability } from '../rules';
 
@@ -100,8 +101,17 @@ const derivePlayerTags = (
   }
 };
 
+const preferredModeLabels = locale.labels.preferredModes;
+const fallbackReasonLabels: Record<WorldCreationFallbackReason, string> =
+  locale.labels.worldCreationFallbackReasons;
+const worldCreationText = locale.controllers.worldCreation;
+
 const buildStoryPremise = (request: WorldCreationRequest, worldName: string) =>
-  `${worldName} is a ${request.worldStyle} realm where you must ${request.gameGoal.trim()} before the final wardline collapses.`;
+  worldCreationText.buildStoryPremise(
+    worldName,
+    request.worldStyle,
+    request.gameGoal.trim(),
+  );
 
 const buildGameConfig = (
   request: WorldCreationRequest,
@@ -168,24 +178,34 @@ const buildNpcStates = (
     mockQuestDefinitions.find((quest) => quest.giverNpcId === mockNpcDefinitions[2]?.id)?.id;
   const guardQuestId =
     mockQuestDefinitions.find((quest) => quest.giverNpcId === mockNpcDefinitions[3]?.id)?.id;
-  const sharedLongTerm = `The latest creation brief says: ${request.gameGoal.trim()}.`;
+  const sharedLongTerm = worldCreationText.sharedLongTerm(request.gameGoal.trim());
 
   return mockNpcStates.map((state) =>
     npcStateSchema.parse({
       ...state,
       memory: {
         shortTerm: [
-          `World created for ${request.preferredMode} play in ${world.summary.name}.`,
+          worldCreationText.npcMemoryShortTerm(
+            preferredModeLabels[request.preferredMode],
+            world.summary.name,
+          ),
         ],
         longTerm: [sharedLongTerm],
         lastInteractionAt: request.devModeEnabled ? timestamp : undefined,
       },
       revealableInfo: {
-        publicFacts: [`${state.npcId} is deployed somewhere inside ${world.summary.name}.`],
+        publicFacts: [
+          worldCreationText.npcPublicFact(
+            mockNpcDefinitions.find((definition) => definition.id === state.npcId)?.name ??
+              state.npcId,
+            world.summary.name,
+          ),
+        ],
         trustGatedFacts: [
           {
             minTrust: state.currentDisposition === 'hostile' ? 0 : 20,
-            fact: `${toSentenceCase(request.gameGoal)} depends on stabilizing ${
+            fact: worldCreationText.npcTrustFact(
+              toSentenceCase(request.gameGoal),
               state.npcId === mockNpcDefinitions[0]?.id
                 ? firstArea.name
                 : state.npcId === mockNpcDefinitions[1]?.id
@@ -194,24 +214,24 @@ const buildNpcStates = (
                     ? secondArea.name
                     : state.npcId === mockNpcDefinitions[3]?.id
                       ? secondArea.name
-                      : thirdArea.name
-            }.`,
+                      : thirdArea.name,
+            ),
           },
         ],
         hiddenSecrets: [
-          `${world.summary.name} contains a pressure point connected to ${thirdArea.name}.`,
+          worldCreationText.npcHiddenSecret(world.summary.name, thirdArea.name),
         ],
       },
       currentGoal:
         state.npcId === mockNpcDefinitions[0]?.id
-          ? `Guide the player toward ${request.gameGoal.trim()}.`
+          ? worldCreationText.npcGoals.guide(request.gameGoal.trim())
           : state.npcId === mockNpcDefinitions[1]?.id
-            ? `Keep the expedition stocked for ${request.gameGoal.trim()}.`
+            ? worldCreationText.npcGoals.merchant(request.gameGoal.trim())
             : state.npcId === mockNpcDefinitions[2]?.id
-              ? `Interpret how the archive supports ${request.gameGoal.trim()}.`
+              ? worldCreationText.npcGoals.scholar(request.gameGoal.trim())
               : state.npcId === mockNpcDefinitions[3]?.id
-                ? `Hold the route into ${secondArea.name} while the world escalates.`
-                : `Prevent the player from ${request.gameGoal.trim()}.`,
+                ? worldCreationText.npcGoals.guard(secondArea.name)
+                : worldCreationText.npcGoals.boss(request.gameGoal.trim()),
       hasGivenQuestIds: [
         state.npcId === mockNpcDefinitions[0]?.id ? mainQuestId : undefined,
         state.npcId === mockNpcDefinitions[1]?.id ? merchantQuestId : undefined,
@@ -240,16 +260,18 @@ const buildEventDefinitions = (
     ...event,
     title:
       index === 0
-        ? `${firstArea.name} Disturbance`
+        ? worldCreationText.eventTitles.areaDisruption(firstArea.name)
         : index === 1
-          ? `${secondArea.name} Signal`
-          : `${thirdArea.name} Countermeasure`,
+          ? worldCreationText.eventTitles.areaSignal(secondArea.name)
+          : worldCreationText.eventTitles.areaCountermeasure(thirdArea.name),
     description:
       index === 0
-        ? `${world.summary.name} opens under tension as the first district reacts to the new run.`
+        ? worldCreationText.eventDescriptions.opening(world.summary.name)
         : index === 1
-          ? `Progress toward ${request.gameGoal.trim()} makes the middle region reveal new pressure.`
-          : `The final route answers the player's ${request.preferredMode} bias with a visible shift.`,
+          ? worldCreationText.eventDescriptions.midpoint(request.gameGoal.trim())
+          : worldCreationText.eventDescriptions.finale(
+              preferredModeLabels[request.preferredMode],
+            ),
   }));
 };
 
@@ -273,7 +295,7 @@ const buildResourceState = (
         id: `resource:${tilesetKey}`,
         kind: 'tileset',
         key: tilesetKey,
-        label: `${toTitleCase(request.worldStyle)} tileset`,
+        label: worldCreationText.resources.tileset(toTitleCase(request.worldStyle)),
         source: `generated://${tilesetKey}`,
       },
       ...areas.flatMap((area) => [
@@ -281,7 +303,7 @@ const buildResourceState = (
           id: `resource:bg:${area.id}`,
           kind: 'background' as const,
           key: area.backgroundKey ?? `bg-${toSlug(area.name)}`,
-          label: `${area.name} backdrop`,
+          label: worldCreationText.resources.background(area.name),
           areaId: area.id,
           source: `generated://background/${toSlug(area.name)}`,
         },
@@ -289,7 +311,7 @@ const buildResourceState = (
           id: `resource:music:${area.id}`,
           kind: 'music' as const,
           key: area.musicKey ?? `music-${toSlug(area.name)}`,
-          label: `${area.name} score`,
+          label: worldCreationText.resources.music(area.name),
           areaId: area.id,
           source: `generated://music/${toSlug(area.name)}`,
         },
@@ -298,7 +320,7 @@ const buildResourceState = (
         id: `resource:avatar:${npc.id}`,
         kind: 'avatar' as const,
         key: npc.avatarKey ?? `avatar-${toSlug(npc.name)}`,
-        label: `${npc.name} portrait`,
+        label: worldCreationText.resources.avatar(npc.name),
         npcId: npc.id,
         source: `generated://avatar/${toSlug(npc.name)}`,
       })),
@@ -327,7 +349,7 @@ const buildCombatEncounter = (
 
   return {
     ...mockBossEncounterDefinition,
-    title: `${world.summary.name} Final Stand`,
+    title: worldCreationText.encounterTitle(world.summary.name),
     areaId: bossArea.id,
     enemyNpcId: bossNpc?.id,
   };
@@ -368,7 +390,7 @@ const buildQuestProgressEntries = (
     history.push({
       questId: definition.id,
       status: progress.status,
-      note: `Quest "${definition.title}" seeded during world creation.`,
+      note: worldCreationText.questInjectedNote(definition.title),
       updatedAt: timestamp,
     });
   }
@@ -411,16 +433,20 @@ const buildPlayerModelState = (
 ): PlayerModelState => ({
   tags,
   rationale: [
-    `Seeded from ${request.preferredMode} preference during world creation.`,
+    worldCreationText.playerModelRationale.fromMode(
+      preferredModeLabels[request.preferredMode],
+    ),
     request.devModeEnabled
-      ? 'Debug-forward creation mode enabled direct scenario inspection.'
-      : 'Opening run favors a player-facing, demo-friendly route.',
+      ? worldCreationText.playerModelRationale.devMode
+      : worldCreationText.playerModelRationale.demoMode,
   ],
   recentAreaVisits: [world.startingAreaId],
   recentQuestChoices: [],
   npcInteractionCount: 0,
   dominantStyle: tags[0],
-  stuckPoint: request.quickStartEnabled ? undefined : 'No player friction recorded yet.',
+  stuckPoint: request.quickStartEnabled
+    ? undefined
+    : worldCreationText.playerModelRationale.stuckPoint,
   lastUpdatedAt: timestamp,
 });
 
@@ -435,7 +461,7 @@ const buildOutputs = (
     mainQuestSeed:
       snapshot.quests.definitions.find((quest) => quest.type === 'main')?.title ??
       snapshot.quests.definitions[0]?.title ??
-      'Opening quest seeded',
+      worldCreationText.defaultMainQuestSeed,
     npcNames: snapshot.npcs.definitions.map((npc) => npc.name),
     resourceLabels: snapshot.resources?.entries.map((entry) => entry.label) ?? [],
     storyPremise,
@@ -461,7 +487,9 @@ const buildSnapshot = (options: {
       request.preferredMode === 'combat' ? [events[events.length - 1]?.id].filter(Boolean) : [],
     worldTension:
       request.difficulty === 'hard' ? 72 : request.difficulty === 'easy' ? 24 : 48,
-    pacingNote: `Creation mode is tuned for ${request.preferredMode} play inside ${world.summary.name}.`,
+    pacingNote: worldCreationText.pacingNote(
+      preferredModeLabels[request.preferredMode],
+    ),
     randomnessDisabled: request.devModeEnabled,
   };
   const combatEncounter = buildCombatEncounter(areas, npcDefinitions, world);
@@ -474,7 +502,7 @@ const buildSnapshot = (options: {
       id: `save:${world.summary.id}:slot-1`,
       version: '0.1.0',
       slot: 'slot-1',
-      label: `${world.summary.name} opening state`,
+      label: worldCreationText.initialSaveLabel(world.summary.name),
       createdAt: timestamp,
       updatedAt: timestamp,
       source: request.devModeEnabled ? 'debug' : 'manual',
@@ -528,32 +556,35 @@ const buildFallbackWorld = (
   storyPremise: string;
 } => {
   const focusWord = pickFocusWord(request.theme);
-  const worldName = `${focusWord} Reach`;
+  const worldName = worldCreationText.fallbackWorldName(focusWord);
   const storyPremise = buildStoryPremise(request, worldName);
   const archiveUnlocked = request.quickStartEnabled || request.devModeEnabled;
   const sanctumUnlocked = request.devModeEnabled;
   const factions = mockSaveSnapshot.world.factions.map((faction, index) => ({
     ...faction,
-    name: index === 0 ? `${focusWord} Wardens` : `${focusWord} Court`,
+    name:
+      index === 0
+        ? worldCreationText.fallbackFactionNames.defenders(focusWord)
+        : worldCreationText.fallbackFactionNames.disruptors(focusWord),
     description:
       index === 0
-        ? `Fallback defenders maintaining ${worldName}.`
-        : `Fallback antagonists disrupting ${worldName}.`,
+        ? worldCreationText.fallbackFactionDescriptions.defenders(worldName)
+        : worldCreationText.fallbackFactionDescriptions.disruptors(worldName),
   }));
   const areas = mockSaveSnapshot.areas.map((area, index) => ({
     ...area,
     name:
       index === 0
-        ? `${focusWord} Crossroads`
+        ? worldCreationText.fallbackAreaNames.outpost(focusWord)
         : index === 1
-          ? `${focusWord} Archive`
-          : `${focusWord} Sanctum`,
+          ? worldCreationText.fallbackAreaNames.archive(focusWord)
+          : worldCreationText.fallbackAreaNames.sanctum(focusWord),
     description:
       index === 0
-        ? `Fallback starting district for ${worldName}.`
+        ? worldCreationText.fallbackAreaDescriptions.opening(worldName)
         : index === 1
-          ? `Fallback mid-route pressure zone supporting ${request.gameGoal.trim()}.`
-          : `Fallback boss route defending the final objective.`,
+          ? worldCreationText.fallbackAreaDescriptions.midpoint(request.gameGoal.trim())
+          : worldCreationText.fallbackAreaDescriptions.finale,
     unlockedByDefault: index === 0 ? true : index === 1 ? archiveUnlocked : sanctumUnlocked,
   }));
 
@@ -564,7 +595,7 @@ const buildFallbackWorld = (
         ...mockSaveSnapshot.world.summary,
         id: `world:${toSlug(request.theme)}`,
         name: worldName,
-        subtitle: `${toTitleCase(request.worldStyle)} fallback seed`,
+        subtitle: worldCreationText.fallbackSubtitle(toTitleCase(request.worldStyle)),
         theme: request.theme,
         tone:
           request.difficulty === 'easy'
@@ -601,11 +632,18 @@ const buildFallbackQuestDefinitions = (
       ? {
           ...quest,
           title: toSentenceCase(request.gameGoal),
-          description: `${storyPremise} Main route: ${quest.description}`,
+          description: worldCreationText.fallbackQuestDescriptions.main(
+            storyPremise,
+            quest.description,
+          ),
         }
       : {
           ...quest,
-          description: `${quest.description} Fallback route ${index} reinforces ${request.preferredMode} play.`,
+          description: worldCreationText.fallbackQuestDescriptions.side(
+            quest.description,
+            index + 1,
+            preferredModeLabels[request.preferredMode],
+          ),
         },
   );
 
@@ -655,7 +693,7 @@ export class WorldCreationController {
     const template = findWorldCreationTemplate(templateId);
 
     if (!template) {
-      throw new Error(`Unknown world creation template: ${templateId}`);
+      throw new Error(worldCreationText.missingTemplate(templateId));
     }
 
     return this.createWorld(template.request);
@@ -674,17 +712,17 @@ export class WorldCreationController {
     const timestamp = this.now();
     const result = await this.generateWorldResult(validatedRequest, timestamp);
 
-    this.store.getState().hydrateFromSnapshot(result.snapshot);
-    this.store
-      .getState()
-      .setRecoveryNotice(
-        result.usedFallback && result.fallbackReason
-          ? `World creation used the deterministic fallback path because ${result.fallbackReason.replace(
-              /-/g,
-              ' ',
-            )}.`
-          : null,
-      );
+    const state = this.store.getState();
+
+    state.hydrateFromSnapshot(result.snapshot);
+    state.setStartupState('generated', 'world-created');
+    state.setRecoveryNotice(
+      result.usedFallback && result.fallbackReason
+        ? worldCreationText.recoveryNotice(
+            fallbackReasonLabels[result.fallbackReason],
+          )
+        : null,
+    );
 
     if (validatedRequest.saveAfterCreate ?? true) {
       await maybeAutoSave(
@@ -718,8 +756,15 @@ export class WorldCreationController {
       this.logger?.recordAgentDecision({
         agentId: 'world-architect',
         createdAt: timestamp,
-        inputSummary: `Theme=${request.theme}, style=${request.worldStyle}, mode=${request.preferredMode}`,
-        outputSummary: `World=${worldOutput.world.summary.name}, areas=${worldOutput.areas.length}`,
+        inputSummary: worldCreationText.logs.worldArchitectInput(
+          request.theme,
+          request.worldStyle,
+          preferredModeLabels[request.preferredMode],
+        ),
+        outputSummary: worldCreationText.logs.worldArchitectOutput(
+          worldOutput.world.summary.name,
+          worldOutput.areas.length,
+        ),
         input: request,
         output: worldOutput,
       });
@@ -743,8 +788,12 @@ export class WorldCreationController {
       this.logger?.recordAgentDecision({
         agentId: 'quest-designer',
         createdAt: timestamp,
-        inputSummary: `Quest seed for ${worldOutput.world.summary.name}`,
-        outputSummary: `Generated ${questOutput.quests.length} quests`,
+        inputSummary: worldCreationText.logs.questDesignerInput(
+          worldOutput.world.summary.name,
+        ),
+        outputSummary: worldCreationText.logs.questDesignerOutput(
+          questOutput.quests.length,
+        ),
         input: {
           worldId: worldOutput.world.summary.id,
           gameGoal: request.gameGoal,
@@ -768,8 +817,10 @@ export class WorldCreationController {
         this.logger?.recordAgentDecision({
           agentId: 'level-builder',
           createdAt: timestamp,
-          inputSummary: `Area=${area.id}`,
-          outputSummary: `Interaction points=${buildResult.interactionPoints.length}`,
+          inputSummary: worldCreationText.logs.levelBuilderInput(area.id),
+          outputSummary: worldCreationText.logs.levelBuilderOutput(
+            buildResult.interactionPoints.length,
+          ),
           input: {
             areaId: area.id,
           },

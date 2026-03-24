@@ -3,6 +3,9 @@ import { SectionCard } from '../../components/layout/SectionCard';
 import { ReviewPanel } from '../../components/review/ReviewPanel';
 import { useGameLogStore } from '../../core/logging';
 import { reviewPanels } from '../../core/mocks/shellContent';
+import { locale } from '../../core/utils/locale';
+
+const reviewText = locale.pages.review;
 
 export function ReviewPage() {
   const reviewLogs = useGameLogStore((state) =>
@@ -17,23 +20,20 @@ export function ReviewPage() {
   );
 
   return (
-    <PageFrame
-      title="Review Route Placeholder"
-      description="The review route is ready to receive combat summaries, tactic explanations, quest branch rationale, and player-model output once those modules arrive."
-    >
+    <PageFrame title={reviewText.title} description={reviewText.description}>
       <div className="panel-grid panel-grid--two">
         {reviewPanels.map((panel) => (
           <ReviewPanel key={panel.title} panel={panel} />
         ))}
         <SectionCard
-          title="Review Telemetry"
-          eyebrow={`${reviewLogs.length} entries`}
-          description="Explanation payload inputs and agent decisions are available to the review surface."
-          footer="Review-related telemetry is filtered from the shared typed log store."
+          title={reviewText.telemetry.title}
+          eyebrow={reviewText.telemetry.eyebrow(reviewLogs.length)}
+          description={reviewText.telemetry.description}
+          footer={reviewText.telemetry.footer}
         >
           <ul className="section-card__list">
             {reviewLogs.length === 0 ? (
-              <li>No review telemetry recorded yet.</li>
+              <li>{reviewText.telemetry.emptyState}</li>
             ) : (
               reviewLogs.map((entry) => (
                 <li key={entry.id}>

@@ -98,10 +98,10 @@ export const evaluateQuestAvailability = (
 ): QuestAvailabilityResult => {
   if (context.progress) {
     return {
-      ...passRule('existing quest progress takes precedence'),
+      ...passRule('已有任务进度优先保留'),
       status: context.progress.status,
       progress: context.progress,
-      reasons: ['existing quest progress takes precedence'],
+      reasons: ['已有任务进度优先保留'],
     };
   }
 
@@ -113,7 +113,7 @@ export const evaluateQuestAvailability = (
       (questId) => !hasCompletedQuest(questId, context.questProgressEntries),
     );
     if (missingQuestIds.length > 0) {
-      reasons.push(`missing completed quests: ${missingQuestIds.join(', ')}`);
+      reasons.push(`缺少已完成任务：${missingQuestIds.join(', ')}`);
     }
   }
 
@@ -122,7 +122,7 @@ export const evaluateQuestAvailability = (
       (flag) => context.worldFlags[flag] !== true,
     );
     if (missingFlags.length > 0) {
-      reasons.push(`missing world flags: ${missingFlags.join(', ')}`);
+      reasons.push(`缺少世界标记：${missingFlags.join(', ')}`);
     }
   }
 
@@ -135,7 +135,7 @@ export const evaluateQuestAvailability = (
   }
 
   return {
-    ...passRule('quest is available'),
+    ...passRule('任务已满足激活条件'),
     status: 'available',
     progress: {
       questId: context.definition.id,
@@ -144,7 +144,7 @@ export const evaluateQuestAvailability = (
       completedObjectiveIds: [],
       updatedAt: context.now,
     },
-    reasons: ['quest is available'],
+    reasons: ['任务已满足激活条件'],
   };
 };
 
@@ -173,12 +173,12 @@ export const activateQuest = (
       } satisfies QuestProgress);
 
     return {
-      ...failRule(availability.reason ?? 'quest is not available'),
+      ...failRule(availability.reason ?? '任务当前不可用'),
       progress: fallbackProgress,
       historyEntry: {
         questId: definition.id,
         status: fallbackProgress.status,
-        note: availability.reason ?? 'quest activation failed',
+        note: availability.reason ?? '任务激活失败',
         updatedAt: now,
       },
       reward: emptyReward(),
@@ -194,17 +194,17 @@ export const activateQuest = (
   };
 
   return {
-    ...passRule('quest activated'),
+    ...passRule('任务已激活'),
     progress: nextProgress,
     historyEntry: {
       questId: definition.id,
       status: nextProgress.status,
-      note: `Quest "${definition.title}" is now active.`,
+      note: `任务“${definition.title}”现已激活。`,
       updatedAt: now,
     },
     reward: emptyReward(),
     relationChanges: [],
-    reasons: ['quest activated'],
+    reasons: ['任务已激活'],
   };
 };
 
@@ -217,17 +217,17 @@ export const applyQuestTrigger = (
 ): QuestTransitionResult => {
   if (progress.status !== 'active') {
     return {
-      ...failRule('quest is not active'),
+      ...failRule('任务当前未处于进行中状态'),
       progress,
       historyEntry: {
         questId: definition.id,
         status: progress.status,
-        note: 'Quest trigger ignored because the quest is not active.',
+        note: '任务触发已忽略，因为该任务当前并未处于进行中状态。',
         updatedAt: now,
       },
       reward: emptyReward(),
       relationChanges: [],
-      reasons: ['quest is not active'],
+      reasons: ['任务当前未处于进行中状态'],
     };
   }
 
@@ -235,17 +235,17 @@ export const applyQuestTrigger = (
 
   if (!objective) {
     return {
-      ...failRule('quest has no remaining objectives'),
+      ...failRule('任务已没有剩余目标'),
       progress,
       historyEntry: {
         questId: definition.id,
         status: progress.status,
-        note: 'Quest trigger ignored because there are no remaining objectives.',
+        note: '任务触发已忽略，因为已经没有剩余目标。',
         updatedAt: now,
       },
       reward: emptyReward(),
       relationChanges: [],
-      reasons: ['quest has no remaining objectives'],
+      reasons: ['任务已没有剩余目标'],
     };
   }
 
@@ -259,17 +259,17 @@ export const applyQuestTrigger = (
 
   if (objective.type !== trigger.type || !targetMatches || !countMatches) {
     return {
-      ...failRule('quest trigger does not match the active objective'),
+      ...failRule('任务触发与当前激活目标不匹配'),
       progress,
       historyEntry: {
         questId: definition.id,
         status: progress.status,
-        note: 'Quest trigger did not match the active objective.',
+        note: '任务触发未命中当前激活目标。',
         updatedAt: now,
       },
       reward: emptyReward(),
       relationChanges: [],
-      reasons: ['quest trigger does not match the active objective'],
+      reasons: ['任务触发与当前激活目标不匹配'],
     };
   }
 
@@ -296,7 +296,7 @@ export const applyQuestTrigger = (
   };
 
   return {
-    ...passRule('quest progressed successfully'),
+    ...passRule('任务推进成功'),
     progress: nextProgress,
     historyEntry: {
       questId: definition.id,
@@ -307,6 +307,6 @@ export const applyQuestTrigger = (
     reward,
     branchResult,
     relationChanges,
-    reasons: ['quest progressed successfully'],
+    reasons: ['任务推进成功'],
   };
 };

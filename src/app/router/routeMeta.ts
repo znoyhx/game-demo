@@ -1,29 +1,26 @@
 import type { RouteMeta } from '../../core/types/appShell';
+import { locale } from '../../core/utils/locale';
 
 export const routeMeta: RouteMeta[] = [
   {
     id: 'home',
     path: '/',
-    label: 'Home',
-    summary: 'Competition-first entry for the PixelForge Agent vertical slice.',
+    ...locale.routes.home,
   },
   {
     id: 'game',
     path: '/game',
-    label: 'Game',
-    summary: 'Main playable shell for area, NPC, quest, and combat modules.',
+    ...locale.routes.game,
   },
   {
     id: 'debug',
     path: '/debug',
-    label: 'Debug',
-    summary: 'Fast-path controls for deterministic scenario testing and inspection.',
+    ...locale.routes.debug,
   },
   {
     id: 'review',
     path: '/review',
-    label: 'Review',
-    summary: 'Post-run explanation and review route for visible AI behavior.',
+    ...locale.routes.review,
   },
 ];
 

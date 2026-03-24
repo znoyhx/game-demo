@@ -12,14 +12,16 @@ const hasSupportiveTone = (recentDialogue: NpcBrainInput['recentDialogue']) =>
   recentDialogue.some(
     (turn) =>
       turn.speaker === 'player' &&
-      /(help|aid|support|quest|ward)/i.test(turn.text),
+      /(help|aid|support|quest|ward|协作|支援|帮|任务|巡逻|情报|补给|相信|一起)/i.test(
+        turn.text,
+      ),
   );
 
 const hasAggressiveTone = (recentDialogue: NpcBrainInput['recentDialogue']) =>
   recentDialogue.some(
     (turn) =>
       turn.speaker === 'player' &&
-      /(demand|threat|force|now)/i.test(turn.text),
+      /(demand|threat|force|now|立刻|马上|现在|命令|威胁|逼|强行)/i.test(turn.text),
   );
 
 export class MockNpcBrainAgent
@@ -54,10 +56,10 @@ export class MockNpcBrainAgent
       .map((quest) => quest.questId);
 
     const npcReply = positiveTone
-      ? `${input.npcDefinition.name} steadies their voice and shares a clearer next step.`
+      ? `${input.npcDefinition.name}放缓语气，把下一步行动说得更清楚了。`
       : negativeTone
-        ? `${input.npcDefinition.name} tightens their stance and answers cautiously.`
-        : `${input.npcDefinition.name} offers a measured update about the road ahead.`;
+        ? `${input.npcDefinition.name}收紧姿态，带着明显戒备给出回应。`
+        : `${input.npcDefinition.name}克制地更新了前路局势。`;
 
     return {
       npcReply,
@@ -65,7 +67,7 @@ export class MockNpcBrainAgent
       trustDelta,
       relationshipDelta,
       unlockedQuestIds,
-      explanationHint: `${input.npcDefinition.name} reacted to the player's tone and the current trust threshold.`,
+      explanationHint: `${input.npcDefinition.name}根据玩家语气和当前信任阈值调整了回应。`,
     };
   }
 }

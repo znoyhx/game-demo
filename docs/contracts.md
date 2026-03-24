@@ -1016,11 +1016,32 @@ export interface ExplainCoachOutput {
 
 ---
 
-# 14. Controller Service Contracts
+# 14. Presentation Contracts
+
+These contracts sit between page/view-model builders and renderer-facing UI components.
+
+## 14.1 Area Scene Stage Model
+
+The main scene viewport may consume a validated presentation payload that includes:
+
+* renderer label and engine targets
+* layered placeholder tiles for background / terrain / structures / highlights
+* interaction markers with feedback tone and state
+* legend badges for interaction affordances
+
+This contract is presentation-only:
+
+* it must not embed quest, combat, or NPC rules
+* it should be derivable from validated state and selectors
+* it should stay compatible with both DOM placeholders and future Phaser/Pixi scene renderers
+
+---
+
+# 15. Controller Service Contracts
 
 These are not UI contracts. They define application-level actions.
 
-## 14.1 Startup Controller
+## 15.1 Startup Controller
 
 ```ts
 export interface StartupController {
@@ -1028,7 +1049,7 @@ export interface StartupController {
 }
 ```
 
-## 14.2 Save Controller
+## 15.2 Save Controller
 
 ```ts
 export interface SaveController {
@@ -1038,7 +1059,7 @@ export interface SaveController {
 }
 ```
 
-## 14.3 Dialogue Controller
+## 15.3 Dialogue Controller
 
 ```ts
 export interface DialogueController {
@@ -1048,7 +1069,7 @@ export interface DialogueController {
 }
 ```
 
-## 14.4 Combat Controller
+## 15.4 Combat Controller
 
 ```ts
 export interface CombatController {
@@ -1060,9 +1081,9 @@ export interface CombatController {
 
 ---
 
-# 15. Persistence Service Contracts
+# 16. Persistence Service Contracts
 
-## 15.1 Storage Adapter
+## 16.1 Storage Adapter
 
 ```ts
 export interface StorageAdapter {
@@ -1074,7 +1095,7 @@ export interface StorageAdapter {
 }
 ```
 
-## 15.2 Save Validator
+## 16.2 Save Validator
 
 ```ts
 export interface SaveValidator {
@@ -1082,7 +1103,7 @@ export interface SaveValidator {
 }
 ```
 
-## 15.3 Save Migrator
+## 16.3 Save Migrator
 
 ```ts
 export interface SaveMigrator {
@@ -1090,7 +1111,7 @@ export interface SaveMigrator {
 }
 ```
 
-## 15.4 Session Snapshot
+## 16.4 Session Snapshot
 
 ```ts
 export interface SessionSnapshot {
@@ -1126,9 +1147,9 @@ export interface SessionSnapshot {
 
 ---
 
-# 16. Event Bus Contracts
+# 17. Event Bus Contracts
 
-## 16.1 Domain Event Name
+## 17.1 Domain Event Name
 
 ```ts
 export type DomainEventName =
@@ -1145,7 +1166,7 @@ export type DomainEventName =
   | "PLAYER_MODEL_UPDATED";
 ```
 
-## 16.2 Domain Event
+## 17.2 Domain Event
 
 ```ts
 export interface DomainEvent<TPayload = unknown> {
@@ -1157,7 +1178,7 @@ export interface DomainEvent<TPayload = unknown> {
 
 ---
 
-# 17. Suggested Zod Schema Mapping
+# 18. Suggested Zod Schema Mapping
 
 Recommended implementation files:
 
@@ -1186,7 +1207,7 @@ Every schema file should export:
 
 ---
 
-# 18. Contract Stability Rules
+# 19. Contract Stability Rules
 
 When changing a contract:
 
@@ -1198,7 +1219,7 @@ When changing a contract:
 
 ---
 
-# 19. MVP Minimum Required Contracts
+# 20. MVP Minimum Required Contracts
 
 The MVP cannot proceed without stable definitions for:
 
@@ -1217,7 +1238,7 @@ These should be implemented first in code.
 
 ---
 
-# 20. Next Implementation Step
+# 21. Next Implementation Step
 
 After this document is accepted, the next engineering action should be:
 

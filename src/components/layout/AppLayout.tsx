@@ -11,22 +11,12 @@ import {
   useShellStore,
 } from '../../core/state';
 import { cn } from '../../core/utils/cn';
+import { locale } from '../../core/utils/locale';
 import { Badge } from '../pixel-ui/Badge';
 
-const startupLabels = {
-  pending: 'Booting',
-  save: 'Loaded Save',
-  mock: 'Loaded Mock',
-} as const;
-
-const startupMessages = {
-  booting: 'Checking persistence and preparing the latest playable state.',
-  'save-restored': 'Latest valid save restored through the persistence layer.',
-  'no-save': 'No prior save found. Default mock world loaded for the MVP slice.',
-  'invalid-save': 'Invalid save detected. Startup fell back safely to the default mock world.',
-  'storage-error':
-    'Save storage could not be read. Startup fell back safely to the default mock world.',
-} as const;
+const startupLabels = locale.labels.startupSources;
+const startupMessages = locale.labels.startupReasons;
+const appLayoutText = locale.appLayout;
 
 export function AppLayout() {
   const currentRoute = useShellStore((state) => state.currentRoute);
@@ -37,7 +27,7 @@ export function AppLayout() {
   const saveMetadata = useGameStore(selectSaveMetadata);
 
   const startupTone =
-    startupSource === 'save'
+    startupSource === 'save' || startupSource === 'generated'
       ? 'success'
       : startupSource === 'mock'
         ? 'warning'
@@ -50,20 +40,17 @@ export function AppLayout() {
         <header className="app-shell__header">
           <div className="app-shell__header-top">
             <div className="app-shell__title-wrap">
-              <span className="app-shell__eyebrow">PixelForge Agent</span>
-              <h1 className="app-shell__title">Competition MVP Scaffold</h1>
-              <p className="app-shell__subtitle">
-                Web-first, mock-first, and structured for a clean handoff into gameplay,
-                persistence, agent orchestration, and debug tooling.
-              </p>
+              <span className="app-shell__eyebrow">{appLayoutText.eyebrow}</span>
+              <h1 className="app-shell__title">{appLayoutText.title}</h1>
+              <p className="app-shell__subtitle">{appLayoutText.subtitle}</p>
             </div>
             <div className="app-shell__meta">
-              <Badge tone="success">M0 Foundation</Badge>
-              <Badge tone="warning">Mock-First</Badge>
+              <Badge tone="success">{appLayoutText.badges.milestone}</Badge>
+              <Badge tone="warning">{appLayoutText.badges.mockFirst}</Badge>
               <Badge tone={startupTone}>{startupLabels[startupSource]}</Badge>
             </div>
           </div>
-          <nav className="app-shell__nav" aria-label="Primary">
+          <nav className="app-shell__nav" aria-label={appLayoutText.navigationAriaLabel}>
             {routeMeta.map((entry) => (
               <NavLink
                 key={entry.id}
@@ -86,13 +73,16 @@ export function AppLayout() {
             <span>{startupMessages[startupReason]}</span>
           </div>
           <div className="app-shell__meta">
-            <Badge tone="info">{startupReady ? worldSummary.name : 'Startup Pending'}</Badge>
+            <Badge tone="info">
+              {startupReady ? worldSummary.name : appLayoutText.pendingWorldBadge}
+            </Badge>
             <span>
               {startupReady
-                ? `${currentArea ? `${currentArea.name} active area` : 'World shell ready'} / ${
-                    saveMetadata.label ?? saveMetadata.slot ?? saveMetadata.id
-                  }`
-                : 'Validating the latest save and preparing the first playable state.'}
+                ? appLayoutText.readyWorldStatus(
+                    currentArea?.name,
+                    saveMetadata.label ?? saveMetadata.slot ?? saveMetadata.id,
+                  )
+                : appLayoutText.pendingWorldStatus}
             </span>
           </div>
         </header>
@@ -100,16 +90,12 @@ export function AppLayout() {
           {startupSource === 'pending' ? (
             <section className="page-frame">
               <header className="page-frame__header">
-                <h2 className="page-frame__title">Booting Startup Flow</h2>
+                <h2 className="page-frame__title">{appLayoutText.startupSectionTitle}</h2>
                 <p className="page-frame__description">{startupMessages.booting}</p>
               </header>
               <div className="startup-status-card">
-                <Badge tone="info">Startup Controller</Badge>
-                <p className="startup-status-card__body">
-                  The app is loading the latest valid save through the persistence abstraction.
-                  If no valid save is available, it will fall back to the deterministic mock
-                  world.
-                </p>
+                <Badge tone="info">{appLayoutText.startupControllerBadge}</Badge>
+                <p className="startup-status-card__body">{appLayoutText.startupControllerBody}</p>
               </div>
             </section>
           ) : (

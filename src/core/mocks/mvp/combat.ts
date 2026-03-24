@@ -10,7 +10,7 @@ import { mockIds, mockTimeline } from './constants';
 
 export const mockBossEncounterDefinition: CombatEncounterDefinition = {
   id: mockIds.encounter,
-  title: 'Ashen Warden of the Sanctum',
+  title: '圣所的灰烬守卫',
   mode: 'turn-based',
   areaId: mockIds.areas.sanctum,
   enemyNpcId: mockIds.npcs.ashWarden,
@@ -18,14 +18,14 @@ export const mockBossEncounterDefinition: CombatEncounterDefinition = {
   bossPhases: [
     {
       id: 'phase:sealed-guard',
-      label: 'Sealed Guard',
+      label: '封印守势',
       thresholdType: 'hp',
       thresholdValue: 70,
       tacticBias: ['defensive', 'counter'],
     },
     {
       id: 'phase:embers-unbound',
-      label: 'Embers Unbound',
+      label: '余烬失控',
       thresholdType: 'hp',
       thresholdValue: 35,
       tacticBias: ['aggressive', 'counter'],
@@ -40,14 +40,14 @@ export const mockBossCombatState: CombatState = {
   activeTactic: 'counter',
   player: {
     id: 'combatant:player',
-    name: 'Player',
+    name: '玩家',
     hp: 14,
     maxHp: 30,
     statusEffects: ['guarded'],
   },
   enemy: {
     id: 'combatant:ash-warden',
-    name: 'Ash Warden',
+    name: '灰烬守卫',
     hp: 21,
     maxHp: 90,
     statusEffects: ['staggered'],
@@ -61,7 +61,7 @@ export const mockBossCombatState: CombatState = {
         {
           actor: 'enemy',
           actionType: 'ward-shield',
-          description: 'The Ash Warden raises a shield of ember glass.',
+          description: '灰烬守卫举起了一面余烬玻璃护盾。',
           value: 6,
         },
       ],
@@ -74,7 +74,7 @@ export const mockBossCombatState: CombatState = {
         {
           actor: 'enemy',
           actionType: 'ember-lunge',
-          description: 'The Ash Warden lunges across the arena with a burning spear.',
+          description: '灰烬守卫手持燃烧长枪横跨战场猛扑而来。',
           value: 9,
         },
       ],
@@ -87,12 +87,12 @@ export const mockBossCombatState: CombatState = {
         {
           actor: 'system',
           actionType: 'phase-shift',
-          description: 'The sanctum seal cracks and the second phase begins.',
+          description: '圣所封印出现裂痕，第二阶段开始。',
         },
         {
           actor: 'enemy',
           actionType: 'cinder-counter',
-          description: 'The Ash Warden punishes a direct strike with a cinder counter.',
+          description: '灰烬守卫用余烬反击惩罚了正面硬拼。',
           value: 7,
         },
       ],
@@ -115,29 +115,29 @@ export const mockReviewPayload: ReviewPayload = {
   encounterId: mockBossEncounterDefinition.id,
   playerTags: ['exploration', 'story', 'risky'],
   keyEvents: [
-    'Lyra opened the archive route after the first ward briefing.',
-    'The Ash Warden shifted into Embers Unbound at low health.',
-    'A counter tactic punished repeated direct attacks.',
+    '莱拉在第一次守护简报后打开了通往秘库的路线。',
+    '灰烬守卫在血量较低时切换到了“余烬失控”阶段。',
+    '连续正面强攻触发了敌人的反击战术。',
   ],
   explanations: [
     {
       type: 'combat',
-      title: 'Counter stance selected',
-      summary: 'The boss detected repeated direct pressure and switched to a reactive counter pattern.',
+      title: '已切换到反击姿态',
+      summary: '首领识别到玩家持续进行正面压制，因此切换为反应式反击模式。',
       evidence: [
-        'Turn 3 changed the active tactic to counter.',
-        'The player profile includes risky.',
+        '第 3 回合时激活战术切换为了“反击”。',
+        '玩家画像中包含“高风险”标签。',
       ],
     },
     {
       type: 'quest',
-      title: 'Sanctum route became available',
-      summary: 'Archive progress and ward knowledge combined to expose the sanctum approach.',
-      evidence: ['Main quest advanced through the archive objective.'],
+      title: '圣所路线已解锁',
+      summary: '秘库推进进度与守护知识结合后，暴露出了通往圣所的路线。',
+      evidence: ['主线任务通过秘库目标继续推进。'],
     },
   ],
   suggestions: [
-    'Break the boss counter loop by alternating guarded turns with high-damage bursts.',
+    '用防御回合和高伤爆发交替出手，打断首领的反击循环。',
   ],
 };
 

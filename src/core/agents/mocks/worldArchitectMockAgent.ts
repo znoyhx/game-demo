@@ -53,13 +53,13 @@ const determineTimeOfDay = (
 ): string => {
   switch (preferredMode) {
     case 'story':
-      return 'blue dusk';
+      return '青蓝薄暮';
     case 'combat':
-      return 'ember watch';
+      return '烽火守夜';
     case 'exploration':
-      return 'sunrise haze';
+      return '晨曦薄雾';
     default:
-      return 'twilight shift';
+      return '暮光交替';
   }
 };
 
@@ -68,13 +68,20 @@ const determineWeather = (
 ): string => {
   switch (difficulty) {
     case 'easy':
-      return 'clear ember wind';
+      return '清朗暖风';
     case 'hard':
-      return 'volatile stormfront';
+      return '躁动风暴';
     default:
-      return 'ash-lit draft';
+      return '灰烬流风';
   }
 };
+
+const modeLabels = {
+  story: '剧情',
+  exploration: '探索',
+  combat: '战斗',
+  hybrid: '混合',
+} as const;
 
 export class MockWorldArchitectAgent
   extends ValidatedMockAgent<WorldArchitectInput, WorldArchitectOutput>
@@ -91,21 +98,21 @@ export class MockWorldArchitectAgent
   protected execute(input: WorldArchitectInput): WorldArchitectOutput {
     const styleLabel = toTitleCase(input.worldStyle);
     const focusWord = pickFocusWord(input.theme);
-    const worldName = `${focusWord} Reach`;
-    const storyPremise = `${worldName} is a ${input.worldStyle} realm where you must ${input.gameGoal.trim()} before the final wardline collapses.`;
+    const worldName = `${focusWord}之境`;
+    const storyPremise = `${worldName}是一个${input.worldStyle}世界，你必须在最终防线崩溃前${input.gameGoal.trim()}。`;
     const archiveUnlocked = input.quickStartEnabled || input.devModeEnabled;
     const sanctumUnlocked = input.devModeEnabled;
 
     const factions = [
       {
         ...mockWorld.factions[0],
-        name: `${focusWord} Wardens`,
-        description: `The primary defenders trying to keep ${worldName} stable through disciplined coordination.`,
+        name: `${focusWord}守望者`,
+        description: `以严密协作维持${worldName}稳定的主要防卫力量。`,
       },
       {
         ...mockWorld.factions[1],
-        name: `${focusWord} Court`,
-        description: `A rival power exploiting the crisis to redirect ${worldName} toward its own ritual agenda.`,
+        name: `${focusWord}议庭`,
+        description: `趁危机扩大影响、试图把${worldName}拖向自身仪式议程的对立势力。`,
       },
     ];
 
@@ -115,7 +122,7 @@ export class MockWorldArchitectAgent
         ...mockWorld.summary,
         id: `world:${toSlug(input.theme)}`,
         name: worldName,
-        subtitle: `${styleLabel} shaped for ${input.preferredMode} play`,
+        subtitle: `${styleLabel}，适配${modeLabels[input.preferredMode]}玩法`,
         theme: input.theme,
         tone: determineTone(input.difficulty),
         mode: input.preferredMode,
@@ -141,16 +148,14 @@ export class MockWorldArchitectAgent
 
     const areas = mockAreas.map((area, index) => {
       const areaNames = [
-        `${focusWord} Crossroads`,
-        `${focusWord} Archive`,
-        `${focusWord} Sanctum`,
+        `${focusWord}前哨`,
+        `${focusWord}秘库`,
+        `${focusWord}圣所`,
       ];
       const baseDescription = [
-        `The main staging district for ${worldName}, designed to introduce the central conflict quickly.`,
-        `A pressure-building middle region where the route to ${input.gameGoal.trim()} becomes tangible.`,
-        `The final confrontation zone where ${toSentenceCase(
-          input.gameGoal,
-        )}.`,
+        `${worldName}的主要集结区，用来快速引出这次冒险的核心冲突。`,
+        `压力逐步抬升的中段区域，通往“${input.gameGoal.trim()}”的路径会在这里变得具体。`,
+        `最终对决区域，在这里你必须真正面对“${toSentenceCase(input.gameGoal)}”的代价。`,
       ][index];
 
       return {
@@ -158,7 +163,7 @@ export class MockWorldArchitectAgent
         name: areaNames[index] ?? area.name,
         description:
           input.preferredMode === 'combat' && area.type !== 'town'
-            ? `${baseDescription} Enemy pressure is visibly higher in this route.`
+            ? `${baseDescription} 这条路线上的敌方压力会明显更高。`
             : baseDescription,
         unlockedByDefault:
           index === 0 ? true : index === 1 ? archiveUnlocked : sanctumUnlocked,

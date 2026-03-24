@@ -5,7 +5,7 @@ import { mockIds, mockTimeline } from './constants';
 export const mockNpcDefinitions: NpcDefinition[] = [
   {
     id: mockIds.npcs.lyra,
-    name: 'Lyra Emberwatch',
+    name: '莱拉·烬望',
     role: 'guide',
     factionId: mockIds.factions.wardens,
     areaId: mockIds.areas.crossroads,
@@ -15,7 +15,7 @@ export const mockNpcDefinitions: NpcDefinition[] = [
   },
   {
     id: mockIds.npcs.brom,
-    name: 'Brom Coilhand',
+    name: '布罗姆·线匠',
     role: 'merchant',
     factionId: mockIds.factions.wardens,
     areaId: mockIds.areas.crossroads,
@@ -25,7 +25,7 @@ export const mockNpcDefinitions: NpcDefinition[] = [
   },
   {
     id: mockIds.npcs.mirel,
-    name: 'Mirel Scribe',
+    name: '米蕾尔·书记',
     role: 'scholar',
     factionId: mockIds.factions.wardens,
     areaId: mockIds.areas.archive,
@@ -35,7 +35,7 @@ export const mockNpcDefinitions: NpcDefinition[] = [
   },
   {
     id: mockIds.npcs.rowan,
-    name: 'Captain Rowan',
+    name: '罗文队长',
     role: 'guard',
     factionId: mockIds.factions.wardens,
     areaId: mockIds.areas.archive,
@@ -45,7 +45,7 @@ export const mockNpcDefinitions: NpcDefinition[] = [
   },
   {
     id: mockIds.npcs.ashWarden,
-    name: 'The Ash Warden',
+    name: '灰烬守卫',
     role: 'boss',
     factionId: mockIds.factions.ashbound,
     areaId: mockIds.areas.sanctum,
@@ -62,21 +62,21 @@ export const mockNpcStates: NpcState[] = [
     trust: 48,
     currentDisposition: 'friendly',
     memory: {
-      shortTerm: ['The player mapped the archive entry hall.'],
-      longTerm: ['The player agreed to help Lyra rekindle the ward.'],
+      shortTerm: ['玩家已经勘察过秘库入口大厅。'],
+      longTerm: ['玩家答应帮助莱拉重燃守护火线。'],
       lastInteractionAt: mockTimeline.lyraInteractionAt,
     },
     revealableInfo: {
-      publicFacts: ['Lyra commands the crossroads watch.'],
+      publicFacts: ['莱拉负责指挥路口哨戒队。'],
       trustGatedFacts: [
         {
           minTrust: 40,
-          fact: 'Lyra believes the sanctum seal can be opened from the archive below.',
+          fact: '莱拉相信可以从下层秘库打开圣所封印。',
         },
       ],
-      hiddenSecrets: ['Lyra failed to stop the previous Ash Warden incursion.'],
+      hiddenSecrets: ['莱拉曾没能阻止上一轮灰烬守卫的入侵。'],
     },
-    currentGoal: 'Open a stable route into the sanctum.',
+    currentGoal: '打开一条通往圣所的稳定路线。',
     hasGivenQuestIds: [mockIds.quests.main],
     flags: {
       metPlayer: true,
@@ -89,21 +89,21 @@ export const mockNpcStates: NpcState[] = [
     trust: 28,
     currentDisposition: 'neutral',
     memory: {
-      shortTerm: ['The player returned the herb pack for the tonic order.'],
-      longTerm: ['Brom now sees the player as reliable under pressure.'],
+      shortTerm: ['玩家已经把药剂订单需要的草药包送回来了。'],
+      longTerm: ['布罗姆现在认为玩家在压力下也值得信赖。'],
       lastInteractionAt: mockTimeline.bromInteractionAt,
     },
     revealableInfo: {
-      publicFacts: ['Brom runs the last stable supply stall in town.'],
+      publicFacts: ['布罗姆经营着镇上最后一个稳定的补给摊位。'],
       trustGatedFacts: [
         {
           minTrust: 25,
-          fact: 'Brom keeps an emergency tonic cache for the wardens.',
+          fact: '布罗姆为守望者们留着一批紧急药剂储备。',
         },
       ],
-      hiddenSecrets: ['Brom once smuggled sanctum keys to survive a famine year.'],
+      hiddenSecrets: ['布罗姆曾在饥荒那年靠偷运圣所钥匙活下来。'],
     },
-    currentGoal: 'Keep supply lines open before the next ash surge.',
+    currentGoal: '在下一次灰潮到来前维持补给线畅通。',
     hasGivenQuestIds: [mockIds.quests.sideSupply],
     flags: {
       tonicDelivered: true,
@@ -115,21 +115,21 @@ export const mockNpcStates: NpcState[] = [
     trust: 22,
     currentDisposition: 'neutral',
     memory: {
-      shortTerm: ['The player helped recover two intact record tablets.'],
-      longTerm: ['Mirel suspects the archive reacts to spoken names.'],
+      shortTerm: ['玩家帮她找回了两块完好的记录石板。'],
+      longTerm: ['米蕾尔怀疑秘库会对被说出的名字产生反应。'],
       lastInteractionAt: mockTimeline.archiveEventAt,
     },
     revealableInfo: {
-      publicFacts: ['Mirel studies ember-era records beneath the town.'],
+      publicFacts: ['米蕾尔在镇子下方研究余烬时代的记录。'],
       trustGatedFacts: [
         {
           minTrust: 20,
-          fact: 'Mirel found references to a counter-ritual hidden near the sanctum gate.',
+          fact: '米蕾尔发现圣所门口附近藏有一段反制仪式的记载。',
         },
       ],
-      hiddenSecrets: ['Mirel once copied a banned ashbound chant for research.'],
+      hiddenSecrets: ['米蕾尔曾为了研究抄录过一段被禁的灰缚咏唱。'],
     },
-    currentGoal: 'Finish cataloguing the living records before they collapse.',
+    currentGoal: '在这些活体记录彻底崩塌前完成编目。',
     hasGivenQuestIds: [mockIds.quests.sideArchive],
     flags: {
       archiveSurveyStarted: true,
@@ -141,21 +141,21 @@ export const mockNpcStates: NpcState[] = [
     trust: 16,
     currentDisposition: 'suspicious',
     memory: {
-      shortTerm: ['The player entered the archive without breaking patrol protocol.'],
-      longTerm: ['Rowan believes the player could help hold the southern gate.'],
+      shortTerm: ['玩家进入秘库时并没有破坏巡逻规程。'],
+      longTerm: ['罗文认为玩家也许能帮忙守住南侧关口。'],
       lastInteractionAt: mockTimeline.archiveEventAt,
     },
     revealableInfo: {
-      publicFacts: ['Rowan commands the archive perimeter patrol.'],
+      publicFacts: ['罗文负责秘库外围巡逻。'],
       trustGatedFacts: [
         {
           minTrust: 15,
-          fact: 'Rowan lost two sentries when the Ash Warden tested the seal last month.',
+          fact: '上个月灰烬守卫试探封印时，罗文失去了两名哨兵。',
         },
       ],
-      hiddenSecrets: ['Rowan intends to abandon the archive if the ward fails again.'],
+      hiddenSecrets: ['如果守护火线再次失守，罗文打算放弃秘库。'],
     },
-    currentGoal: 'Keep the archive corridor from collapsing into a kill zone.',
+    currentGoal: '避免秘库通道彻底塌成一片死亡地带。',
     hasGivenQuestIds: [mockIds.quests.sidePatrol],
     flags: {
       patrolRouteShared: false,
@@ -167,15 +167,15 @@ export const mockNpcStates: NpcState[] = [
     trust: 0,
     currentDisposition: 'hostile',
     memory: {
-      shortTerm: ['The player has broken into the lower sanctum approach.'],
-      longTerm: ['The Ash Warden marks all wardens as oathbreakers.'],
+      shortTerm: ['玩家已经闯入了圣所下层通路。'],
+      longTerm: ['灰烬守卫将所有守望者都视为背誓者。'],
     },
     revealableInfo: {
-      publicFacts: ['The Ash Warden defends the sanctum with ritual tactics.'],
+      publicFacts: ['灰烬守卫以仪式化战术保卫圣所。'],
       trustGatedFacts: [],
-      hiddenSecrets: ['Its second phase draws strength from the broken archive wards.'],
+      hiddenSecrets: ['它的第二阶段会从破碎的秘库守护中汲取力量。'],
     },
-    currentGoal: 'Burn out the ward line and reclaim the valley.',
+    currentGoal: '烧毁守护火线，重新夺回整片山谷。',
     hasGivenQuestIds: [],
     flags: {
       bossAwake: true,

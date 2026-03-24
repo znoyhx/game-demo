@@ -4,6 +4,7 @@ import type { AgentSet } from '../agents';
 import type { GameEventBus } from '../events/domainEvents';
 import type { GameLogger } from '../logging';
 import type { GameStoreState } from '../state';
+import { locale } from '../utils/locale';
 
 import {
   defaultTimestampProvider,
@@ -66,8 +67,14 @@ export class ReviewGenerationController {
     this.logger?.recordAgentDecision({
       agentId: 'explain-coach',
       createdAt,
-      inputSummary: `combat=${state.combatState?.encounterId ?? 'none'}, quests=${input.questProgress.length}, events=${input.eventHistory.length}`,
-      outputSummary: `Review explanations=${result.review.explanations.length}`,
+      inputSummary: locale.controllers.reviewGeneration.logs.inputSummary(
+        state.combatState?.encounterId ?? locale.controllers.reviewGeneration.noEncounter,
+        input.questProgress.length,
+        input.eventHistory.length,
+      ),
+      outputSummary: locale.controllers.reviewGeneration.logs.outputSummary(
+        result.review.explanations.length,
+      ),
       input,
       output: result,
     });

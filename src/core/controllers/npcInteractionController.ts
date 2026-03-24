@@ -5,6 +5,7 @@ import type { GameEventBus } from '../events/domainEvents';
 import type { GameLogger } from '../logging';
 import type { NpcDialogueTurn } from '../schemas';
 import type { GameStoreState } from '../state';
+import { locale } from '../utils/locale';
 import { applyNpcRelationChange } from '../rules';
 
 import {
@@ -25,14 +26,8 @@ interface NpcInteractionControllerOptions {
   now?: TimestampProvider;
 }
 
-const dialogueOptionText: Record<string, string> = {
-  greet: 'We should coordinate before the valley slips any further.',
-  ask: 'Tell me what the last patrol saw.',
-  trade: 'Show me what you can spare for the road ahead.',
-  quest: 'I am ready to take the next assignment.',
-  persuade: 'Trust me. I can carry this through.',
-  leave: 'We will speak again soon.',
-};
+const dialogueOptionText: Record<string, string> =
+  locale.controllers.npcInteraction.dialogueOptions;
 
 export class NpcInteractionController {
   private readonly store: StoreApi<GameStoreState>;

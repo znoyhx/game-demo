@@ -5,6 +5,8 @@ import type { GameEventBus } from '../events/domainEvents';
 import type { GameLogger } from '../logging';
 import type { PlayerProfileTag } from '../schemas';
 import type { GameStoreState } from '../state';
+import { formatPlayerTagLabel } from '../utils/displayLabels';
+import { locale } from '../utils/locale';
 
 import {
   defaultTimestampProvider,
@@ -56,8 +58,14 @@ export class PlayerModelController {
     this.logger?.recordAgentDecision({
       agentId: 'player-model',
       createdAt,
-      inputSummary: `areas=${state.playerModel.recentAreaVisits.length}, quests=${state.playerModel.recentQuestChoices.length}, npcInteractions=${state.playerModel.npcInteractionCount}`,
-      outputSummary: `Tags=${output.tags.join(',')}`,
+      inputSummary: locale.controllers.playerModel.logs.inputSummary(
+        state.playerModel.recentAreaVisits.length,
+        state.playerModel.recentQuestChoices.length,
+        state.playerModel.npcInteractionCount,
+      ),
+      outputSummary: locale.controllers.playerModel.logs.outputSummary(
+        output.tags.map(formatPlayerTagLabel),
+      ),
       input: {
         recentAreaVisits: state.playerModel.recentAreaVisits,
         recentQuestChoices: state.playerModel.recentQuestChoices,

@@ -5,6 +5,7 @@ import {
   type ExplainCoachOutput,
 } from '../../schemas';
 import { mockTimeline } from '../../mocks';
+import { formatEnemyTacticLabel } from '../../utils/displayLabels';
 
 import type { ExplainCoachAgent } from '../interfaces';
 import { ValidatedMockAgent } from './baseMockAgent';
@@ -35,35 +36,35 @@ export class MockExplainCoachAgent
         encounterId: input.combat?.encounterId,
         playerTags: input.player.profileTags,
         keyEvents: [
-          `${completedQuestCount} quest threads have already resolved in this run.`,
-          `${activeQuestCount} quest threads are still active.`,
-          `${input.eventHistory.length} world events influenced the current state.`,
+          `本轮流程中已有 ${completedQuestCount} 条任务线完成结算。`,
+          `当前仍有 ${activeQuestCount} 条任务线处于进行中。`,
+          `共有 ${input.eventHistory.length} 个世界事件影响了当前状态。`,
         ],
         explanations: [
           {
             type: 'quest',
-            title: 'Quest pressure remains visible',
-            summary: `There are ${activeQuestCount} active quest threads driving the current route.`,
+            title: '任务压力仍然清晰可见',
+            summary: `当前路线仍被 ${activeQuestCount} 条进行中的任务线持续推动。`,
             evidence: input.questProgress.map(
               (quest) => `${quest.questId}:${quest.status}`,
             ),
           },
           {
             type: 'combat',
-            title: 'Combat rationale',
+            title: '战斗切换原因',
             summary: input.combat
-              ? `The current tactic is ${input.combat.activeTactic} on turn ${input.combat.turn}.`
-              : 'No active combat state was present when the review was generated.',
+              ? `当前战斗在第 ${input.combat.turn} 回合采用了${formatEnemyTacticLabel(input.combat.activeTactic)}战术。`
+              : '生成回顾时不存在激活中的战斗状态。',
           },
           {
             type: 'event',
-            title: 'World state pressure',
-            summary: `Recent event history length: ${input.eventHistory.length}.`,
+            title: '世界状态压力',
+            summary: `最近事件历史长度为 ${input.eventHistory.length}。`,
           },
         ],
         suggestions: input.combat
-          ? ['Break the enemy rhythm before the next tactic pivot.']
-          : ['Use the debug or quest controllers to push the world into a sharper branch for review.'],
+          ? ['在敌人下一次切换战术前，先打断它的节奏。']
+          : ['可以通过调试入口或任务控制器，把世界推进到更清晰的分支再做回顾。'],
       },
     };
   }

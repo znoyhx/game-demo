@@ -103,7 +103,7 @@ describe('world creation controller', () => {
     const state = store.getState();
 
     expect(result.usedFallback).toBe(false);
-    expect(result.outputs.worldName).toBe('Ember Reach');
+    expect(result.outputs.worldName).toBe('Ember之境');
     expect(result.outputs.mainQuestSeed).toBe(
       'Stabilize the ward network before the last bastion falls',
     );
@@ -111,12 +111,14 @@ describe('world creation controller', () => {
     expect(latestSave.world.summary.name).toBe(result.snapshot.world.summary.name);
     expect(latestSave.metadata.id).toBe(selectSaveMetadata(state).id);
     expect(latestSave.metadata.source).toBe('manual');
-    expect(selectWorldSummary(state).name).toBe('Ember Reach');
+    expect(selectWorldSummary(state).name).toBe('Ember之境');
     expect(selectGameConfig(state).theme).toBe('ember frontier');
     expect(selectGameConfig(state).worldStyle).toBe('pixel fantasy frontier');
     expect(selectGameConfig(state).gameGoal).toBe(
       'stabilize the ward network before the last bastion falls',
     );
+    expect(selectStartupSource(state)).toBe('generated');
+    expect(selectStartupReason(state)).toBe('world-created');
     expect(selectCurrentAreaId(state)).toBe(result.snapshot.player.currentAreaId);
     expect(selectRecoveryNotice(state)).toBeNull();
     expect(selectAvailableSaveSlots(state)).toHaveLength(1);
@@ -139,6 +141,8 @@ describe('world creation controller', () => {
     expect(result.snapshot.config?.templateId).toBe('template:quick-play');
     expect(result.snapshot.config?.quickStartEnabled).toBe(true);
     expect(result.snapshot.map?.unlockedAreaIds.length ?? 0).toBeGreaterThan(1);
+    expect(selectStartupSource(state)).toBe('generated');
+    expect(selectStartupReason(state)).toBe('world-created');
     expect(selectGameConfig(state).templateId).toBe('template:quick-play');
     expect(selectGameConfig(state).quickStartEnabled).toBe(true);
     expect(latestSave.metadata.id).toBe(selectSaveMetadata(state).id);
@@ -199,11 +203,13 @@ describe('world creation controller', () => {
 
     expect(result.usedFallback).toBe(true);
     expect(result.fallbackReason).toBe('world-architect-failed');
-    expect(result.snapshot.world.summary.name).toBe('Ember Reach');
+    expect(result.snapshot.world.summary.name).toBe('灰烬前线之境');
     expect(result.snapshot.quests.definitions[0]?.title).toBe(
-      'Stabilize the ward network before the last bastion falls',
+      '在最后的堡垒陷落前稳定守护网络',
     );
-    expect(selectRecoveryNotice(store.getState())).toContain('world architect failed');
+    expect(selectStartupSource(store.getState())).toBe('generated');
+    expect(selectStartupReason(store.getState())).toBe('world-created');
+    expect(selectRecoveryNotice(store.getState())).toContain('世界架构代理失败');
     expect(latestSave.world.summary.name).toBe(result.snapshot.world.summary.name);
     expect(latestSave.metadata.source).toBe('manual');
   });
@@ -220,7 +226,7 @@ describe('world creation controller', () => {
     await expect(controller.createWorld(defaultWorldCreationRequest)).rejects.toThrow(
       'save failed',
     );
-    expect(selectWorldSummary(store.getState()).name).toBe('Ember Reach');
+    expect(selectWorldSummary(store.getState()).name).toBe('灰烬前线之境');
     expect(selectRecoveryNotice(store.getState())).toBeNull();
   });
 });

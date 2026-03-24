@@ -50,13 +50,14 @@ export type SaveLifecycleStatus =
   | 'saved'
   | 'error';
 
-export type StartupSource = 'pending' | 'save' | 'mock';
+export type StartupSource = 'pending' | 'save' | 'mock' | 'generated';
 export type StartupReason =
   | 'booting'
   | 'save-restored'
   | 'no-save'
   | 'invalid-save'
-  | 'storage-error';
+  | 'storage-error'
+  | 'world-created';
 
 export interface SaveLoadState {
   ok: boolean;
@@ -413,14 +414,14 @@ const buildDefaultGameConfig = (snapshot: SaveSnapshot): GameConfigState => {
   return {
     theme: snapshot.world.summary.theme,
     worldStyle:
-      snapshot.world.summary.subtitle ?? `${snapshot.world.summary.theme} adventure`,
+      snapshot.world.summary.subtitle ?? `${snapshot.world.summary.theme}冒险`,
     difficulty: 'normal',
     gameGoal:
       mainQuest?.title ??
-      'Explore the world, complete quests, and stabilize the active storyline.',
+      '探索世界、完成任务，并稳定当前故事线。',
     storyPremise:
       snapshot.config?.storyPremise ??
-      `${snapshot.world.summary.name} opens in crisis, and the first quest line defines how the run stabilizes.`,
+      `${snapshot.world.summary.name}正处于危机之中，而第一条任务线将决定这次冒险如何稳定下来。`,
     preferredMode: snapshot.world.summary.mode,
     quickStartEnabled: true,
     devModeEnabled: false,
@@ -437,7 +438,7 @@ const buildResourceEntries = (snapshot: SaveSnapshot): ResourceDefinition[] => [
       id: `resource:bg:${area.id}`,
       kind: 'background',
       key: area.backgroundKey ?? area.id,
-      label: `${area.name} background`,
+      label: `${area.name}背景`,
       areaId: area.id,
     })),
   ...snapshot.areas
@@ -446,7 +447,7 @@ const buildResourceEntries = (snapshot: SaveSnapshot): ResourceDefinition[] => [
       id: `resource:music:${area.id}`,
       kind: 'music',
       key: area.musicKey ?? area.id,
-      label: `${area.name} music`,
+      label: `${area.name}配乐`,
       areaId: area.id,
     })),
   ...snapshot.npcs.definitions
@@ -455,7 +456,7 @@ const buildResourceEntries = (snapshot: SaveSnapshot): ResourceDefinition[] => [
       id: `resource:avatar:${npc.id}`,
       kind: 'avatar',
       key: npc.avatarKey ?? npc.id,
-      label: `${npc.name} avatar`,
+      label: `${npc.name}头像`,
       npcId: npc.id,
     })),
 ];

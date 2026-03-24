@@ -46,7 +46,7 @@ export const evaluateEventTrigger = (
   const reasons: string[] = [];
 
   if (!event.repeatable && hasTriggeredEvent(event, context.eventHistory)) {
-    reasons.push('event already triggered and is not repeatable');
+    reasons.push('事件已经触发过，且不可重复触发');
   }
 
   for (const condition of event.triggerConditions) {
@@ -54,35 +54,35 @@ export const evaluateEventTrigger = (
       condition.requiredAreaId &&
       condition.requiredAreaId !== context.currentAreaId
     ) {
-      reasons.push(`requires area ${condition.requiredAreaId}`);
+      reasons.push(`需要位于区域 ${condition.requiredAreaId}`);
     }
 
     if (
       condition.requiredQuestId &&
       !hasQuestInScope(condition.requiredQuestId, context.questProgressEntries)
     ) {
-      reasons.push(`requires quest ${condition.requiredQuestId}`);
+      reasons.push(`需要任务 ${condition.requiredQuestId}`);
     }
 
     if (
       condition.requiredPlayerTag &&
       !context.playerTags.includes(condition.requiredPlayerTag)
     ) {
-      reasons.push(`requires player tag ${condition.requiredPlayerTag}`);
+      reasons.push(`需要玩家标签 ${condition.requiredPlayerTag}`);
     }
 
     if (
       condition.requiredWorldFlag &&
       context.worldFlags[condition.requiredWorldFlag] !== true
     ) {
-      reasons.push(`requires world flag ${condition.requiredWorldFlag}`);
+      reasons.push(`需要世界标记 ${condition.requiredWorldFlag}`);
     }
 
     if (
       condition.requiredNpcId &&
       !context.npcStatesById?.[condition.requiredNpcId]
     ) {
-      reasons.push(`requires npc state ${condition.requiredNpcId}`);
+      reasons.push(`需要 NPC 状态 ${condition.requiredNpcId}`);
     }
   }
 
@@ -95,9 +95,9 @@ export const evaluateEventTrigger = (
   }
 
   return {
-    ...passRule('event trigger conditions satisfied'),
+    ...passRule('事件触发条件已满足'),
     eventId: event.id,
-    reasons: ['event trigger conditions satisfied'],
+    reasons: ['事件触发条件已满足'],
   };
 };
 
