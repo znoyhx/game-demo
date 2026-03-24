@@ -23,6 +23,7 @@ import {
   selectQuestProgressEntries,
   selectSaveMetadata,
   selectSaveStatus,
+  selectWorldFlags,
   selectWorldRuntime,
   selectWorldSummary,
 } from '../../src/core/state';
@@ -35,6 +36,7 @@ const buildSource = () => {
   return {
     worldSummary: selectWorldSummary(state),
     worldRuntime: selectWorldRuntime(state),
+    worldFlags: selectWorldFlags(state),
     currentArea: selectCurrentArea(state),
     areas: selectAreas(state),
     mapState: selectMapState(state),

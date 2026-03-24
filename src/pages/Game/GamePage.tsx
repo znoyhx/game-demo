@@ -31,6 +31,7 @@ import {
   selectQuestProgressEntries,
   selectSaveMetadata,
   selectSaveStatus,
+  selectWorldFlags,
   selectWorldRuntime,
   selectWorldSummary,
   useGameStore,
@@ -41,6 +42,7 @@ import { buildGamePageViewModel } from './gameViewModel';
 export function GamePage() {
   const worldSummary = useGameStore(selectWorldSummary);
   const worldRuntime = useGameStore(selectWorldRuntime);
+  const worldFlags = useGameStore(selectWorldFlags);
   const currentArea = useGameStore(selectCurrentArea);
   const areas = useGameStore(selectAreas);
   const mapState = useGameStore(selectMapState);
@@ -85,6 +87,7 @@ export function GamePage() {
       buildGamePageViewModel({
         worldSummary,
         worldRuntime,
+        worldFlags,
         currentArea: effectiveCurrentArea,
         areas,
         mapState: effectiveMapState,
@@ -124,6 +127,7 @@ export function GamePage() {
       saveMetadata,
       saveStatus,
       worldRuntime,
+      worldFlags,
       worldSummary,
     ],
   );

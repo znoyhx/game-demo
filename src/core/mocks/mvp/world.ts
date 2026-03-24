@@ -26,7 +26,12 @@ export const mockWorld: World = {
       stance: 'hostile',
     },
   ],
-  areaIds: [mockIds.areas.crossroads, mockIds.areas.archive, mockIds.areas.sanctum],
+  areaIds: [
+    mockIds.areas.crossroads,
+    mockIds.areas.archive,
+    mockIds.areas.sanctum,
+    mockIds.areas.grotto,
+  ],
   startingAreaId: mockIds.areas.crossroads,
   weather: '灰风',
   timeOfDay: '暮色将尽',

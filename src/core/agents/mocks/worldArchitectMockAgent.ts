@@ -151,11 +151,13 @@ export class MockWorldArchitectAgent
         `${focusWord}前哨`,
         `${focusWord}秘库`,
         `${focusWord}圣所`,
+        `${focusWord}秘径`,
       ];
       const baseDescription = [
         `${worldName}的主要集结区，用来快速引出这次冒险的核心冲突。`,
         `压力逐步抬升的中段区域，通往“${input.gameGoal.trim()}”的路径会在这里变得具体。`,
         `最终对决区域，在这里你必须真正面对“${toSentenceCase(input.gameGoal)}”的代价。`,
+        `${worldName}中不会主动出现在常规导航里的隐藏捷径，用来证明区域系统支持秘密路线与传送点。`,
       ][index];
 
       return {
@@ -166,7 +168,13 @@ export class MockWorldArchitectAgent
             ? `${baseDescription} 这条路线上的敌方压力会明显更高。`
             : baseDescription,
         unlockedByDefault:
-          index === 0 ? true : index === 1 ? archiveUnlocked : sanctumUnlocked,
+          index === 0
+            ? true
+            : index === 1
+              ? archiveUnlocked
+              : index === 2
+                ? sanctumUnlocked
+                : false,
       };
     });
 

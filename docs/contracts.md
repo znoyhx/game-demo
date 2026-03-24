@@ -138,6 +138,8 @@ export type AreaType =
 ## 5.2 Interaction Point
 
 ```ts
+export type InteractionTravelMode = "walk" | "teleport";
+
 export interface InteractionPoint {
   id: string;
   label: string;
@@ -146,13 +148,14 @@ export interface InteractionPoint {
   y: number;
   targetId?: string;
   enabled?: boolean;
+  travelMode?: InteractionTravelMode;
 }
 ```
 
-## 5.3 Area Unlock Condition
+## 5.3 Area Enter Condition
 
 ```ts
-export interface AreaUnlockCondition {
+export interface AreaEnterCondition {
   requiredQuestIds?: QuestId[];
   requiredWorldFlags?: string[];
   requiredNpcTrust?: Array<{
@@ -160,9 +163,84 @@ export interface AreaUnlockCondition {
     minTrust: number;
   }>;
 }
+
+export type AreaUnlockCondition = AreaEnterCondition;
 ```
 
-## 5.4 Area Contract
+## 5.4 Enemy Spawn Rule
+
+```ts
+export type EnemySpawnTrigger =
+  | "always"
+  | "on-enter"
+  | "on-search"
+  | "on-event"
+  | "on-alert";
+
+export interface EnemySpawnRule {
+  id: string;
+  label: string;
+  trigger: EnemySpawnTrigger;
+  encounterId?: EncounterId;
+  enemyNpcId?: NpcId;
+  enemyArchetype?: string;
+  spawnWeight: number;
+  maxActive: number;
+  requiredWorldFlags?: string[];
+  blockedWorldFlags?: string[];
+}
+```
+
+## 5.5 Resource Node
+
+```ts
+export type ResourceNodeKind =
+  | "supply"
+  | "ore"
+  | "herb"
+  | "relic"
+  | "ember"
+  | "cache";
+
+export interface ResourceNode {
+  id: string;
+  label: string;
+  kind: ResourceNodeKind;
+  itemId?: ItemId;
+  quantity: number;
+  renewable: boolean;
+  discoveredByDefault: boolean;
+  requiredWorldFlags?: string[];
+}
+```
+
+## 5.6 Area Environment
+
+```ts
+export type AreaEnvironmentHazard = "stable" | "tense" | "volatile";
+
+export interface AreaEnvironmentActivation {
+  requiredWorldFlags?: string[];
+  blockedWorldFlags?: string[];
+}
+
+export interface AreaEnvironmentState {
+  id: string;
+  label: string;
+  weather?: string;
+  lighting?: string;
+  hazard: AreaEnvironmentHazard;
+  note?: string;
+  activation?: AreaEnvironmentActivation;
+}
+
+export interface AreaEnvironment {
+  activeStateId?: string;
+  states: AreaEnvironmentState[];
+}
+```
+
+## 5.7 Area Contract
 
 ```ts
 export interface Area {
@@ -172,10 +250,15 @@ export interface Area {
   description: string;
   difficulty: number;
   unlockedByDefault: boolean;
+  isHiddenUntilDiscovered?: boolean;
+  enterCondition?: AreaEnterCondition;
   unlockCondition?: AreaUnlockCondition;
   npcIds: NpcId[];
   interactionPoints: InteractionPoint[];
+  enemySpawnRules: EnemySpawnRule[];
   eventIds: EventId[];
+  resourceNodes: ResourceNode[];
+  environment: AreaEnvironment;
   connectedAreaIds: AreaId[];
   backgroundKey?: string;
   musicKey?: string;

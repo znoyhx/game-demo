@@ -15,6 +15,9 @@ export function buildForcedRenderMapState(
     currentAreaId: areaId,
     discoveredAreaIds: uniqueIds([...mapState.discoveredAreaIds, areaId]),
     unlockedAreaIds: uniqueIds([...mapState.unlockedAreaIds, areaId]),
-    visitHistory: uniqueIds([...mapState.visitHistory, areaId]),
+    visitHistory:
+      mapState.visitHistory[mapState.visitHistory.length - 1] === areaId
+        ? mapState.visitHistory
+        : [...mapState.visitHistory, areaId],
   };
 }

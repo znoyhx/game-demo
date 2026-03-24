@@ -38,7 +38,7 @@ import {
 
 describe('mvp mock fixtures', () => {
   it('covers the required MVP fixture counts', () => {
-    expect(mockAreas).toHaveLength(3);
+    expect(mockAreas).toHaveLength(4);
     expect(mockNpcDefinitions).toHaveLength(5);
     expect(mockQuestDefinitions.filter((entry) => entry.type === 'main')).toHaveLength(1);
     expect(mockQuestDefinitions.filter((entry) => entry.type === 'side')).toHaveLength(3);

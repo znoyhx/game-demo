@@ -1,5 +1,6 @@
 import { createMockAgentSet } from '../../core/agents';
 import {
+  AreaDebugController,
   AreaNavigationController,
   CombatController,
   EventTriggerController,
@@ -46,6 +47,12 @@ export const appPlayerModelController = new PlayerModelController({
 });
 
 export const appAreaNavigationController = new AreaNavigationController({
+  store: gameStore,
+  eventBus: gameEventBus,
+  saveController: appSaveLoadController,
+});
+
+export const appAreaDebugController = new AreaDebugController({
   store: gameStore,
   eventBus: gameEventBus,
   saveController: appSaveLoadController,

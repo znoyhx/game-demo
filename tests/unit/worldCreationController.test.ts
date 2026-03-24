@@ -122,7 +122,7 @@ describe('world creation controller', () => {
     expect(selectCurrentAreaId(state)).toBe(result.snapshot.player.currentAreaId);
     expect(selectRecoveryNotice(state)).toBeNull();
     expect(selectAvailableSaveSlots(state)).toHaveLength(1);
-    expect(state.areaOrder).toHaveLength(3);
+    expect(state.areaOrder).toHaveLength(4);
     expect(state.questDefinitionOrder).toHaveLength(4);
     expect(state.npcDefinitionOrder).toHaveLength(5);
     expect(state.eventDefinitionOrder).toHaveLength(3);

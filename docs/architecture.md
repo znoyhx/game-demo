@@ -189,6 +189,7 @@ Translate user actions and system triggers into coordinated use cases.
 * `questProgressController`
 * `combatController`
 * `saveController`
+* `areaDebugController`
 * `debugScenarioController`
 
 ---
@@ -462,6 +463,7 @@ Enable short-path verification of every main system.
 ### Debug route capabilities
 
 * world state viewer
+* area jump / unlock / relock / environment controls
 * save manager
 * quest controls
 * NPC relation editor

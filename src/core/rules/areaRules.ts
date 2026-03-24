@@ -1,4 +1,10 @@
-import type { Area, NpcState, QuestProgress } from '../schemas';
+import type {
+  Area,
+  AreaEnterCondition,
+  AreaEnvironmentState,
+  NpcState,
+  QuestProgress,
+} from '../schemas';
 
 import { failRule, passRule, type RuleResult } from './ruleResult';
 
@@ -18,6 +24,12 @@ export interface AreaAccessResult extends RuleResult {
   reasons: string[];
 }
 
+export interface AreaEnvironmentDebugMutation {
+  areaId: string;
+  targetStateId: string;
+  worldFlagPatch: Record<string, boolean>;
+}
+
 const hasCompletedQuest = (
   questId: string,
   questProgress: QuestProgress[],
@@ -25,6 +37,21 @@ const hasCompletedQuest = (
   questProgress.some(
     (progress) => progress.questId === questId && progress.status === 'completed',
   );
+
+const getEnterCondition = (area: Area): AreaEnterCondition | undefined =>
+  area.enterCondition ?? area.unlockCondition;
+
+const matchesRequiredWorldFlags = (
+  requiredWorldFlags: string[] | undefined,
+  worldFlags: Record<string, boolean | undefined>,
+) =>
+  (requiredWorldFlags ?? []).every((flag) => worldFlags[flag] === true);
+
+const matchesBlockedWorldFlags = (
+  blockedWorldFlags: string[] | undefined,
+  worldFlags: Record<string, boolean | undefined>,
+) =>
+  (blockedWorldFlags ?? []).every((flag) => worldFlags[flag] !== true);
 
 export const evaluateAreaAccess = (
   context: AreaAccessContext,
@@ -61,7 +88,7 @@ export const evaluateAreaAccess = (
     };
   }
 
-  const unlockCondition = targetArea.unlockCondition;
+  const unlockCondition = getEnterCondition(targetArea);
 
   if (!unlockCondition) {
     return {
@@ -112,6 +139,106 @@ export const evaluateAreaAccess = (
     areaId: targetArea.id,
     shouldUnlock: true,
     reasons: ['area unlock conditions satisfied'],
+  };
+};
+
+export const resolveAreaEnvironmentState = (
+  area: Area,
+  worldFlags: Record<string, boolean | undefined>,
+): AreaEnvironmentState => {
+  const matchingStates = area.environment.states
+    .map((state, index) => ({
+      state,
+      index,
+    }))
+    .filter(({ state }) => {
+      if (!state.activation) {
+        return false;
+      }
+
+      return (
+        matchesRequiredWorldFlags(state.activation.requiredWorldFlags, worldFlags) &&
+        matchesBlockedWorldFlags(state.activation.blockedWorldFlags, worldFlags)
+      );
+    })
+    .sort((left, right) => {
+      const leftSpecificity =
+        (left.state.activation?.requiredWorldFlags?.length ?? 0) +
+        (left.state.activation?.blockedWorldFlags?.length ?? 0);
+      const rightSpecificity =
+        (right.state.activation?.requiredWorldFlags?.length ?? 0) +
+        (right.state.activation?.blockedWorldFlags?.length ?? 0);
+
+      if (leftSpecificity !== rightSpecificity) {
+        return rightSpecificity - leftSpecificity;
+      }
+
+      return right.index - left.index;
+    });
+
+  const matchingState = matchingStates[0]?.state;
+
+  if (matchingState) {
+    return matchingState;
+  }
+
+  return (
+    area.environment.states.find(
+      (state) => state.id === area.environment.activeStateId,
+    ) ?? area.environment.states[0]
+  );
+};
+
+export const isAreaVisibleInNavigation = (
+  area: Area,
+  discoveredAreaIds: string[],
+  unlockedAreaIds: string[],
+): boolean => {
+  const isHiddenArea = area.isHiddenUntilDiscovered ?? area.type === 'hidden';
+  if (!isHiddenArea) {
+    return true;
+  }
+
+  return (
+    discoveredAreaIds.includes(area.id) || unlockedAreaIds.includes(area.id)
+  );
+};
+
+export const buildAreaEnvironmentDebugMutation = (
+  area: Area,
+  targetStateId: string,
+): AreaEnvironmentDebugMutation | null => {
+  const targetState = area.environment.states.find((state) => state.id === targetStateId);
+
+  if (!targetState) {
+    return null;
+  }
+
+  const activationFlags = Array.from(
+    new Set(
+      area.environment.states.flatMap((state) => [
+        ...(state.activation?.requiredWorldFlags ?? []),
+        ...(state.activation?.blockedWorldFlags ?? []),
+      ]),
+    ),
+  );
+
+  const worldFlagPatch = Object.fromEntries(
+    activationFlags.map((flag) => [flag, false]),
+  ) as Record<string, boolean>;
+
+  for (const flag of targetState.activation?.requiredWorldFlags ?? []) {
+    worldFlagPatch[flag] = true;
+  }
+
+  for (const flag of targetState.activation?.blockedWorldFlags ?? []) {
+    worldFlagPatch[flag] = false;
+  }
+
+  return {
+    areaId: area.id,
+    targetStateId,
+    worldFlagPatch,
   };
 };
 

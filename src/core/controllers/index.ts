@@ -1,3 +1,4 @@
+export * from './areaDebugController';
 export * from './areaNavigationController';
 export * from './combatController';
 export * from './controllerUtils';

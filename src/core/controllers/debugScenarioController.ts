@@ -17,6 +17,7 @@ import {
   type SaveWriter,
   type TimestampProvider,
 } from './controllerUtils';
+import { AreaDebugController } from './areaDebugController';
 import { AreaNavigationController } from './areaNavigationController';
 import { CombatController } from './combatController';
 import { EventTriggerController } from './eventTriggerController';
@@ -26,6 +27,7 @@ import { QuestProgressionController } from './questProgressionController';
 interface DebugScenarioControllerOptions {
   store: StoreApi<GameStoreState>;
   saveController?: SaveWriter;
+  areaDebugController?: AreaDebugController;
   areaController?: AreaNavigationController;
   questController?: QuestProgressionController;
   combatController?: CombatController;
@@ -38,6 +40,8 @@ export class DebugScenarioController {
   private readonly store: StoreApi<GameStoreState>;
 
   private readonly saveController?: SaveWriter;
+
+  private readonly areaDebugController?: AreaDebugController;
 
   private readonly areaController?: AreaNavigationController;
 
@@ -54,6 +58,7 @@ export class DebugScenarioController {
   constructor(options: DebugScenarioControllerOptions) {
     this.store = options.store;
     this.saveController = options.saveController;
+    this.areaDebugController = options.areaDebugController;
     this.areaController = options.areaController;
     this.questController = options.questController;
     this.combatController = options.combatController;
@@ -79,9 +84,16 @@ export class DebugScenarioController {
   }
 
   async forceArea(areaId: string) {
+    if (this.areaDebugController) {
+      return this.areaDebugController.jumpToArea(areaId, {
+        autoSave: true,
+      });
+    }
+
     this.enableDebugState({
       forcedAreaId: areaId,
     });
+
     return this.areaController?.enterArea(areaId, {
       ignoreConnectivity: true,
       autoSave: false,

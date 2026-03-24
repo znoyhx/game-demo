@@ -24,6 +24,7 @@ export const mockIds = {
     crossroads: 'area:cinder-crossroads',
     archive: 'area:sunken-archive',
     sanctum: 'area:ember-sanctum',
+    grotto: 'area:ember-grotto',
   },
   npcs: {
     lyra: 'npc:lyra-emberwatch',

@@ -54,12 +54,28 @@ export const mockResourceState: ResourceState = {
       source: 'assets/backgrounds/sanctum.png',
     },
     {
+      id: 'resource:bg-grotto',
+      kind: 'background',
+      key: 'bg-grotto',
+      label: '余烬秘径背景',
+      areaId: mockIds.areas.grotto,
+      source: 'assets/backgrounds/grotto.png',
+    },
+    {
       id: 'resource:music-archive',
       kind: 'music',
       key: 'music-archive-whispers',
       label: '秘库低语',
       areaId: mockIds.areas.archive,
       source: 'assets/music/archive-whispers.ogg',
+    },
+    {
+      id: 'resource:music-grotto',
+      kind: 'music',
+      key: 'music-grotto-resonance',
+      label: '秘径共鸣',
+      areaId: mockIds.areas.grotto,
+      source: 'assets/music/grotto-resonance.ogg',
     },
     {
       id: 'resource:avatar-lyra',

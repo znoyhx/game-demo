@@ -289,6 +289,38 @@ export const zhCN = {
         footer: '这里展示的数据来自轻量日志仓，而不是零散的控制台输出。',
         emptyState: '暂时还没有运行时日志。',
       },
+      areaTools: {
+        title: 'Area Debug Controls',
+        eyebrow: (areaName: string) => `Target Area: ${areaName}`,
+        description:
+          'Jump directly into any area, toggle runtime unlock state, and apply environment flag sets without completing the full progression loop.',
+        footer:
+          'Use these controls to verify hidden routes, entry and exit rules, and environment-driven scene variants from the debug route.',
+        areaField: 'Target Area',
+        environmentField: 'Environment State',
+        currentAreaLabel: 'Current Area',
+        selectedAreaLabel: 'Selected Area',
+        lockStatusLabel: (value: string) => `Access: ${value}`,
+        discoveryStatusLabel: (value: string) => `Discovery: ${value}`,
+        hiddenStatusLabel: (value: string) => `Visibility: ${value}`,
+        currentEnvironmentLabel: (value: string) => `Resolved Environment: ${value}`,
+        jumpAction: 'Jump Live State',
+        jumpAndOpenAction: 'Jump & Open Game',
+        unlockAction: 'Force Unlock',
+        relockAction: 'Relock Area',
+        applyEnvironmentAction: 'Apply Environment',
+        hiddenAreaHint:
+          'Jumping to a hidden area discovers and unlocks it so you can test the live route immediately.',
+        relockDisabledDefault:
+          'Default-open areas rely on schema defaults and cannot be relocked through runtime state.',
+        noAreaSelected: 'Select an area to enable direct area debugging.',
+        unlockStateUnlocked: 'Unlocked',
+        unlockStateLocked: 'Locked',
+        discoveryStateDiscovered: 'Discovered',
+        discoveryStateHidden: 'Undiscovered',
+        hiddenStateHidden: 'Hidden until discovered',
+        hiddenStateVisible: 'Visible in navigation',
+      },
       renderLab: {
         title: 'Rendering Preview Lab',
         eyebrow: 'Isolated Render QA',

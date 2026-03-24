@@ -363,22 +363,33 @@ const sanitizeMapState = (
   const currentAreaId = validAreaIds.has(mapState.currentAreaId)
     ? mapState.currentAreaId
     : fallbackAreaId;
-  const sanitizeIds = (ids: string[]) => {
+  const sanitizeUniqueIds = (ids: string[]) => {
     const nextIds = ids.filter((areaId) => validAreaIds.has(areaId));
     return nextIds.length > 0 ? uniqueIds(nextIds) : [currentAreaId];
+  };
+  const sanitizeVisitHistory = (ids: string[]) => {
+    const nextIds = ids.filter((areaId) => validAreaIds.has(areaId));
+
+    if (nextIds.length === 0) {
+      return [currentAreaId];
+    }
+
+    return nextIds[nextIds.length - 1] === currentAreaId
+      ? nextIds
+      : [...nextIds, currentAreaId];
   };
 
   return {
     currentAreaId,
     discoveredAreaIds: appendUnique(
-      sanitizeIds(mapState.discoveredAreaIds),
+      sanitizeUniqueIds(mapState.discoveredAreaIds),
       currentAreaId,
     ),
     unlockedAreaIds: appendUnique(
-      sanitizeIds(mapState.unlockedAreaIds),
+      sanitizeUniqueIds(mapState.unlockedAreaIds),
       currentAreaId,
     ),
-    visitHistory: appendUnique(sanitizeIds(mapState.visitHistory), currentAreaId),
+    visitHistory: sanitizeVisitHistory(mapState.visitHistory),
   };
 };
 

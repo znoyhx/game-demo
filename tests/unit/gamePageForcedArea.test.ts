@@ -23,6 +23,7 @@ import {
   selectQuestProgressEntries,
   selectSaveMetadata,
   selectSaveStatus,
+  selectWorldFlags,
   selectWorldRuntime,
   selectWorldSummary,
 } from '../../src/core/state';
@@ -45,6 +46,7 @@ describe('game page forced area rendering', () => {
     const viewModel = buildGamePageViewModel({
       worldSummary: selectWorldSummary(state),
       worldRuntime: selectWorldRuntime(state),
+      worldFlags: selectWorldFlags(state),
       currentArea: sanctumArea ?? null,
       areas,
       mapState: buildForcedRenderMapState(

@@ -5,6 +5,11 @@ import {
   type AreaSceneTile,
 } from '../../components/map/areaSceneStage.contract';
 import type { GameLogRecord } from '../../core/logging/logTypes';
+import {
+  evaluateAreaAccess,
+  isAreaVisibleInNavigation,
+  resolveAreaEnvironmentState,
+} from '../../core/rules';
 import type {
   Area,
   CombatEncounterDefinition,
@@ -27,6 +32,7 @@ import type { SaveLifecycleStatus } from '../../core/state';
 export interface GamePageViewModelSource {
   worldSummary: World['summary'];
   worldRuntime: Pick<World, 'weather' | 'timeOfDay'>;
+  worldFlags: World['flags'];
   currentArea: Area | null;
   areas: Area[];
   mapState: {
@@ -452,22 +458,75 @@ const markerGlyphByType: Record<Area['interactionPoints'][number]['type'], strin
   shop: 'SH',
 };
 
+interface MarkerAccessContext {
+  currentArea: Area | null;
+  areasById: Record<string, Area>;
+  mapState: GamePageViewModelSource['mapState'];
+  questProgressEntries: QuestProgress[];
+  worldFlags: World['flags'];
+  npcStatesById: Record<string, NpcState>;
+}
+
 const buildSceneMarker = (
   point: Area['interactionPoints'][number],
   maxX: number,
   maxY: number,
   pendingEventIds: string[],
+  accessContext: MarkerAccessContext,
 ): AreaSceneMarker => {
   const isPendingEvent =
     point.type === 'event' &&
     pendingEventIds.includes(point.targetId ?? point.id);
+  const targetArea =
+    point.type === 'portal' && point.targetId
+      ? accessContext.areasById[point.targetId]
+      : null;
+  const isPortalAccessible =
+    point.type !== 'portal' || !targetArea
+      ? point.enabled !== false
+      : (point.enabled ?? true) &&
+        evaluateAreaAccess({
+          currentArea: accessContext.currentArea,
+          targetArea,
+          unlockedAreaIds: accessContext.mapState.unlockedAreaIds,
+          questProgress: accessContext.questProgressEntries,
+          worldFlags: accessContext.worldFlags,
+          npcStatesById: accessContext.npcStatesById,
+        }).ok;
+  const isHiddenRoute =
+    targetArea &&
+    (targetArea.isHiddenUntilDiscovered ?? targetArea.type === 'hidden') &&
+    !accessContext.mapState.discoveredAreaIds.includes(targetArea.id);
+  const portalGlyph = point.travelMode === 'teleport' ? 'TP' : 'GO';
+
+  if (point.type === 'portal' && !isPortalAccessible) {
+    return {
+      id: point.id,
+      label: point.label,
+      caption:
+        point.travelMode === 'teleport'
+          ? 'Locked teleport'
+          : isHiddenRoute
+            ? 'Hidden route sealed'
+            : 'Locked route',
+      glyph: portalGlyph,
+      typeLabel: humanizeToken(point.type),
+      type: point.type,
+      targetId: point.targetId,
+      enabled: false,
+      xPercent: clampPercent((point.x / maxX) * 100),
+      yPercent: clampPercent((point.y / maxY) * 100),
+      feedbackTone: 'default',
+      state: 'disabled',
+    };
+  }
 
   if (point.enabled === false) {
     return {
       id: point.id,
       label: point.label,
       caption: 'Offline node',
-      glyph: markerGlyphByType[point.type],
+      glyph: point.type === 'portal' ? portalGlyph : markerGlyphByType[point.type],
       typeLabel: humanizeToken(point.type),
       type: point.type,
       targetId: point.targetId,
@@ -482,7 +541,7 @@ const buildSceneMarker = (
   const baseMarker = {
     id: point.id,
     label: point.label,
-    glyph: markerGlyphByType[point.type],
+    glyph: point.type === 'portal' ? portalGlyph : markerGlyphByType[point.type],
     typeLabel: humanizeToken(point.type),
     type: point.type,
     targetId: point.targetId,
@@ -497,7 +556,17 @@ const buildSceneMarker = (
     case 'shop':
       return { ...baseMarker, caption: 'Trade lane', feedbackTone: 'success', state: 'focus' };
     case 'portal':
-      return { ...baseMarker, caption: 'Area route', feedbackTone: 'info', state: 'focus' };
+      return {
+        ...baseMarker,
+        caption:
+          point.travelMode === 'teleport'
+            ? 'Teleport point'
+            : isHiddenRoute
+              ? 'Hidden route'
+              : 'Area route',
+        feedbackTone: point.travelMode === 'teleport' ? 'warning' : 'info',
+        state: 'focus',
+      };
     case 'battle':
       return { ...baseMarker, caption: 'Engage battle', feedbackTone: 'warning', state: 'alert' };
     case 'event':
@@ -516,6 +585,7 @@ const buildSceneMarker = (
 export function buildGamePageViewModel(
   source: GamePageViewModelSource,
 ): GamePageViewModel {
+  const areasById = Object.fromEntries(source.areas.map((area) => [area.id, area]));
   const npcDefinitionsById = Object.fromEntries(
     source.npcDefinitions.map((npc) => [npc.id, npc]),
   );
@@ -530,6 +600,9 @@ export function buildGamePageViewModel(
   );
 
   const currentArea = source.currentArea;
+  const currentAreaEnvironment = currentArea
+    ? resolveAreaEnvironmentState(currentArea, source.worldFlags)
+    : null;
   const scenePoints = currentArea?.interactionPoints ?? [];
   const maxX = Math.max(12, ...scenePoints.map((point) => point.x));
   const maxY = Math.max(8, ...scenePoints.map((point) => point.y));
@@ -570,7 +643,14 @@ export function buildGamePageViewModel(
     .filter((event) => event.isPending)
     .map((event) => event.id);
   const stageMarkers = scenePoints.map((point) =>
-    buildSceneMarker(point, maxX, maxY, pendingEventIds),
+    buildSceneMarker(point, maxX, maxY, pendingEventIds, {
+      currentArea,
+      areasById,
+      mapState: source.mapState,
+      questProgressEntries: source.questProgressEntries,
+      worldFlags: source.worldFlags,
+      npcStatesById,
+    }),
   );
   const stageModel = areaSceneStageModelSchema.parse({
     rendererLabel: 'DOM layered stage placeholder',
@@ -595,6 +675,14 @@ export function buildGamePageViewModel(
     markers: stageMarkers,
     legend: stageLegend,
   });
+  const visibleAreas = source.areas.filter(
+    (area) =>
+      isAreaVisibleInNavigation(
+        area,
+        source.mapState.discoveredAreaIds,
+        source.mapState.unlockedAreaIds,
+      ) || area.id === currentArea?.id,
+  );
 
   const relationships = source.npcStates
     .map((npcState) => {
@@ -628,6 +716,17 @@ export function buildGamePageViewModel(
     }));
 
   const enemyAlerts = [
+    ...(currentArea?.enemySpawnRules.map((rule) => ({
+      id: `spawn:${rule.id}`,
+      label: rule.label,
+      detail: `${humanizeToken(rule.trigger)} · ${humanizeToken(
+        rule.enemyArchetype ?? rule.enemyNpcId ?? rule.encounterId,
+      )} · max ${rule.maxActive}`,
+      tone:
+        rule.trigger === 'always' || currentArea?.type === 'boss'
+          ? ('warning' as const)
+          : ('info' as const),
+    })) ?? []),
     ...(source.combatState
       ? [
           {
@@ -672,6 +771,19 @@ export function buildGamePageViewModel(
   }));
 
   const tips = [
+    ...(currentAreaEnvironment?.note
+      ? [
+          {
+            id: 'area-environment',
+            title: currentAreaEnvironment.label,
+            summary: currentAreaEnvironment.note,
+            tone:
+              currentAreaEnvironment.hazard === 'volatile'
+                ? ('warning' as const)
+                : ('info' as const),
+          },
+        ]
+      : []),
     ...source.playerModel.rationale.slice(0, 2).map((summary, index) => ({
       id: `player-model:${index}`,
       title: index === 0 ? 'Player model' : 'Behavior pattern',
@@ -708,7 +820,7 @@ export function buildGamePageViewModel(
       saveTone: saveStatus.tone,
     },
     leftSidebar: {
-      areas: source.areas.map((area) => ({
+      areas: visibleAreas.map((area) => ({
         id: area.id,
         name: area.name,
         status:
@@ -746,16 +858,17 @@ export function buildGamePageViewModel(
           value: `${source.mapState.visitHistory.length}`,
         },
       ],
-      areaSummary:
-        currentArea?.description ?? 'Explore the current region to uncover more routes.',
+      areaSummary: currentArea
+        ? `${currentAreaEnvironment?.label ?? humanizeToken(currentArea.type)} · ${currentArea.resourceNodes.length} resource nodes · ${currentArea.enemySpawnRules.length} spawn rules`
+        : 'Explore the current region to uncover more routes.',
     },
     scene: {
       areaName: currentArea?.name ?? 'Unknown area',
       areaType: humanizeToken(currentArea?.type),
-      description:
-        currentArea?.description ??
-        'No active area is loaded. Restore or create a world to continue.',
-      sceneStatus: `${stageModel.layers.length} render layers · ${stageModel.markers.length} interaction points · ${currentAreaEvents.length} area events`,
+      description: currentArea
+        ? `${currentArea.description} 当前环境：${currentAreaEnvironment?.label ?? humanizeToken(currentArea.type)}。`
+        : 'No active area is loaded. Restore or create a world to continue.',
+      sceneStatus: `${stageModel.layers.length} render layers · ${stageModel.markers.length} interaction points · ${currentAreaEvents.length} area events · ${currentArea?.resourceNodes.length ?? 0} resource nodes · ${currentArea?.enemySpawnRules.length ?? 0} spawn rules`,
       stage: stageModel,
       npcs: (currentArea?.npcIds ?? []).map((npcId) => {
         const definition = npcDefinitionsById[npcId];
