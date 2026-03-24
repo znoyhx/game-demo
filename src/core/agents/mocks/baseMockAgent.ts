@@ -1,4 +1,4 @@
-import type { ZodType } from 'zod';
+import type { ZodType, ZodTypeDef } from 'zod';
 
 import type { AgentModuleId, AgentService } from '../interfaces';
 
@@ -9,8 +9,8 @@ export abstract class ValidatedMockAgent<TInput, TOutput>
 
   constructor(
     readonly id: AgentModuleId,
-    private readonly inputSchema: ZodType<TInput>,
-    private readonly outputSchema: ZodType<TOutput>,
+    private readonly inputSchema: ZodType<TInput, ZodTypeDef, unknown>,
+    private readonly outputSchema: ZodType<TOutput, ZodTypeDef, unknown>,
   ) {}
 
   async run(input: TInput): Promise<TOutput> {

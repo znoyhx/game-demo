@@ -1,4 +1,5 @@
 import type { QuestDebugSnapshot, QuestStatus } from '../../core/schemas';
+import { formatPlayerTagLabel } from '../../core/utils/displayLabels';
 import { SectionCard } from '../layout/SectionCard';
 
 const questTypeLabels = {
@@ -25,12 +26,15 @@ const conditionTypeLabels = {
   trigger: '触发',
   'quest-status': '任务状态',
   'world-flag': '世界标记',
-  'npc-trust': 'NPC 信任',
+  'npc-trust': '角色信任',
   'player-tag': '玩家标签',
   event: '事件',
   'current-area': '当前区域',
   'visited-area': '已访问区域',
 } as const;
+
+type QuestSummary = QuestDebugSnapshot['quests'][number];
+type QuestConditionSummary = QuestSummary['triggerConditions'][number];
 
 interface QuestDebugPanelProps {
   snapshot: QuestDebugSnapshot;
@@ -49,6 +53,38 @@ interface QuestDebugPanelProps {
   onSimulateCondition: (questId: string, conditionId: string) => void;
   onResetQuest: (questId: string) => void;
 }
+
+const getStageCount = (quest: QuestSummary | null) =>
+  Math.max(quest?.completionConditions.length ?? 0, 1);
+
+const formatConditionMeta = (condition: QuestConditionSummary) => {
+  const parts = [
+    conditionTypeLabels[condition.type],
+    condition.satisfied ? '已满足' : '未满足',
+  ];
+
+  if (condition.current) {
+    parts.push('当前验证阶段');
+  }
+
+  if (condition.requiredCount) {
+    parts.push(`需求 ${condition.requiredCount}`);
+  }
+
+  if (condition.requiredStatus) {
+    parts.push(`目标 ${questStatusLabels[condition.requiredStatus]}`);
+  }
+
+  if (condition.minTrust !== undefined) {
+    parts.push(`最低信任 ${condition.minTrust}`);
+  }
+
+  if (condition.playerTag) {
+    parts.push(`标签 ${formatPlayerTagLabel(condition.playerTag)}`);
+  }
+
+  return parts.join(' · ');
+};
 
 export function QuestDebugPanel({
   snapshot,
@@ -75,9 +111,8 @@ export function QuestDebugPanel({
   const selectedQuestLogs = selectedQuest
     ? snapshot.logs.filter((entry) => entry.questId === selectedQuest.questId)
     : [];
-  const stageOptions = selectedQuest
-    ? Math.max(selectedQuest.completionConditions.length, 1)
-    : 1;
+  const stageCount = getStageCount(selectedQuest);
+  const clampedStageIndex = Math.min(selectedStageIndex, stageCount - 1);
   const isBusy = busyActionId !== null && busyActionId !== undefined;
 
   const renderDependencyTitles = (questIds: string[]) => {
@@ -86,26 +121,14 @@ export function QuestDebugPanel({
     }
 
     return questIds
-      .map((questId) => questMap.get(questId)?.title ?? questId)
+      .map((questId) => questMap.get(questId)?.title ?? '未知任务')
       .join('、');
   };
 
   const renderConditionGroup = (
     title: string,
     emptyText: string,
-    conditions: Array<{
-      id: string;
-      label: string;
-      type: keyof typeof conditionTypeLabels;
-      category: 'trigger' | 'completion' | 'failure';
-      satisfied: boolean;
-      current: boolean;
-      targetId?: string;
-      requiredStatus?: QuestStatus;
-      requiredCount?: number;
-      minTrust?: number;
-      playerTag?: string;
-    }>,
+    conditions: QuestConditionSummary[],
   ) => (
     <>
       <h4 className="section-card__title">{title}</h4>
@@ -116,18 +139,7 @@ export function QuestDebugPanel({
           conditions.map((condition) => (
             <li key={condition.id}>
               <strong>{condition.label}</strong>
-              <div>
-                {conditionTypeLabels[condition.type]} ·{' '}
-                {condition.satisfied ? '已满足' : '未满足'}
-                {condition.current ? ' · 当前验证步骤' : ''}
-                {condition.requiredCount ? ` · 需求 ${condition.requiredCount}` : ''}
-                {condition.requiredStatus
-                  ? ` · 目标 ${questStatusLabels[condition.requiredStatus]}`
-                  : ''}
-                {condition.minTrust !== undefined ? ` · 最低信任 ${condition.minTrust}` : ''}
-                {condition.playerTag ? ` · 标签 ${condition.playerTag}` : ''}
-                {condition.targetId ? ` · ${condition.targetId}` : ''}
-              </div>
+              <div>{formatConditionMeta(condition)}</div>
               <div className="hero-callout__actions">
                 <button
                   className="pixel-button pixel-button--ghost"
@@ -153,8 +165,8 @@ export function QuestDebugPanel({
       <SectionCard
         title="任务调试控制"
         eyebrow={selectedQuest ? `当前任务：${selectedQuest.title}` : '未选择任务'}
-        description="直接激活、完成、失败任务，模拟条件，并跳到后续验证阶段。所有调试动作都走控制器并写入存档。"
-        footer="建议先选择任务，再用“跳到阶段”与“模拟满足”组合验证分支、依赖和动态触发。"
+        description="可直接激活、完成、失败任务，模拟条件，并跳到后续验证阶段。所有操作都通过控制器执行，并会走保存流程。"
+        footer="建议先选中任务，再组合使用“应用分支”“跳到阶段”和“模拟满足”来验证依赖、分支与动态触发。"
       >
         {selectedQuest ? (
           <>
@@ -176,12 +188,10 @@ export function QuestDebugPanel({
               <label className="world-creation-form__field">
                 <span>阶段</span>
                 <select
-                  value={Math.min(selectedStageIndex, stageOptions - 1)}
-                  onChange={(event) =>
-                    onStageIndexChange(Number(event.target.value))
-                  }
+                  value={clampedStageIndex}
+                  onChange={(event) => onStageIndexChange(Number(event.target.value))}
                 >
-                  {Array.from({ length: stageOptions }, (_, index) => (
+                  {Array.from({ length: stageCount }, (_, index) => (
                     <option key={`stage-${index}`} value={index}>
                       第 {index + 1} 阶
                     </option>
@@ -218,12 +228,8 @@ export function QuestDebugPanel({
               <li>状态：{questStatusLabels[selectedQuest.status]}</li>
               <li>
                 当前进度：第{' '}
-                {Math.min(
-                  selectedQuest.currentObjectiveIndex + 1,
-                  Math.max(selectedQuest.completionConditions.length, 1),
-                )}{' '}
-                阶 / 共{' '}
-                {Math.max(selectedQuest.completionConditions.length, 1)} 阶
+                {Math.min(selectedQuest.currentObjectiveIndex + 1, stageCount)} 阶 / 共{' '}
+                {stageCount} 阶
               </li>
               <li>已完成条件：{selectedQuest.completedObjectiveIds.length}</li>
               <li>依赖任务：{renderDependencyTitles(selectedQuest.dependencyQuestIds)}</li>
@@ -259,9 +265,7 @@ export function QuestDebugPanel({
                 className="pixel-button pixel-button--ghost"
                 disabled={isBusy || selectedQuest.branches.length === 0 || !selectedBranchId}
                 type="button"
-                onClick={() =>
-                  onChooseBranch(selectedQuest.questId, selectedBranchId)
-                }
+                onClick={() => onChooseBranch(selectedQuest.questId, selectedBranchId)}
               >
                 应用分支
               </button>
@@ -272,7 +276,7 @@ export function QuestDebugPanel({
                 onClick={() =>
                   onJumpToStage(
                     selectedQuest.questId,
-                    selectedStageIndex,
+                    clampedStageIndex,
                     selectedBranchId || undefined,
                   )
                 }
@@ -318,9 +322,7 @@ export function QuestDebugPanel({
               )}
             </ul>
 
-            {statusMessage ? (
-              <p className="section-card__footer">{statusMessage}</p>
-            ) : null}
+            {statusMessage ? <p className="section-card__footer">{statusMessage}</p> : null}
           </>
         ) : (
           <p className="section-card__description">当前没有可调试的任务。</p>
@@ -330,8 +332,8 @@ export function QuestDebugPanel({
       <SectionCard
         title="任务依赖图"
         eyebrow={`共 ${snapshot.dependencyGraph.length} 个任务节点`}
-        description="这里展示任务之间的显式依赖与任务状态引用，方便直接查看哪些任务会阻塞或解锁后续流程。"
-        footer="依赖图按任务定义实时生成，可结合上方条件模拟按钮快速验证分支链路。"
+        description="展示任务之间的显式依赖与状态关系，便于快速定位哪些任务会阻塞或解锁后续流程。"
+        footer="依赖图按任务定义实时生成，可结合左侧条件模拟与阶段跳转一起验证链路。"
       >
         <ul className="section-card__list">
           {snapshot.dependencyGraph.map((node) => (
