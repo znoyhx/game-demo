@@ -6,7 +6,7 @@
 ```md
 # PixelForge Agent Backlog
 Version: v0.1  
-Status: Initial planning draft
+Status: Active delivery backlog（当前标记：阶段 7——完整实现战斗与敌人策略模块）
 
 ---
 
@@ -434,6 +434,9 @@ Expand the MVP into a recognizably game-like exploration flow.
 ### Objective
 Add a compact but convincing strategy encounter that demonstrates adaptive AI behavior.
 
+### Delivery Marker
+阶段 7：完整实现战斗与敌人策略模块（包含首领多阶段、敌方战术切换、战斗日志、回顾输出与战斗调试支持）。
+
 ### Tasks
 
 #### M3-1 Define combat domain schema
@@ -531,10 +534,14 @@ Add a compact but convincing strategy encounter that demonstrates adaptive AI be
 - set player profile tags
 - force enemy tactic
 - set boss phase
+- use fixed seeds for combat simulation
+- reconstruct combat logs where practical
 
 **Acceptance criteria**
 - encounter can be entered without playing full game path
 - forced tactic mode is visible and testable
+- forced boss phase can be applied deterministically
+- the same seed and player pattern reproduce the same combat sequence
 
 **Dependencies**
 - M3-5

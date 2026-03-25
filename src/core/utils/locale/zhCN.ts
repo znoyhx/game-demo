@@ -53,11 +53,11 @@ const startupReasonMessages = {
 >;
 
 const enemyTacticLabels = {
-  aggressive: '强攻',
-  defensive: '防守',
-  counter: '反击',
-  trap: '陷阱',
-  summon: '召唤',
+  aggressive: '压制强攻',
+  defensive: '防守消耗',
+  counter: '套路反制',
+  trap: '诱导陷阱',
+  summon: '召唤支援',
   'resource-lock': '资源封锁',
 } satisfies Record<EnemyTacticType, string>;
 
@@ -172,7 +172,7 @@ export const zhCN = {
     subtitle:
       '以前端网页为先、以模拟实现为先，并按清晰分层为玩法、持久化、代理编排和调试工具做好承接。',
     badges: {
-      milestone: '阶段零基础',
+      milestone: '阶段 7：完整实现战斗与敌人策略模块',
       mockFirst: '模拟优先',
     },
     navigationAriaLabel: '主导航',

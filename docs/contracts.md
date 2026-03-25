@@ -837,6 +837,40 @@ export type EnemyTacticType =
   | "resource-lock";
 ```
 
+## 10.2.1 Combat Debug Player Pattern
+
+```ts
+export type CombatDebugPlayerPattern =
+  | "direct-pressure"
+  | "guard-cycle"
+  | "resource-burst"
+  | "analysis-first";
+```
+
+## 10.2.2 Combat Command Action
+
+```ts
+export type CombatCommandAction =
+  | "attack"
+  | "guard"
+  | "heal"
+  | "analyze"
+  | "special"
+  | "retreat";
+```
+
+## 10.2.3 Combat Environment State
+
+```ts
+export interface CombatEnvironmentState {
+  areaId: AreaId;
+  label: string;
+  hazard: "stable" | "tense" | "volatile";
+  weather?: string;
+  lighting?: string;
+}
+```
+
 ## 10.3 Combatant Snapshot
 
 ```ts
@@ -934,6 +968,35 @@ export interface ReviewPayload {
   generatedAt: IsoTimestamp;
   encounterId?: EncounterId;
   playerTags: PlayerProfileTag[];
+  combatSummary: {
+    result: {
+      result: "victory" | "defeat" | "escape";
+      totalTurns: number;
+      finalTactic: EnemyTacticType;
+      finalPhaseId?: string;
+      playerRemainingHp: number;
+      enemyRemainingHp: number;
+      summary: string;
+    };
+    tacticChanges: Array<{
+      turn: number;
+      fromTactic?: EnemyTacticType;
+      toTactic: EnemyTacticType;
+      phaseId?: string;
+      summary: string;
+    }>;
+    phaseChanges: Array<{
+      turn: number;
+      fromPhaseId?: string;
+      toPhaseId: string;
+      summary: string;
+    }>;
+    keyPlayerBehaviors: Array<{
+      actionType: "attack" | "guard" | "heal" | "analyze" | "special" | "retreat";
+      count: number;
+      summary: string;
+    }>;
+  } | null;
   keyEvents: string[];
   explanations: ExplanationItem[];
   suggestions: string[];
@@ -1005,6 +1068,26 @@ export interface SaveSnapshot {
       result: "victory" | "defeat" | "escape";
       finalTactic: EnemyTacticType;
       resolvedAt: IsoTimestamp;
+      turnCount: number;
+      finalPhaseId?: string;
+      tacticChanges: Array<{
+        turn: number;
+        fromTactic?: EnemyTacticType;
+        toTactic: EnemyTacticType;
+        phaseId?: string;
+        summary: string;
+      }>;
+      phaseChanges: Array<{
+        turn: number;
+        fromPhaseId?: string;
+        toPhaseId: string;
+        summary: string;
+      }>;
+      keyPlayerBehaviors: Array<{
+        actionType: "attack" | "guard" | "heal" | "analyze" | "special" | "retreat";
+        count: number;
+        summary: string;
+      }>;
     }>;
   };
   combat?: CombatState | null;
@@ -1200,7 +1283,11 @@ export interface NpcBrainOutput {
 export interface EnemyTacticianInput {
   encounter: CombatEncounterDefinition;
   combatState: CombatState;
+  playerState: PlayerState;
   playerTags: PlayerProfileTag[];
+  commonPlayerActions: CombatCommandAction[];
+  environmentState?: CombatEnvironmentState;
+  bossPhaseId?: string;
 }
 ```
 
@@ -1462,6 +1549,9 @@ export interface SessionSnapshot {
     forcedEncounterId: EncounterId | null;
     forcedEventId: EventId | null;
     forcedTactic: EnemyTacticType | null;
+    forcedPhaseId: string | null;
+    simulatedPlayerPattern: CombatDebugPlayerPattern | null;
+    combatSeed: number | null;
     injectedPlayerTags: PlayerProfileTag[];
     logsPanelOpen: boolean;
   };

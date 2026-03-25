@@ -481,6 +481,9 @@ Enable short-path verification of every main system.
 * deterministic NPC branch testing with rollback
 * event trigger panel
 * combat entry simulator
+* forced combat tactic / boss phase controls
+* seeded player-pattern combat simulation
+* combat log replay and reconstruction summary
 * player model injection
 * decision log panel
 

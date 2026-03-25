@@ -152,6 +152,7 @@ export interface PlayerSlice {
   player: PlayerState;
   playerModel: PlayerModelState;
   setPlayerState: (player: PlayerState) => void;
+  patchPlayerState: (playerPatch: Partial<PlayerState>) => void;
   setPlayerTags: (tags: PlayerProfileTag[]) => void;
   setPlayerModelState: (playerModel: PlayerModelState) => void;
   setPlayerModelTags: (tags: PlayerProfileTag[]) => void;
@@ -273,6 +274,9 @@ const defaultDebugToolsState = (): DebugToolsState => ({
   forcedEncounterId: null,
   forcedEventId: null,
   forcedTactic: null,
+  forcedPhaseId: null,
+  simulatedPlayerPattern: null,
+  combatSeed: null,
   injectedPlayerTags: [],
   logsPanelOpen: false,
 });
@@ -948,6 +952,16 @@ export const createGameStore = (initialSnapshot: SaveSnapshot = mockSaveSnapshot
           mapState: nextMapState,
         });
       });
+    },
+    patchPlayerState: (playerPatch) => {
+      set((state) =>
+        markDirtyState({
+          player: {
+            ...state.player,
+            ...playerPatch,
+          },
+        }),
+      );
     },
     setPlayerTags: (tags) => {
       set((state) =>

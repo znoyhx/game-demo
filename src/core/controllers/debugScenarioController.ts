@@ -2,6 +2,8 @@ import type { StoreApi } from 'zustand/vanilla';
 
 import { mockSaveSnapshot } from '../mocks';
 import type {
+  CombatDebugPlayerPattern,
+  EnemyTacticType,
   DebugToolsState,
   NpcDebugStateInjection,
   NpcDialogueIntent,
@@ -14,6 +16,7 @@ import type {
 } from '../schemas';
 import { npcDebugStateInjectionSchema } from '../schemas';
 import type { GameStoreState } from '../state';
+import { resolveSimulatedCombatAction } from '../rules';
 
 import {
   defaultTimestampProvider,
@@ -232,8 +235,119 @@ export class DebugScenarioController {
   async forceEncounter(encounterId: string) {
     this.enableDebugState({
       forcedEncounterId: encounterId,
+      logsPanelOpen: true,
     });
     return this.combatController?.startEncounter(encounterId);
+  }
+
+  async setForcedCombatTactic(tactic: EnemyTacticType | null) {
+    this.enableDebugState({
+      forcedTactic: tactic,
+      logsPanelOpen: true,
+    });
+
+    await maybeAutoSave(this.store, this.saveController, 'debug');
+    return this.store.getState().debugTools.forcedTactic;
+  }
+
+  async setForcedBossPhase(phaseId: string | null) {
+    this.enableDebugState({
+      forcedPhaseId: phaseId,
+      logsPanelOpen: true,
+    });
+
+    if (!phaseId) {
+      await maybeAutoSave(this.store, this.saveController, 'debug');
+      return this.store.getState().combatState;
+    }
+
+    const result = await this.combatController?.forceBossPhase(phaseId);
+    await maybeAutoSave(this.store, this.saveController, 'debug');
+    return result ?? null;
+  }
+
+  async setCombatSeed(seed: number | null) {
+    this.enableDebugState({
+      combatSeed:
+        seed === null || !Number.isFinite(seed)
+          ? null
+          : Math.max(0, Math.floor(seed)),
+    });
+
+    await maybeAutoSave(this.store, this.saveController, 'debug');
+    return this.store.getState().debugTools.combatSeed;
+  }
+
+  async setSimulatedPlayerPattern(pattern: CombatDebugPlayerPattern | null) {
+    this.enableDebugState({
+      simulatedPlayerPattern: pattern,
+    });
+
+    await maybeAutoSave(this.store, this.saveController, 'debug');
+    return this.store.getState().debugTools.simulatedPlayerPattern;
+  }
+
+  async simulateCombatRounds(roundCount: number) {
+    const normalizedRoundCount = Math.min(Math.max(Math.round(roundCount), 1), 12);
+    const initialState = this.store.getState();
+    const initialCombatState = initialState.combatState;
+
+    if (!initialCombatState || !this.combatController) {
+      return [];
+    }
+
+    const pattern =
+      initialState.debugTools.simulatedPlayerPattern ?? 'direct-pressure';
+    const seed = initialState.debugTools.combatSeed ?? 0;
+    const steps: Array<{
+      turn: number;
+      actionType: string;
+      tactic: EnemyTacticType;
+      phaseId?: string;
+      result?: string;
+    }> = [];
+
+    for (let index = 0; index < normalizedRoundCount; index += 1) {
+      const state = this.store.getState();
+      const combatState = state.combatState;
+
+      if (!combatState || combatState.result) {
+        break;
+      }
+
+      const actionDecision = resolveSimulatedCombatAction({
+        combatState,
+        playerState: state.player,
+        pattern,
+        seed: seed + index,
+      });
+      const result = await this.combatController.submitPlayerAction(
+        actionDecision.selectedAction,
+      );
+
+      if (!result) {
+        break;
+      }
+
+      steps.push({
+        turn: combatState.turn,
+        actionType: actionDecision.selectedAction,
+        tactic:
+          result.combatState.activeTactic ?? this.store.getState().combatState?.activeTactic ?? combatState.activeTactic,
+        phaseId: result.combatState.currentPhaseId,
+        result: result.result,
+      });
+
+      if (!result.ok || result.result) {
+        break;
+      }
+    }
+
+    if (steps.length > 0) {
+      await maybeAutoSave(this.store, this.saveController, 'debug');
+    }
+
+    return steps;
   }
 
   async forceEvent(eventId: string) {
@@ -267,6 +381,10 @@ export class DebugScenarioController {
       forcedNpcId: null,
       forcedEncounterId: null,
       forcedEventId: null,
+      forcedTactic: null,
+      forcedPhaseId: null,
+      simulatedPlayerPattern: null,
+      combatSeed: null,
       injectedPlayerTags: [],
     });
     await maybeAutoSave(this.store, this.saveController, 'debug');

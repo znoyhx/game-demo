@@ -1,10 +1,14 @@
 import { z } from 'zod';
 
-import { enemyTacticTypeSchema } from './combat.schema';
+import {
+  combatDebugPlayerPatternSchema,
+  enemyTacticTypeSchema,
+} from './combat.schema';
 import {
   areaIdSchema,
   encounterIdSchema,
   eventIdSchema,
+  genericIdSchema,
   isoTimestampSchema,
   npcIdSchema,
   questIdSchema,
@@ -42,6 +46,9 @@ export const debugToolsStateSchema = z
     forcedEncounterId: encounterIdSchema.nullable(),
     forcedEventId: eventIdSchema.nullable(),
     forcedTactic: enemyTacticTypeSchema.nullable(),
+    forcedPhaseId: genericIdSchema.nullable(),
+    simulatedPlayerPattern: combatDebugPlayerPatternSchema.nullable(),
+    combatSeed: z.number().int().nonnegative().nullable(),
     injectedPlayerTags: z.array(playerProfileTagSchema),
     logsPanelOpen: z.boolean(),
   })

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createMockAgentSet } from '../../src/core/agents';
+import { CombatController } from '../../src/core/controllers/combatController';
 import { DebugScenarioController } from '../../src/core/controllers/debugScenarioController';
 import { NpcInteractionController } from '../../src/core/controllers/npcInteractionController';
 import { QuestProgressionController } from '../../src/core/controllers/questProgressionController';
@@ -113,5 +114,76 @@ describe('debug scenario controller', () => {
     expect(store.getState().questProgressById[mockIds.quests.main]?.status).toBe(
       'available',
     );
+  });
+
+  it('locks a forced boss phase for the active encounter and updates combat state immediately', async () => {
+    const agents = createMockAgentSet();
+    const store = createGameStore(structuredClone(mockSaveSnapshot));
+    const saveWriter = new SaveWriterSpy();
+    const combatController = new CombatController({
+      store,
+      agents,
+      now: fixedNow,
+    });
+    const controller = new DebugScenarioController({
+      store,
+      saveController: saveWriter,
+      combatController,
+      now: fixedNow,
+    });
+
+    await controller.forceEncounter(mockIds.encounter);
+    const result = await controller.setForcedBossPhase('phase:embers-unbound');
+
+    expect(store.getState().debugTools.forcedPhaseId).toBe('phase:embers-unbound');
+    expect(store.getState().combatState?.currentPhaseId).toBe(
+      'phase:embers-unbound',
+    );
+    expect(
+      store.getState().combatState?.logs[
+        (store.getState().combatState?.logs.length ?? 1) - 1
+      ]?.actions[0]?.description,
+    ).toContain('强制切换');
+    expect(result && 'currentPhaseId' in result ? result.currentPhaseId : null).toBe(
+      'phase:embers-unbound',
+    );
+  });
+
+  it('simulates combat rounds deterministically when the same seed and pattern are reused', async () => {
+    const runSimulation = async () => {
+      const agents = createMockAgentSet();
+      const store = createGameStore(structuredClone(mockSaveSnapshot));
+      const combatController = new CombatController({
+        store,
+        agents,
+        now: fixedNow,
+      });
+      const controller = new DebugScenarioController({
+        store,
+        combatController,
+        now: fixedNow,
+      });
+
+      await controller.forceEncounter(mockIds.encounter);
+      await controller.setForcedCombatTactic('counter');
+      await controller.setSimulatedPlayerPattern('analysis-first');
+      await controller.setCombatSeed(11);
+
+      const steps = await controller.simulateCombatRounds(3);
+
+      return {
+        steps,
+        combatState: store.getState().combatState,
+      };
+    };
+
+    const firstRun = await runSimulation();
+    const secondRun = await runSimulation();
+
+    expect(firstRun.steps).toEqual(secondRun.steps);
+    expect(
+      firstRun.combatState?.logs.map((log) => log.actions[0]?.actionType),
+    ).toEqual(secondRun.combatState?.logs.map((log) => log.actions[0]?.actionType));
+    expect(firstRun.combatState?.activeTactic).toBe('counter');
   });
 });

@@ -25,6 +25,9 @@ export const mockDebugToolsState: DebugToolsState = {
   forcedEncounterId: null,
   forcedEventId: null,
   forcedTactic: null,
+  forcedPhaseId: null,
+  simulatedPlayerPattern: 'analysis-first',
+  combatSeed: 7,
   injectedPlayerTags: ['story', 'risky'],
   logsPanelOpen: true,
 };

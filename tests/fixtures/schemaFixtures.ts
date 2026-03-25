@@ -40,6 +40,7 @@ import {
   mockAreas,
   mockBossCombatState,
   mockBossEncounterDefinition,
+  mockCombatHistory,
   mockDebugToolsState,
   mockEventHistory,
   mockGameConfig,
@@ -178,12 +179,22 @@ export const sampleNpcBrainOutput: NpcBrainOutput = {
 export const sampleEnemyTacticianInput: EnemyTacticianInput = {
   encounter: sampleCombatEncounterDefinition,
   combatState: sampleCombatState,
+  playerState: samplePlayerState,
   playerTags: samplePlayerState.profileTags,
+  commonPlayerActions: ['attack', 'special', 'attack'],
+  environmentState: {
+    areaId: mockIds.areas.sanctum,
+    label: '余烬风暴',
+    hazard: 'volatile',
+    weather: '余烬雨',
+    lighting: '炽红裂隙',
+  },
+  bossPhaseId: sampleCombatState.currentPhaseId,
 };
 
 export const sampleEnemyTacticianOutput: EnemyTacticianOutput = {
   selectedTactic: 'counter',
-  reason: 'The player profile trends risky, so the boss reacts with counter-heavy pressure.',
+  reason: '玩家近期偏好正面强压，适合用反制手段惩罚常用输出节奏。',
 };
 
 export const sampleGameMasterInput: GameMasterInput = {
@@ -214,7 +225,9 @@ export const samplePlayerModelOutput: PlayerModelOutput = {
 
 export const sampleExplainCoachInput: ExplainCoachInput = {
   player: samplePlayerState,
+  encounter: sampleCombatEncounterDefinition,
   combat: sampleCombatState,
+  combatHistory: mockCombatHistory,
   questProgress: mockQuestProgress,
   eventHistory: mockEventHistory,
 };

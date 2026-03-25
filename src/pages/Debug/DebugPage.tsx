@@ -8,6 +8,7 @@ import {
   appQuestDebugController,
   appWorldCreationController,
 } from '../../app/runtime/appRuntime';
+import { CombatDebugPanel } from '../../components/debug/CombatDebugPanel';
 import { RenderingPreviewGallery } from '../../components/debug/RenderingPreviewGallery';
 import { DebugPanel } from '../../components/debug/DebugPanel';
 import { NpcDebugPanel } from '../../components/debug/NpcDebugPanel';
@@ -17,8 +18,15 @@ import { SectionCard } from '../../components/layout/SectionCard';
 import { Badge } from '../../components/pixel-ui/Badge';
 import { useGameLogStore } from '../../core/logging';
 import { debugPanels } from '../../core/mocks/shellContent';
-import { resolveAreaEnvironmentState } from '../../core/rules';
+import {
+  resolveAreaEnvironmentState,
+  summarizeCombatPhaseChanges,
+  summarizeCombatPlayerBehaviors,
+  summarizeCombatTacticChanges,
+} from '../../core/rules';
 import type {
+  CombatDebugPlayerPattern,
+  EnemyTacticType,
   NpcDialogueIntent,
   NpcDisposition,
   NpcEmotionalState,
@@ -49,6 +57,8 @@ import {
   useGameStore,
 } from '../../core/state';
 import {
+  formatCombatResultLabel,
+  formatEnemyTacticLabel,
   npcDispositionLabels,
   npcDialogueIntentLabels,
   npcEmotionalStateLabels,
@@ -57,6 +67,18 @@ import { locale } from '../../core/utils/locale';
 import { buildRenderingPreviewViewModel } from './renderingPreviewViewModel';
 
 const debugText = locale.pages.debug;
+
+const combatModeLabels = {
+  'turn-based': '回合制',
+  'semi-realtime': '半即时指令',
+} as const;
+
+const combatPatternLabels: Record<CombatDebugPlayerPattern, string> = {
+  'direct-pressure': '正面压迫',
+  'guard-cycle': '防守循环',
+  'resource-burst': '资源爆发',
+  'analysis-first': '先解析后压制',
+};
 
 export function DebugPage() {
   const navigate = useNavigate();
@@ -122,6 +144,25 @@ export function DebugPage() {
     decisionBasis: string[];
     debugSummary: string;
   } | null>(null);
+  const [selectedCombatEncounterId, setSelectedCombatEncounterId] = useState<string | null>(
+    null,
+  );
+  const [selectedForcedTactic, setSelectedForcedTactic] =
+    useState<EnemyTacticType | ''>('');
+  const [selectedForcedPhaseId, setSelectedForcedPhaseId] = useState('');
+  const [selectedCombatPattern, setSelectedCombatPattern] =
+    useState<CombatDebugPlayerPattern>(
+      debugTools.simulatedPlayerPattern ?? 'analysis-first',
+    );
+  const [combatSeedValue, setCombatSeedValue] = useState(
+    String(debugTools.combatSeed ?? 7),
+  );
+  const [combatSimulateRoundsValue, setCombatSimulateRoundsValue] = useState('3');
+  const [combatDebugStatusMessage, setCombatDebugStatusMessage] =
+    useState<string | null>(null);
+  const [busyCombatDebugActionId, setBusyCombatDebugActionId] = useState<
+    string | null
+  >(null);
   const logs = useMemo(() => logEntries.slice(0, 8), [logEntries]);
 
   useEffect(() => {
@@ -146,9 +187,52 @@ export function DebugPage() {
     }
   }, [currentArea?.npcIds, npcDefinitions, selectedNpcId]);
 
+  useEffect(() => {
+    if (
+      !selectedCombatEncounterId ||
+      !combatEncounters.some((encounter) => encounter.id === selectedCombatEncounterId)
+    ) {
+      setSelectedCombatEncounterId(
+        debugTools.forcedEncounterId ??
+          combatState?.encounterId ??
+          combatEncounters[0]?.id ??
+          null,
+      );
+    }
+  }, [
+    combatEncounters,
+    combatState?.encounterId,
+    debugTools.forcedEncounterId,
+    selectedCombatEncounterId,
+  ]);
+
+  useEffect(() => {
+    setSelectedForcedTactic(debugTools.forcedTactic ?? '');
+  }, [debugTools.forcedTactic]);
+
+  useEffect(() => {
+    setSelectedCombatPattern(
+      debugTools.simulatedPlayerPattern ?? 'analysis-first',
+    );
+  }, [debugTools.simulatedPlayerPattern]);
+
+  useEffect(() => {
+    setCombatSeedValue(String(debugTools.combatSeed ?? 7));
+  }, [debugTools.combatSeed]);
+
   const selectedArea = useMemo(
     () => areas.find((area) => area.id === selectedAreaId) ?? currentArea ?? areas[0] ?? null,
     [areas, currentArea, selectedAreaId],
+  );
+
+  const selectedCombatEncounter = useMemo(
+    () =>
+      combatEncounters.find((encounter) => encounter.id === selectedCombatEncounterId) ??
+      (combatState
+        ? combatEncounters.find((encounter) => encounter.id === combatState.encounterId) ??
+          null
+        : null),
+    [combatEncounters, combatState, selectedCombatEncounterId],
   );
 
   const selectedAreaEnvironment = useMemo(
@@ -179,6 +263,27 @@ export function DebugPage() {
       areaName,
     };
   }, [areas, npcDefinitions, npcStates, selectedNpcId]);
+
+  useEffect(() => {
+    const phaseOptions = selectedCombatEncounter?.bossPhases ?? [];
+    const preferredPhaseId =
+      debugTools.forcedPhaseId ??
+      combatState?.currentPhaseId ??
+      phaseOptions[0]?.id ??
+      '';
+    const hasSelectedPhase =
+      selectedForcedPhaseId.length > 0 &&
+      phaseOptions.some((phase) => phase.id === selectedForcedPhaseId);
+
+    if (!hasSelectedPhase) {
+      setSelectedForcedPhaseId(preferredPhaseId);
+    }
+  }, [
+    combatState?.currentPhaseId,
+    debugTools.forcedPhaseId,
+    selectedCombatEncounter,
+    selectedForcedPhaseId,
+  ]);
 
   const syncNpcDebugInputs = useCallback((npcState: NpcState) => {
     setNpcTrustValue(String(npcState.trust));
@@ -288,6 +393,91 @@ export function DebugPage() {
       })),
     [],
   );
+  const combatTacticOptions = useMemo(
+    () =>
+      (selectedCombatEncounter?.tacticPool ?? []).map((tactic) => ({
+        value: tactic,
+        label: formatEnemyTacticLabel(tactic),
+      })),
+    [selectedCombatEncounter],
+  );
+  const combatPhaseOptions = useMemo(
+    () =>
+      (selectedCombatEncounter?.bossPhases ?? []).map((phase) => ({
+        value: phase.id,
+        label: phase.label,
+      })),
+    [selectedCombatEncounter],
+  );
+  const combatPatternOptions = useMemo(
+    () =>
+      Object.entries(combatPatternLabels).map(([value, label]) => ({
+        value: value as CombatDebugPlayerPattern,
+        label,
+      })),
+    [],
+  );
+  const combatEncounterViewModels = useMemo(
+    () =>
+      combatEncounters.map((encounter) => ({
+        id: encounter.id,
+        title: encounter.title,
+        areaName:
+          areas.find((area) => area.id === encounter.areaId)?.name ?? '未分配区域',
+        modeLabel: combatModeLabels[encounter.mode],
+        phaseCount: encounter.bossPhases?.length ?? 0,
+      })),
+    [areas, combatEncounters],
+  );
+  const combatDebugViewModel = useMemo(() => {
+    const encounter = combatState
+      ? combatEncounters.find((entry) => entry.id === combatState.encounterId) ??
+        selectedCombatEncounter
+      : selectedCombatEncounter;
+    const resolvePhaseLabel = (phaseId: string | undefined) =>
+      encounter?.bossPhases?.find((phase) => phase.id === phaseId)?.label ??
+      phaseId ??
+      '未进入阶段';
+
+    return {
+      currentCombat: combatState
+        ? {
+            encounterTitle: encounter?.title ?? combatState.encounterId,
+            modeLabel: encounter ? combatModeLabels[encounter.mode] : '未知模式',
+            turn: combatState.turn,
+            phaseLabel: resolvePhaseLabel(combatState.currentPhaseId),
+            tacticLabel: formatEnemyTacticLabel(combatState.activeTactic),
+            playerHpLabel: `${combatState.player.hp} / ${combatState.player.maxHp}`,
+            enemyHpLabel: `${combatState.enemy.hp} / ${combatState.enemy.maxHp}`,
+            resultLabel: combatState.result
+              ? formatCombatResultLabel(combatState.result)
+              : undefined,
+          }
+        : null,
+      logs:
+        combatState?.logs.map((log) => ({
+          turn: log.turn,
+          phaseLabel: resolvePhaseLabel(log.phaseId),
+          tacticLabel: log.activeTactic
+            ? formatEnemyTacticLabel(log.activeTactic)
+            : '未记录战术',
+          actions: log.actions.map((action) => action.description),
+        })) ?? [],
+      replaySummary: combatState
+        ? {
+            tacticChanges: summarizeCombatTacticChanges(combatState, encounter).map(
+              (change) => change.summary,
+            ),
+            phaseChanges: summarizeCombatPhaseChanges(combatState, encounter).map(
+              (change) => change.summary,
+            ),
+            keyPlayerBehaviors: summarizeCombatPlayerBehaviors(combatState).map(
+              (behavior) => behavior.summary,
+            ),
+          }
+        : null,
+    };
+  }, [combatEncounters, combatState, selectedCombatEncounter]);
   const npcDebugViewModels = useMemo(
     () =>
       npcDefinitions
@@ -479,6 +669,25 @@ export function DebugPage() {
     [],
   );
 
+  const runCombatDebugTask = useCallback(
+    async <T,>(actionId: string, task: () => Promise<T>) => {
+      setBusyCombatDebugActionId(actionId);
+      setCombatDebugStatusMessage(null);
+
+      try {
+        return await task();
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : '战斗调试执行失败。';
+        setCombatDebugStatusMessage(message);
+        return null;
+      } finally {
+        setBusyCombatDebugActionId(null);
+      }
+    },
+    [],
+  );
+
   const parseMemoryLines = useCallback(
     (value: string, limit: number) =>
       Array.from(
@@ -496,6 +705,117 @@ export function DebugPage() {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? Math.round(parsed) : fallback;
   }, []);
+
+  const handleStartCombatEncounter = useCallback(() => {
+    if (!selectedCombatEncounterId) {
+      setCombatDebugStatusMessage('请先选择一个战斗遭遇。');
+      return;
+    }
+
+    void runCombatDebugTask('combat-start', async () => {
+      await appDebugScenarioController.setSimulatedPlayerPattern(selectedCombatPattern);
+      await appDebugScenarioController.setCombatSeed(Number(combatSeedValue));
+
+      const result = await appDebugScenarioController.forceEncounter(
+        selectedCombatEncounterId,
+      );
+
+      if (!result) {
+        setCombatDebugStatusMessage('遭遇启动失败。');
+        return null;
+      }
+
+      setCombatDebugStatusMessage(`已直接进入「${result.enemy.name}」战斗。`);
+      return result;
+    });
+  }, [
+    combatSeedValue,
+    runCombatDebugTask,
+    selectedCombatEncounterId,
+    selectedCombatPattern,
+  ]);
+
+  const handleApplyForcedCombatTactic = useCallback(() => {
+    if (!selectedForcedTactic) {
+      setCombatDebugStatusMessage('请先选择要锁定的敌方战术。');
+      return;
+    }
+
+    void runCombatDebugTask('combat-force-tactic', async () => {
+      const result = await appDebugScenarioController.setForcedCombatTactic(
+        selectedForcedTactic,
+      );
+
+      setCombatDebugStatusMessage(`已锁定敌方战术为「${formatEnemyTacticLabel(result!)}」。`);
+      return result;
+    });
+  }, [runCombatDebugTask, selectedForcedTactic]);
+
+  const handleClearForcedCombatTactic = useCallback(() => {
+    void runCombatDebugTask('combat-clear-tactic', async () => {
+      await appDebugScenarioController.setForcedCombatTactic(null);
+      setSelectedForcedTactic('');
+      setCombatDebugStatusMessage('已清除敌方战术锁定，后续回合会恢复常规决策。');
+      return true;
+    });
+  }, [runCombatDebugTask]);
+
+  const handleApplyForcedBossPhase = useCallback(() => {
+    if (!selectedForcedPhaseId) {
+      setCombatDebugStatusMessage('请先选择要锁定的首领阶段。');
+      return;
+    }
+
+    const phaseLabel =
+      combatPhaseOptions.find((option) => option.value === selectedForcedPhaseId)?.label ??
+      selectedForcedPhaseId;
+
+    void runCombatDebugTask('combat-force-phase', async () => {
+      await appDebugScenarioController.setForcedBossPhase(selectedForcedPhaseId);
+      setCombatDebugStatusMessage(`已锁定首领阶段为「${phaseLabel}」。`);
+      return true;
+    });
+  }, [combatPhaseOptions, runCombatDebugTask, selectedForcedPhaseId]);
+
+  const handleClearForcedBossPhase = useCallback(() => {
+    void runCombatDebugTask('combat-clear-phase', async () => {
+      await appDebugScenarioController.setForcedBossPhase(null);
+      setSelectedForcedPhaseId('');
+      setCombatDebugStatusMessage('已清除首领阶段锁定，后续将恢复常规阶段推进。');
+      return true;
+    });
+  }, [runCombatDebugTask]);
+
+  const handleSimulateCombatRounds = useCallback(() => {
+    if (!combatState) {
+      setCombatDebugStatusMessage('请先启动一场战斗，再执行回合模拟。');
+      return;
+    }
+
+    void runCombatDebugTask('combat-simulate', async () => {
+      await appDebugScenarioController.setSimulatedPlayerPattern(selectedCombatPattern);
+      await appDebugScenarioController.setCombatSeed(Number(combatSeedValue));
+      const result = await appDebugScenarioController.simulateCombatRounds(
+        Number(combatSimulateRoundsValue),
+      );
+
+      if (result.length === 0) {
+        setCombatDebugStatusMessage('本次没有推进新的战斗回合。');
+        return result;
+      }
+
+      setCombatDebugStatusMessage(
+        `已按「${combatPatternLabels[selectedCombatPattern]}」模拟 ${result.length} 个回合。`,
+      );
+      return result;
+    });
+  }, [
+    combatSeedValue,
+    combatSimulateRoundsValue,
+    combatState,
+    runCombatDebugTask,
+    selectedCombatPattern,
+  ]);
 
   const handleActivateQuest = useCallback(
     (questId: string) => {
@@ -1138,6 +1458,36 @@ export function DebugPage() {
         onOpenDialogue={handleOpenNpcDialogue}
         onTestBranch={handleTestNpcBranch}
         onResetOutcome={handleResetNpcDebug}
+      />
+
+      <CombatDebugPanel
+        encounters={combatEncounterViewModels}
+        selectedEncounterId={selectedCombatEncounterId}
+        selectedTactic={selectedForcedTactic}
+        selectedPhaseId={selectedForcedPhaseId}
+        selectedPattern={selectedCombatPattern}
+        seedValue={combatSeedValue}
+        simulateRoundsValue={combatSimulateRoundsValue}
+        busyActionId={busyCombatDebugActionId}
+        statusMessage={combatDebugStatusMessage}
+        currentCombat={combatDebugViewModel.currentCombat}
+        logs={combatDebugViewModel.logs}
+        replaySummary={combatDebugViewModel.replaySummary}
+        tacticOptions={combatTacticOptions}
+        phaseOptions={combatPhaseOptions}
+        patternOptions={combatPatternOptions}
+        onSelectEncounter={setSelectedCombatEncounterId}
+        onSelectTactic={setSelectedForcedTactic}
+        onSelectPhase={setSelectedForcedPhaseId}
+        onSelectPattern={setSelectedCombatPattern}
+        onSeedChange={setCombatSeedValue}
+        onSimulateRoundsChange={setCombatSimulateRoundsValue}
+        onStartEncounter={handleStartCombatEncounter}
+        onApplyForcedTactic={handleApplyForcedCombatTactic}
+        onClearForcedTactic={handleClearForcedCombatTactic}
+        onApplyForcedPhase={handleApplyForcedBossPhase}
+        onClearForcedPhase={handleClearForcedBossPhase}
+        onSimulateRounds={handleSimulateCombatRounds}
       />
 
       <RenderingPreviewGallery

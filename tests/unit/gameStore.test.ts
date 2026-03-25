@@ -176,6 +176,10 @@ describe('game store', () => {
     store.getState().setSelectedAreaId(mockIds.areas.sanctum);
     store.getState().patchDebugToolsState({
       forcedEncounterId: mockIds.encounter,
+      forcedTactic: 'counter',
+      forcedPhaseId: 'phase:embers-unbound',
+      simulatedPlayerPattern: 'analysis-first',
+      combatSeed: 11,
     });
     store.getState().appendRouteHistory('review');
 
@@ -184,6 +188,14 @@ describe('game store', () => {
     expect(sessionSnapshotSchema.safeParse(exportedSessionSnapshot).success).toBe(true);
     expect(exportedSessionSnapshot.ui.selectedAreaId).toBe(mockIds.areas.sanctum);
     expect(exportedSessionSnapshot.debug.forcedEncounterId).toBe(mockIds.encounter);
+    expect(exportedSessionSnapshot.debug.forcedTactic).toBe('counter');
+    expect(exportedSessionSnapshot.debug.forcedPhaseId).toBe(
+      'phase:embers-unbound',
+    );
+    expect(exportedSessionSnapshot.debug.simulatedPlayerPattern).toBe(
+      'analysis-first',
+    );
+    expect(exportedSessionSnapshot.debug.combatSeed).toBe(11);
     expect(
       exportedSessionSnapshot.session.routeHistory[
         exportedSessionSnapshot.session.routeHistory.length - 1

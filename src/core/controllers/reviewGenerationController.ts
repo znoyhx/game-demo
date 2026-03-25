@@ -46,9 +46,14 @@ export class ReviewGenerationController {
 
   async generateReview() {
     const state = this.store.getState();
+    const encounter = state.combatState
+      ? state.combatEncountersById[state.combatState.encounterId] ?? null
+      : null;
     const input = {
       player: state.player,
+      encounter,
       combat: state.combatState,
+      combatHistory: state.combatHistory,
       questProgress: state.questProgressOrder.map(
         (questId) => state.questProgressById[questId],
       ),

@@ -3,9 +3,16 @@ import type { StoreApi } from 'zustand/vanilla';
 import type { AgentSet } from '../agents';
 import type { GameEventBus } from '../events/domainEvents';
 import type { GameLogger } from '../logging';
+import { resolveAreaEnvironmentState } from '../rules/areaRules';
 import type { CombatActionType } from '../rules';
 import type { GameStoreState } from '../state';
-import { resolveCombatRound } from '../rules';
+import {
+  applyDebugCombatPhase,
+  allowedCombatActions,
+  buildCombatHistoryEntry,
+  resolvePreferredCombatTactic,
+  resolveCombatRound,
+} from '../rules';
 import { formatEnemyTacticLabel, formatPlayerTagLabel } from '../utils/displayLabels';
 import { locale } from '../utils/locale';
 
@@ -16,6 +23,41 @@ import {
   type TimestampProvider,
 } from './controllerUtils';
 import { ReviewGenerationController } from './reviewGenerationController';
+
+const deriveCommonPlayerActions = (
+  combatState: NonNullable<GameStoreState['combatState']>,
+): CombatActionType[] => {
+  const counts = new Map<CombatActionType, { count: number; lastSeen: number }>();
+
+  combatState.logs.forEach((log, logIndex) => {
+    log.actions.forEach((action) => {
+      if (
+        action.actor !== 'player' ||
+        !allowedCombatActions.includes(action.actionType as CombatActionType)
+      ) {
+        return;
+      }
+
+      const typedAction = action.actionType as CombatActionType;
+      const current = counts.get(typedAction);
+      counts.set(typedAction, {
+        count: (current?.count ?? 0) + 1,
+        lastSeen: logIndex,
+      });
+    });
+  });
+
+  return [...counts.entries()]
+    .sort((left, right) => {
+      if (left[1].count !== right[1].count) {
+        return right[1].count - left[1].count;
+      }
+
+      return right[1].lastSeen - left[1].lastSeen;
+    })
+    .slice(0, 3)
+    .map(([action]) => action);
+};
 
 interface CombatControllerOptions {
   store: StoreApi<GameStoreState>;
@@ -63,14 +105,23 @@ export class CombatController {
     const enemyNpc = encounter.enemyNpcId
       ? state.npcDefinitionsById[encounter.enemyNpcId]
       : undefined;
-    const initialTactic = encounter.tacticPool[0];
     const initialPhaseId = encounter.bossPhases?.[0]?.id;
+    const forcedTactic =
+      state.debugTools.forcedTactic &&
+      encounter.tacticPool.includes(state.debugTools.forcedTactic)
+        ? state.debugTools.forcedTactic
+        : null;
 
-    state.setCombatState({
+    let combatState: NonNullable<GameStoreState['combatState']> = {
       encounterId: encounter.id,
       turn: 1,
       currentPhaseId: initialPhaseId,
-      activeTactic: initialTactic,
+      activeTactic: resolvePreferredCombatTactic({
+        encounter,
+        phaseId: initialPhaseId,
+        preferredTactic: forcedTactic,
+        fallbackTactic: encounter.tacticPool[0],
+      }),
       player: {
         id: 'combatant:player',
         name: locale.controllers.combat.playerCombatantName,
@@ -84,16 +135,74 @@ export class CombatController {
         maxHp: 90,
       },
       logs: [],
-    });
+    };
+
+    if (state.debugTools.forcedPhaseId) {
+      const forcedPhase = applyDebugCombatPhase({
+        encounter,
+        combatState,
+        forcedPhaseId: state.debugTools.forcedPhaseId,
+        preferredTactic: forcedTactic,
+        addLog: false,
+      });
+
+      if (forcedPhase.ok) {
+        combatState = forcedPhase.combatState;
+      }
+    }
+
+    state.setCombatState(combatState);
     state.setActivePanel('combat');
 
     this.eventBus?.emit('COMBAT_STARTED', {
       encounterId,
       areaId: encounter.areaId,
-      initialTactic,
+      initialTactic: combatState.activeTactic,
     });
 
     return this.store.getState().combatState;
+  }
+
+  async forceBossPhase(phaseId: string) {
+    const state = this.store.getState();
+    const combatState = state.combatState;
+
+    if (!combatState) {
+      return null;
+    }
+
+    const encounter = state.combatEncountersById[combatState.encounterId];
+    if (!encounter) {
+      return null;
+    }
+
+    const forcedPhase = applyDebugCombatPhase({
+      encounter,
+      combatState,
+      forcedPhaseId: phaseId,
+      preferredTactic: state.debugTools.forcedTactic,
+      addLog: true,
+    });
+
+    if (!forcedPhase.ok) {
+      return forcedPhase;
+    }
+
+    state.setCombatState(forcedPhase.combatState);
+
+    if (
+      combatState.currentPhaseId !== forcedPhase.combatState.currentPhaseId ||
+      combatState.activeTactic !== forcedPhase.combatState.activeTactic
+    ) {
+      this.eventBus?.emit('TACTIC_CHANGED', {
+        encounterId: combatState.encounterId,
+        previousTactic: combatState.activeTactic,
+        nextTactic: forcedPhase.combatState.activeTactic,
+        phaseId: forcedPhase.combatState.currentPhaseId,
+      });
+    }
+
+    return forcedPhase.combatState;
   }
 
   async submitPlayerAction(actionType: string) {
@@ -109,11 +218,34 @@ export class CombatController {
       return null;
     }
 
+    const encounterArea = state.areasById[encounter.areaId];
+    const environmentState = encounterArea
+      ? resolveAreaEnvironmentState(encounterArea, state.worldRuntime.flags)
+      : undefined;
+    const commonPlayerActions = deriveCommonPlayerActions(combatState);
+
     const tacticSelection = await this.agents.enemyTactician.run({
       encounter,
       combatState,
+      playerState: state.player,
       playerTags: state.playerModel.tags,
+      commonPlayerActions,
+      environmentState: environmentState
+        ? {
+            areaId: encounter.areaId,
+            label: environmentState.label,
+            hazard: environmentState.hazard,
+            weather: environmentState.weather,
+            lighting: environmentState.lighting,
+          }
+        : undefined,
+      bossPhaseId: combatState.currentPhaseId,
     });
+    const selectedTactic =
+      state.debugTools.forcedTactic &&
+      encounter.tacticPool.includes(state.debugTools.forcedTactic)
+        ? state.debugTools.forcedTactic
+        : tacticSelection.selectedTactic;
     const createdAt = this.now();
     this.logger?.recordAgentDecision({
       agentId: 'enemy-tactician',
@@ -124,20 +256,39 @@ export class CombatController {
         state.playerModel.tags.map(formatPlayerTagLabel),
       ),
       outputSummary: locale.controllers.combat.logs.tacticianOutput(
-        formatEnemyTacticLabel(tacticSelection.selectedTactic),
+        formatEnemyTacticLabel(selectedTactic),
       ),
       input: {
         encounterId: encounter.id,
         turn: combatState.turn,
+        bossPhaseId: combatState.currentPhaseId,
+        playerHp: state.player.hp,
+        playerEnergy: state.player.energy,
+        commonPlayerActions,
+        environmentState,
         playerTags: state.playerModel.tags,
       },
-      output: tacticSelection,
+      output: {
+        ...tacticSelection,
+        selectedTactic,
+      },
     });
     const round = resolveCombatRound({
       encounter,
       combatState,
+      playerState: state.player,
       playerActionType: actionType as CombatActionType,
-      enemyTactic: tacticSelection.selectedTactic,
+      enemyTactic: selectedTactic,
+      commonPlayerActions,
+      environmentState: environmentState
+        ? {
+            areaId: encounter.areaId,
+            label: environmentState.label,
+            hazard: environmentState.hazard,
+            weather: environmentState.weather,
+            lighting: environmentState.lighting,
+          }
+        : undefined,
     });
 
     if (!round.ok) {
@@ -145,6 +296,10 @@ export class CombatController {
     }
 
     state.setCombatState(round.combatState);
+    state.patchPlayerState({
+      hp: round.playerState.hp,
+      energy: round.playerState.energy,
+    });
     this.logger?.recordCombatDetail({
       encounterId: combatState.encounterId,
       createdAt,
@@ -167,12 +322,13 @@ export class CombatController {
     }
 
     if (round.result) {
-      state.appendCombatHistory({
-        encounterId: combatState.encounterId,
-        result: round.result,
-        finalTactic: round.combatState.activeTactic,
-        resolvedAt: createdAt,
-      });
+      state.appendCombatHistory(
+        buildCombatHistoryEntry({
+          encounter,
+          combatState: round.combatState,
+          resolvedAt: createdAt,
+        }),
+      );
 
       this.eventBus?.emit('COMBAT_ENDED', {
         encounterId: combatState.encounterId,

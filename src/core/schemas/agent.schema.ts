@@ -1,11 +1,19 @@
 import { z } from 'zod';
 
 import { areaSchema, interactionPointSchema } from './area.schema';
-import { combatEncounterDefinitionSchema, combatStateSchema, enemyTacticTypeSchema } from './combat.schema';
+import {
+  combatCommandActionSchema,
+  combatEncounterDefinitionSchema,
+  combatEnvironmentStateSchema,
+  combatHistoryEntrySchema,
+  combatStateSchema,
+  enemyTacticTypeSchema,
+} from './combat.schema';
 import { eventLogEntrySchema } from './event.schema';
 import {
   areaIdSchema,
   eventIdSchema,
+  genericIdSchema,
   itemIdSchema,
   nonEmptyStringSchema,
   nonNegativeIntegerSchema,
@@ -132,7 +140,11 @@ export const enemyTacticianInputSchema = z
   .object({
     encounter: combatEncounterDefinitionSchema,
     combatState: combatStateSchema,
+    playerState: playerStateSchema,
     playerTags: z.array(playerProfileTagSchema),
+    commonPlayerActions: z.array(combatCommandActionSchema).default([]),
+    environmentState: combatEnvironmentStateSchema.optional(),
+    bossPhaseId: genericIdSchema.optional(),
   })
   .strict();
 
@@ -178,7 +190,9 @@ export const playerModelOutputSchema = z
 export const explainCoachInputSchema = z
   .object({
     player: playerStateSchema,
+    encounter: combatEncounterDefinitionSchema.nullable().optional(),
     combat: combatStateSchema.nullable().optional(),
+    combatHistory: z.array(combatHistoryEntrySchema).default([]),
     questProgress: z.array(questProgressSchema),
     eventHistory: z.array(eventLogEntrySchema),
   })
