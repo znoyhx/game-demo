@@ -426,8 +426,12 @@ const buildDefaultPlayerModelState = (
 
 const buildDefaultEventDirectorState = (): EventDirectorState => ({
   pendingEventIds: [],
+  scheduledEvents: [],
   worldTension: 0,
   randomnessDisabled: false,
+  revealedClues: [],
+  shopPriceModifiers: [],
+  factionConflicts: [],
 });
 
 const buildDefaultExplorationState = (): ExplorationState => ({

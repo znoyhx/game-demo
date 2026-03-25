@@ -773,9 +773,15 @@ export interface EventTriggerCondition {
   type: EventTriggerType;
   requiredAreaId?: AreaId;
   requiredQuestId?: QuestId;
+  requiredQuestStatus?: QuestStatus;
   requiredNpcId?: NpcId;
+  requiredNpcTrustAtLeast?: number;
+  requiredNpcRelationshipAtLeast?: number;
   requiredPlayerTag?: PlayerProfileTag;
   requiredWorldFlag?: string;
+  requiredTimeOfDay?: string;
+  minimumWorldTension?: number;
+  maximumWorldTension?: number;
 }
 ```
 
@@ -784,11 +790,53 @@ export interface EventTriggerCondition {
 ```ts
 export interface EventEffect {
   setWorldFlags?: string[];
+  setWeather?: string;
+  setTimeOfDay?: string;
   unlockAreaIds?: AreaId[];
+  lockAreaIds?: AreaId[];
   startQuestIds?: QuestId[];
   updateNpcTrust?: Array<{
     npcId: NpcId;
     delta: number;
+  }>;
+  reduceResources?: Array<{
+    areaId: AreaId;
+    resourceNodeId?: string;
+    amount: number;
+    minimumRemaining?: number;
+  }>;
+  moveNpcs?: Array<{
+    npcId: NpcId;
+    toAreaId: AreaId;
+    x?: number;
+    y?: number;
+  }>;
+  setFactionStances?: Array<{
+    factionId: FactionId;
+    stance: "friendly" | "neutral" | "hostile" | "hidden";
+  }>;
+  registerFactionConflicts?: Array<{
+    conflictId: string;
+    label: string;
+    sourceFactionId: FactionId;
+    targetFactionId: FactionId;
+    intensity: number;
+  }>;
+  revealClues?: Array<{
+    clueId: string;
+    label: string;
+    description: string;
+    areaId?: AreaId;
+  }>;
+  setShopPriceModifiers?: Array<{
+    npcId: NpcId;
+    multiplier: number;
+    reason?: string;
+  }>;
+  bossAppearances?: Array<{
+    npcId: NpcId;
+    areaId: AreaId;
+    note?: string;
   }>;
 }
 ```
@@ -796,8 +844,19 @@ export interface EventEffect {
 ## 9.4 World Event
 
 ```ts
+export type WorldEventType =
+  | "weather-change"
+  | "resource-reduction"
+  | "npc-movement"
+  | "faction-conflict"
+  | "hidden-clue-exposure"
+  | "early-boss-appearance"
+  | "shop-price-change"
+  | "area-state-change";
+
 export interface WorldEvent {
   id: EventId;
+  type: WorldEventType;
   title: string;
   description: string;
   triggerConditions: EventTriggerCondition[];
@@ -813,6 +872,46 @@ export interface EventLogEntry {
   eventId: EventId;
   triggeredAt: IsoTimestamp;
   source: EventTriggerType | "debug";
+}
+```
+
+## 9.6 Event Director State
+
+```ts
+export interface EventDirectorState {
+  pendingEventIds: EventId[];
+  scheduledEvents: Array<{
+    eventId: EventId;
+    scheduledBy: "game-master" | "system";
+    reason?: string;
+  }>;
+  worldTension: number;
+  pacingNote?: string;
+  randomnessDisabled: boolean;
+  revealedClues: Array<{
+    clueId: string;
+    label: string;
+    description: string;
+    areaId?: AreaId;
+    sourceEventId: EventId;
+    revealedAt: IsoTimestamp;
+  }>;
+  shopPriceModifiers: Array<{
+    npcId: NpcId;
+    multiplier: number;
+    reason?: string;
+    sourceEventId: EventId;
+    changedAt: IsoTimestamp;
+  }>;
+  factionConflicts: Array<{
+    conflictId: string;
+    label: string;
+    sourceFactionId: FactionId;
+    targetFactionId: FactionId;
+    intensity: number;
+    sourceEventId: EventId;
+    startedAt: IsoTimestamp;
+  }>;
 }
 ```
 
@@ -1087,12 +1186,7 @@ export interface SaveSnapshot {
   events: {
     definitions: WorldEvent[];
     history: EventLogEntry[];
-    director?: {
-      pendingEventIds: EventId[];
-      worldTension: number;
-      pacingNote?: string;
-      randomnessDisabled: boolean;
-    };
+    director?: EventDirectorState;
   };
   combatSystem?: {
     encounters: CombatEncounterDefinition[];
@@ -1347,6 +1441,11 @@ export interface GameMasterInput {
   activeQuestIds: QuestId[];
   triggeredEvents: EventLogEntry[];
   playerTags: PlayerProfileTag[];
+  worldFlags: Record<string, boolean>;
+  worldTension: number;
+  timeOfDay?: string;
+  availableEvents: WorldEvent[];
+  pendingEvents: EventDirectorState["scheduledEvents"];
 }
 ```
 
@@ -1355,7 +1454,9 @@ export interface GameMasterInput {
 ```ts
 export interface GameMasterOutput {
   eventToTrigger?: EventId;
+  scheduledEvents: EventDirectorState["scheduledEvents"];
   pacingNote?: string;
+  worldTensionDelta?: number;
 }
 ```
 
@@ -1667,6 +1768,7 @@ src/core/schemas/
   world.schema.ts
   area.schema.ts
   quest.schema.ts
+  eventDebug.schema.ts
   npc.schema.ts
   player.schema.ts
   config.schema.ts

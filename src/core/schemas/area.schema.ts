@@ -100,7 +100,7 @@ export const resourceNodeSchema = z
     label: nonEmptyStringSchema,
     kind: resourceNodeKindSchema,
     itemId: itemIdSchema.optional(),
-    quantity: positiveIntegerSchema,
+    quantity: nonNegativeIntegerSchema,
     renewable: z.boolean(),
     discoveredByDefault: z.boolean(),
     requiredWorldFlags: z.array(nonEmptyStringSchema).optional(),

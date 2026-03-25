@@ -172,7 +172,7 @@ export const zhCN = {
     subtitle:
       '以前端网页为先、以模拟实现为先，并按清晰分层为玩法、持久化、代理编排和调试工具做好承接。',
     badges: {
-      milestone: '阶段 7：完整实现战斗与敌人策略模块',
+      milestone: '阶段 8：完整实现动态事件与导演模块',
       mockFirst: '模拟优先',
     },
     navigationAriaLabel: '主导航',

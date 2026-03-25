@@ -3,6 +3,7 @@ export * from './areaNavigationController';
 export * from './combatController';
 export * from './controllerUtils';
 export * from './debugScenarioController';
+export * from './eventDebugController';
 export * from './eventTriggerController';
 export * from './explorationEncounterController';
 export * from './npcInteractionController';

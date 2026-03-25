@@ -62,7 +62,11 @@ export const mockAreas: Area[] = [
         requiredWorldFlags: ['ashfallWarningSeen'],
       },
     ],
-    eventIds: [mockIds.events.ashfallWarning],
+    eventIds: [
+      mockIds.events.ashfallWarning,
+      mockIds.events.supplyShortfall,
+      mockIds.events.marketPanic,
+    ],
     resourceNodes: [
       {
         id: 'resource-node:crossroads-supply-cache',
@@ -206,7 +210,12 @@ export const mockAreas: Area[] = [
         requiredWorldFlags: ['archiveEchoSeen'],
       },
     ],
-    eventIds: [mockIds.events.archiveEchoes],
+    eventIds: [
+      mockIds.events.archiveEchoes,
+      mockIds.events.patrolRedeployment,
+      mockIds.events.borderSkirmish,
+      mockIds.events.earlyBossSighted,
+    ],
     resourceNodes: [
       {
         id: 'resource-node:archive-relay-core',

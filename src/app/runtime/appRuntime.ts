@@ -4,6 +4,7 @@ import {
   AreaNavigationController,
   CombatController,
   DebugScenarioController,
+  EventDebugController,
   EventTriggerController,
   ExplorationEncounterController,
   NpcInteractionController,
@@ -62,6 +63,12 @@ export const appEventTriggerController = new EventTriggerController({
   saveController: appSaveLoadController,
   questController: appQuestProgressionController,
   logger: gameLogger,
+});
+
+export const appEventDebugController = new EventDebugController({
+  store: gameStore,
+  eventController: appEventTriggerController,
+  saveController: appSaveLoadController,
 });
 
 export const appNpcInteractionController = new NpcInteractionController({

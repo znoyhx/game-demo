@@ -45,7 +45,7 @@ describe('mvp mock fixtures', () => {
     expect(mockQuestDefinitions.filter((entry) => entry.type === 'tutorial')).toHaveLength(1);
     expect(mockQuestDefinitions.filter((entry) => entry.type === 'hidden')).toHaveLength(1);
     expect(mockQuestDefinitions.filter((entry) => entry.type === 'dynamic')).toHaveLength(1);
-    expect(mockWorldEvents).toHaveLength(3);
+    expect(mockWorldEvents).toHaveLength(8);
   });
 
   it('validates every fixture against the runtime schemas', () => {

@@ -9,9 +9,14 @@ import {
   combatStateSchema,
   enemyTacticTypeSchema,
 } from './combat.schema';
-import { eventLogEntrySchema } from './event.schema';
+import {
+  eventLogEntrySchema,
+  scheduledEventStateSchema,
+  worldEventSchema,
+} from './event.schema';
 import {
   areaIdSchema,
+  booleanFlagRecordSchema,
   eventIdSchema,
   genericIdSchema,
   itemIdSchema,
@@ -161,13 +166,20 @@ export const gameMasterInputSchema = z
     activeQuestIds: z.array(questIdSchema),
     triggeredEvents: z.array(eventLogEntrySchema),
     playerTags: z.array(playerProfileTagSchema),
+    worldFlags: booleanFlagRecordSchema,
+    worldTension: nonNegativeIntegerSchema,
+    timeOfDay: nonEmptyStringSchema.optional(),
+    availableEvents: z.array(worldEventSchema),
+    pendingEvents: z.array(scheduledEventStateSchema).default([]),
   })
   .strict();
 
 export const gameMasterOutputSchema = z
   .object({
     eventToTrigger: eventIdSchema.optional(),
+    scheduledEvents: z.array(scheduledEventStateSchema).default([]),
     pacingNote: nonEmptyStringSchema.optional(),
+    worldTensionDelta: z.number().int().min(-100).max(100).optional(),
   })
   .strict();
 

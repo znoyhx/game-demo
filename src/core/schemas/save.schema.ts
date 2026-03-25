@@ -72,8 +72,12 @@ export const saveSnapshotSchema = z
         director: eventDirectorStateSchema
           .default({
             pendingEventIds: [],
+            scheduledEvents: [],
             worldTension: 0,
             randomnessDisabled: false,
+            revealedClues: [],
+            shopPriceModifiers: [],
+            factionConflicts: [],
           }),
       })
       .strict(),

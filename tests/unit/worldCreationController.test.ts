@@ -8,6 +8,7 @@ import {
   defaultWorldCreationRequest,
   mockQuestDefinitions,
   mockSaveSnapshot,
+  mockWorldEvents,
 } from '../../src/core/mocks';
 import type { SaveSnapshot } from '../../src/core/schemas';
 import { saveSnapshotSchema } from '../../src/core/schemas';
@@ -127,7 +128,7 @@ describe('world creation controller', () => {
     expect(result.snapshot.quests.definitions).toHaveLength(mockQuestDefinitions.length);
     expect(state.questDefinitionOrder).toHaveLength(mockQuestDefinitions.length);
     expect(state.npcDefinitionOrder).toHaveLength(5);
-    expect(state.eventDefinitionOrder).toHaveLength(3);
+    expect(state.eventDefinitionOrder).toHaveLength(mockWorldEvents.length);
     expect(state.combatEncounterOrder).toHaveLength(1);
     expect(state.resourceState.entries.length).toBeGreaterThan(0);
   });

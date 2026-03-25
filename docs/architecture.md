@@ -482,6 +482,9 @@ Enable short-path verification of every main system.
 * NPC trust / relationship / memory injection
 * deterministic NPC branch testing with rollback
 * event trigger panel
+* manual event trigger / event replay controls
+* event cause, source, and state-change inspection
+* randomness toggle for deterministic event testing
 * combat entry simulator
 * forced combat tactic / boss phase controls
 * seeded player-pattern combat simulation
@@ -516,6 +519,7 @@ Make AI and rules behavior visible for demo, explanation, and debugging.
 * review page generation
 * judge-facing explanation moments
 * issue reproduction
+* event replay and cause/effect verification
 
 ---
 
@@ -914,8 +918,11 @@ This slice stores runtime exploration outcomes separately from area definitions 
 Contains:
 
 * triggered event history
-* pending event queue
+* pending and scheduled event queues
 * world tension or pacing indicators
+* revealed clue registry
+* active shop-price modifiers
+* active faction-conflict summaries
 
 ## 8.9 Save Metadata State
 
@@ -1039,7 +1046,7 @@ A save snapshot should contain:
 * player state snapshot
 * player model state
 * exploration runtime state for searched nodes and visible ambush signals
-* event history plus director/runtime state
+* event history plus director/runtime state, including scheduled events, revealed clues, market modifiers, and faction-conflict markers
 * combat definitions plus combat runtime/history if relevant
 * review state if retained
 * config/resource state when it affects the active run

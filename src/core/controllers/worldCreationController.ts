@@ -274,23 +274,36 @@ const buildEventDefinitions = (
   const secondArea = areas[1] ?? mockSaveSnapshot.areas[1];
   const thirdArea = areas[2] ?? mockSaveSnapshot.areas[2];
 
-  return mockWorldEvents.map((event, index) => ({
-    ...event,
-    title:
-      index === 0
-        ? worldCreationText.eventTitles.areaDisruption(firstArea.name)
-        : index === 1
-          ? worldCreationText.eventTitles.areaSignal(secondArea.name)
-          : worldCreationText.eventTitles.areaCountermeasure(thirdArea.name),
-    description:
-      index === 0
-        ? worldCreationText.eventDescriptions.opening(world.summary.name)
-        : index === 1
-          ? worldCreationText.eventDescriptions.midpoint(request.gameGoal.trim())
-          : worldCreationText.eventDescriptions.finale(
-              preferredModeLabels[request.preferredMode],
-            ),
-  }));
+  return mockWorldEvents.map((event) => {
+    switch (event.type) {
+      case 'weather-change':
+        return {
+          ...event,
+          title: worldCreationText.eventTitles.areaDisruption(firstArea.name),
+          description: worldCreationText.eventDescriptions.opening(world.summary.name),
+        };
+      case 'hidden-clue-exposure':
+        return {
+          ...event,
+          title: worldCreationText.eventTitles.areaSignal(secondArea.name),
+          description: worldCreationText.eventDescriptions.midpoint(request.gameGoal.trim()),
+        };
+      case 'area-state-change':
+      case 'early-boss-appearance':
+        return {
+          ...event,
+          title: worldCreationText.eventTitles.areaCountermeasure(thirdArea.name),
+          description: worldCreationText.eventDescriptions.finale(
+            preferredModeLabels[request.preferredMode],
+          ),
+        };
+      default:
+        return {
+          ...event,
+          description: `${event.description} 当前世界“${world.summary.name}”会把这一拍压力接入 ${request.gameGoal.trim()} 的推进链路。`,
+        };
+    }
+  });
 };
 
 const buildResourceState = (
@@ -514,12 +527,16 @@ const buildSnapshot = (options: {
   const eventDirector = {
     pendingEventIds:
       request.preferredMode === 'combat' ? [events[events.length - 1]?.id].filter(Boolean) : [],
+    scheduledEvents: [],
     worldTension:
       request.difficulty === 'hard' ? 72 : request.difficulty === 'easy' ? 24 : 48,
     pacingNote: worldCreationText.pacingNote(
       preferredModeLabels[request.preferredMode],
     ),
     randomnessDisabled: request.devModeEnabled,
+    revealedClues: [],
+    shopPriceModifiers: [],
+    factionConflicts: [],
   };
   const combatEncounter = buildCombatEncounter(areas, npcDefinitions, world);
   const config = buildGameConfig(request, storyPremise);

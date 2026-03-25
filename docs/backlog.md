@@ -6,7 +6,7 @@
 ```md
 # PixelForge Agent Backlog
 Version: v0.1  
-Status: Active delivery backlog（当前标记：阶段 7——完整实现战斗与敌人策略模块；补强探索遭遇可视化与搜索交互）
+Status: Active delivery backlog（当前标记：阶段 8——完整实现动态事件与导演模块；补强事件调度、世界扰动与可持久化运行态）
 
 ---
 
@@ -623,6 +623,8 @@ Make the world feel reactive and make AI-driven behavior legible to judges and p
 - state viewer
 - save slot viewer
 - event trigger panel
+- event replay / cause inspection
+- randomness toggle for deterministic event testing
 - player model editor
 - NPC editor
 - combat launch tools
@@ -631,6 +633,7 @@ Make the world feel reactive and make AI-driven behavior legible to judges and p
 **Acceptance criteria**
 - debug tools cover all MVP systems
 - common test scenarios can be entered in under 30 seconds
+- dynamic events can be manually triggered, replayed where practical, and inspected with visible cause/source/result summaries
 
 **Dependencies**
 - M1-7, M3-7, M4-1, M4-2

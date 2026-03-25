@@ -206,11 +206,24 @@ export const sampleGameMasterInput: GameMasterInput = {
     .map((entry) => entry.questId),
   triggeredEvents: mockEventHistory,
   playerTags: samplePlayerState.profileTags,
+  worldFlags: sampleWorld.flags,
+  worldTension: mockSaveSnapshot.events.director.worldTension,
+  timeOfDay: sampleWorld.timeOfDay,
+  availableEvents: mockWorldEvents,
+  pendingEvents: mockSaveSnapshot.events.director.scheduledEvents,
 };
 
 export const sampleGameMasterOutput: GameMasterOutput = {
   eventToTrigger: mockIds.events.wardenCountermeasure,
-  pacingNote: 'Escalate tension with the sanctum countermeasure once the archive route is stable.',
+  scheduledEvents: [
+    {
+      eventId: mockIds.events.marketPanic,
+      scheduledBy: 'game-master',
+      reason: '前哨市场张力偏高，应先排入补给抬价事件。',
+    },
+  ],
+  pacingNote: '秘库路线稳定后，继续把圣所反制压力往上提。',
+  worldTensionDelta: 6,
 };
 
 export const samplePlayerModelInput: PlayerModelInput = {
@@ -222,7 +235,7 @@ export const samplePlayerModelInput: PlayerModelInput = {
 
 export const samplePlayerModelOutput: PlayerModelOutput = {
   tags: ['exploration', 'story', 'risky'],
-  rationale: ['The player favors route discovery, side conversations, and direct combat pressure.'],
+  rationale: ['玩家偏好探索路径、支线对话，并愿意在战斗中持续向前施压。'],
 };
 
 export const sampleExplainCoachInput: ExplainCoachInput = {

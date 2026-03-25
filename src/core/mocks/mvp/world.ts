@@ -38,11 +38,18 @@ export const mockWorld: World = {
   flags: {
     tutorialCompleted: true,
     ashfallWarningSeen: true,
+    supplyShortageActive: false,
+    marketPanicActive: false,
     archiveDoorOpened: true,
     bromSupplyDelivered: true,
     archiveEchoSeen: true,
+    forbiddenChantExposed: true,
     sanctumSealBroken: false,
     rowanPatrolSecured: false,
+    rowanRedeployed: false,
+    borderSkirmishActive: false,
+    ashWardenSighted: false,
     wardenAlertRaised: false,
+    sanctumLockdownActive: false,
   },
 };

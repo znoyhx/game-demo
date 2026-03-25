@@ -9,7 +9,7 @@ import {
 } from '../schemas';
 import { ensureAreaSceneDefinition } from '../utils/areaSceneDefinition';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = '0.5.0';
+export const CURRENT_SAVE_SCHEMA_VERSION = '0.6.0';
 
 const migrateableSaveSnapshotSchema = saveSnapshotSchema.extend({
   areas: z.array(z.union([areaSchema, legacyAreaSchema])),
@@ -73,6 +73,19 @@ export class VersionedSaveMigrator implements SaveMigrator {
         ruleStates: [],
         searchedInteractionIds: [],
         collectedResourceNodeIds: [],
+      },
+      events: {
+        ...snapshot.events,
+        director: {
+          pendingEventIds: snapshot.events.director?.pendingEventIds ?? [],
+          scheduledEvents: snapshot.events.director?.scheduledEvents ?? [],
+          worldTension: snapshot.events.director?.worldTension ?? 0,
+          pacingNote: snapshot.events.director?.pacingNote,
+          randomnessDisabled: snapshot.events.director?.randomnessDisabled ?? false,
+          revealedClues: snapshot.events.director?.revealedClues ?? [],
+          shopPriceModifiers: snapshot.events.director?.shopPriceModifiers ?? [],
+          factionConflicts: snapshot.events.director?.factionConflicts ?? [],
+        },
       },
       metadata: {
         ...snapshot.metadata,

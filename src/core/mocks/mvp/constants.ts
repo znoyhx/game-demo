@@ -1,4 +1,4 @@
-export const MOCK_SCHEMA_VERSION = '0.5.0';
+export const MOCK_SCHEMA_VERSION = '0.6.0';
 
 export const mockTimeline = {
   worldCreatedAt: '2026-03-23T00:00:00.000Z',
@@ -44,7 +44,12 @@ export const mockIds = {
   },
   events: {
     ashfallWarning: 'event:ashfall-warning',
+    supplyShortfall: 'event:supply-shortfall',
+    marketPanic: 'event:market-panic',
+    patrolRedeployment: 'event:patrol-redeployment',
     archiveEchoes: 'event:archive-echoes',
+    borderSkirmish: 'event:border-skirmish',
+    earlyBossSighted: 'event:early-boss-sighted',
     wardenCountermeasure: 'event:warden-countermeasure',
   },
   encounter: 'encounter:ashen-warden',

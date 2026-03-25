@@ -5,10 +5,12 @@ import { useShallow } from 'zustand/react/shallow';
 import {
   appAreaDebugController,
   appDebugScenarioController,
+  appEventDebugController,
   appQuestDebugController,
   appWorldCreationController,
 } from '../../app/runtime/appRuntime';
 import { CombatDebugPanel } from '../../components/debug/CombatDebugPanel';
+import { EventDebugPanel } from '../../components/debug/EventDebugPanel';
 import { RenderingPreviewGallery } from '../../components/debug/RenderingPreviewGallery';
 import { DebugPanel } from '../../components/debug/DebugPanel';
 import { NpcDebugPanel } from '../../components/debug/NpcDebugPanel';
@@ -27,6 +29,7 @@ import {
 import type {
   CombatDebugPlayerPattern,
   EnemyTacticType,
+  EventDebugOutcome,
   NpcDialogueIntent,
   NpcDisposition,
   NpcEmotionalState,
@@ -122,6 +125,19 @@ export function DebugPage() {
   const [selectedQuestBranchId, setSelectedQuestBranchId] = useState('');
   const [questDebugStatusMessage, setQuestDebugStatusMessage] = useState<string | null>(null);
   const [busyQuestDebugActionId, setBusyQuestDebugActionId] = useState<string | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [selectedEventHistoryIndex, setSelectedEventHistoryIndex] = useState<number | null>(
+    null,
+  );
+  const [eventDebugStatusMessage, setEventDebugStatusMessage] = useState<string | null>(
+    null,
+  );
+  const [busyEventDebugActionId, setBusyEventDebugActionId] = useState<string | null>(
+    null,
+  );
+  const [latestEventOutcome, setLatestEventOutcome] = useState<EventDebugOutcome | null>(
+    null,
+  );
   const [selectedNpcId, setSelectedNpcId] = useState<string | null>(null);
   const [npcTrustValue, setNpcTrustValue] = useState('0');
   const [npcRelationshipValue, setNpcRelationshipValue] = useState('0');
@@ -182,6 +198,18 @@ export function DebugPage() {
       setSelectedQuestId(nextQuest?.id ?? null);
     }
   }, [questDefinitions, selectedQuestId]);
+
+  useEffect(() => {
+    if (!selectedEventId || !eventDefinitions.some((event) => event.id === selectedEventId)) {
+      const nextEvent =
+        currentArea?.eventIds
+          .map((eventId) => eventDefinitions.find((event) => event.id === eventId) ?? null)
+          .find((event): event is NonNullable<typeof event> => event !== null) ??
+        eventDefinitions[0] ??
+        null;
+      setSelectedEventId(nextEvent?.id ?? null);
+    }
+  }, [currentArea?.eventIds, eventDefinitions, selectedEventId]);
 
   useEffect(() => {
     if (!selectedNpcId || !npcDefinitions.some((npc) => npc.id === selectedNpcId)) {
@@ -381,6 +409,7 @@ export function DebugPage() {
   );
 
   const questDebugSnapshot = appQuestDebugController.getDebugSnapshot();
+  const eventDebugSnapshot = appEventDebugController.getDebugSnapshot();
   const npcDispositionOptions = useMemo(
     () =>
       Object.entries(npcDispositionLabels).map(([value, label]) => ({
@@ -521,6 +550,23 @@ export function DebugPage() {
   );
 
   useEffect(() => {
+    if (eventDebugSnapshot.history.length === 0) {
+      setSelectedEventHistoryIndex(null);
+      return;
+    }
+
+    const hasCurrentSelection =
+      selectedEventHistoryIndex !== null &&
+      eventDebugSnapshot.history.some((entry) => entry.index === selectedEventHistoryIndex);
+
+    if (!hasCurrentSelection) {
+      setSelectedEventHistoryIndex(
+        eventDebugSnapshot.history[eventDebugSnapshot.history.length - 1]?.index ?? null,
+      );
+    }
+  }, [eventDebugSnapshot.history, selectedEventHistoryIndex]);
+
+  useEffect(() => {
     if (!selectedQuestSummary) {
       setSelectedQuestStageIndex(0);
       setSelectedQuestBranchId('');
@@ -654,6 +700,25 @@ export function DebugPage() {
     [],
   );
 
+  const runEventDebugTask = useCallback(
+    async <T,>(actionId: string, task: () => Promise<T>) => {
+      setBusyEventDebugActionId(actionId);
+      setEventDebugStatusMessage(null);
+
+      try {
+        return await task();
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : '事件调试执行失败。';
+        setEventDebugStatusMessage(message);
+        return null;
+      } finally {
+        setBusyEventDebugActionId(null);
+      }
+    },
+    [],
+  );
+
   const runNpcDebugTask = useCallback(
     async <T,>(actionId: string, task: () => Promise<T>) => {
       setBusyNpcDebugActionId(actionId);
@@ -691,6 +756,74 @@ export function DebugPage() {
     },
     [],
   );
+
+  const handleTriggerSelectedEvent = useCallback(() => {
+    const event = eventDebugSnapshot.events.find((entry) => entry.eventId === selectedEventId);
+
+    if (!event || !selectedEventId) {
+      setEventDebugStatusMessage('请先选择一个事件。');
+      return;
+    }
+
+    void runEventDebugTask('event-trigger', async () => {
+      const result = await appEventDebugController.triggerEvent(selectedEventId);
+
+      if (!result) {
+        setEventDebugStatusMessage('事件手动触发失败。');
+        return null;
+      }
+
+      setLatestEventOutcome(result);
+      setSelectedEventHistoryIndex(eventDebugSnapshot.history.length);
+      setEventDebugStatusMessage(`已手动触发“${event.title}”。`);
+      return result;
+    });
+  }, [
+    eventDebugSnapshot.events,
+    eventDebugSnapshot.history.length,
+    runEventDebugTask,
+    selectedEventId,
+  ]);
+
+  const handleReplaySelectedEventHistory = useCallback(() => {
+    const historyEntry = eventDebugSnapshot.history.find(
+      (entry) => entry.index === selectedEventHistoryIndex,
+    );
+
+    if (!historyEntry || selectedEventHistoryIndex === null) {
+      setEventDebugStatusMessage('当前没有可回放的历史事件。');
+      return;
+    }
+
+    void runEventDebugTask('event-replay', async () => {
+      const result = await appEventDebugController.replayEvent(selectedEventHistoryIndex);
+
+      if (!result) {
+        setEventDebugStatusMessage('历史事件回放失败。');
+        return null;
+      }
+
+      setLatestEventOutcome(result);
+      setSelectedEventId(result.eventId);
+      setSelectedEventHistoryIndex(eventDebugSnapshot.history.length);
+      setEventDebugStatusMessage(`已回放历史事件“${historyEntry.title}”。`);
+      return result;
+    });
+  }, [eventDebugSnapshot.history, runEventDebugTask, selectedEventHistoryIndex]);
+
+  const handleToggleEventRandomness = useCallback(() => {
+    void runEventDebugTask('event-randomness', async () => {
+      const disabled = !eventDebugSnapshot.director.randomnessDisabled;
+      const result = await appEventDebugController.setRandomnessDisabled(disabled);
+
+      setEventDebugStatusMessage(
+        disabled
+          ? '已关闭事件随机性，后续调试会保持稳定执行。'
+          : '已恢复事件随机性。'
+      );
+      return result;
+    });
+  }, [eventDebugSnapshot.director.randomnessDisabled, runEventDebugTask]);
 
   const parseMemoryLines = useCallback(
     (value: string, limit: number) =>
@@ -1433,6 +1566,26 @@ export function DebugPage() {
         onJumpToStage={handleJumpQuestStage}
         onSimulateCondition={handleSimulateQuestCondition}
         onResetQuest={handleResetQuestDebug}
+      />
+
+      <EventDebugPanel
+        snapshot={eventDebugSnapshot}
+        selectedEventId={selectedEventId}
+        selectedHistoryIndex={selectedEventHistoryIndex}
+        latestOutcome={latestEventOutcome}
+        busyActionId={busyEventDebugActionId}
+        statusMessage={eventDebugStatusMessage}
+        onSelectEvent={(eventId) => {
+          setSelectedEventId(eventId);
+          setEventDebugStatusMessage(null);
+        }}
+        onSelectHistoryIndex={(historyIndex) => {
+          setSelectedEventHistoryIndex(historyIndex);
+          setEventDebugStatusMessage(null);
+        }}
+        onTriggerSelectedEvent={handleTriggerSelectedEvent}
+        onReplaySelectedHistory={handleReplaySelectedEventHistory}
+        onToggleRandomness={handleToggleEventRandomness}
       />
 
       <NpcDebugPanel
