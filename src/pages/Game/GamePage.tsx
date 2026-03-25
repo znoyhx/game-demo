@@ -5,6 +5,7 @@ import {
   appAreaNavigationController,
   appCombatController,
   appEventTriggerController,
+  appExplorationEncounterController,
   appNpcInteractionController,
   appPlayerModelController,
   appReviewGenerationController,
@@ -24,6 +25,7 @@ import {
   selectEventDefinitions,
   selectEventDirector,
   selectEventHistory,
+  selectExplorationState,
   selectMapState,
   selectNpcDefinitions,
   selectNpcStates,
@@ -40,6 +42,8 @@ import {
 } from '../../core/state';
 import { buildForcedRenderMapState } from '../../core/state/renderPreview';
 import {
+  formatCombatResultLabel,
+  formatEnemyTacticLabel,
   formatNpcDispositionLabel,
   formatNpcEmotionalStateLabel,
 } from '../../core/utils/displayLabels';
@@ -62,6 +66,7 @@ export function GamePage() {
   const npcStates = useGameStore(useShallow(selectNpcStates));
   const player = useGameStore(selectPlayerState);
   const playerModel = useGameStore(selectPlayerModelState);
+  const explorationState = useGameStore(selectExplorationState);
   const combatEncounters = useGameStore(useShallow(selectCombatEncounters));
   const combatState = useGameStore(selectCombatState);
   const eventDefinitions = useGameStore(useShallow(selectEventDefinitions));
@@ -71,6 +76,7 @@ export function GamePage() {
   const saveMetadata = useGameStore(selectSaveMetadata);
   const saveStatus = useGameStore(selectSaveStatus);
   const logEntries = useGameLogStore(selectLogEntries);
+
   const forcedArea = areas.find((area) => area.id === debugTools.forcedAreaId) ?? null;
   const effectiveCurrentArea = forcedArea ?? currentArea;
   const effectiveMapState = useMemo(
@@ -78,10 +84,17 @@ export function GamePage() {
     [effectiveCurrentArea?.id, mapState],
   );
   const isForcedRender = forcedArea !== null;
+  const activeCombatEncounter = useMemo(
+    () =>
+      combatEncounters.find((encounter) => encounter.id === combatState?.encounterId) ??
+      null,
+    [combatEncounters, combatState?.encounterId],
+  );
+  const isCombatInteractionLocked = combatState !== null && !combatState.result;
 
   const [dialogueState, setDialogueState] = useState<NpcDialogueSession | null>(null);
   const [statusMessage, setStatusMessage] = useState(
-    '请选择角色、传送门、事件高亮或战斗标记，开始当前演示。',
+    '已进入当前区域，请在地图、对话与战斗之间选择下一步行动。',
   );
   const [busyControlId, setBusyControlId] = useState<string | null>(null);
   const [busyAreaId, setBusyAreaId] = useState<string | null>(null);
@@ -101,6 +114,7 @@ export function GamePage() {
         npcStates,
         player,
         playerModel,
+        explorationState,
         combatEncounters,
         combatState,
         eventDefinitions,
@@ -121,6 +135,7 @@ export function GamePage() {
       eventDefinitions,
       eventDirector,
       eventHistory,
+      explorationState,
       logEntries,
       npcDefinitions,
       npcStates,
@@ -130,8 +145,8 @@ export function GamePage() {
       questProgressEntries,
       saveMetadata,
       saveStatus,
-      worldRuntime,
       worldFlags,
+      worldRuntime,
       worldSummary,
     ],
   );
@@ -143,7 +158,6 @@ export function GamePage() {
     }
 
     const existingDialogue = appNpcInteractionController.getDialogueState(selectedNpcId);
-
     if (existingDialogue) {
       setDialogueState(existingDialogue);
       return;
@@ -152,11 +166,9 @@ export function GamePage() {
     let cancelled = false;
 
     void appNpcInteractionController.startDialogue(selectedNpcId).then((result) => {
-      if (cancelled || !result) {
-        return;
+      if (!cancelled && result) {
+        setDialogueState(result);
       }
-
-      setDialogueState(result);
     });
 
     return () => {
@@ -173,45 +185,33 @@ export function GamePage() {
     setDialogueState(null);
   }, [dialogueState]);
 
-  const runControlTask = useCallback(
-    async <T,>(controlId: string, task: () => Promise<T>) => {
-      setBusyControlId(controlId);
+  const runControlTask = useCallback(async <T,>(controlId: string, task: () => Promise<T>) => {
+    setBusyControlId(controlId);
 
-      try {
-        return await task();
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unexpected game action failure.';
-        setStatusMessage(message);
-        return null;
-      } finally {
-        setBusyControlId(null);
-      }
-    },
-    [],
-  );
+    try {
+      return await task();
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : '当前操作执行失败，请稍后重试。');
+      return null;
+    } finally {
+      setBusyControlId(null);
+    }
+  }, []);
 
   const handleManualSave = useCallback(() => {
     void runControlTask('manual-save', async () => {
       await appSaveLoadController.saveNow('manual');
-      setStatusMessage(
-        isForcedRender
-          ? '已手动保存。正式进度已同步，强制渲染仍保持本地预览。'
-          : '已手动保存。持久化状态已完成同步。',
-      );
+      setStatusMessage(isForcedRender ? '已保存当前调试预览状态。' : '已完成手动存档。');
       return true;
     });
   }, [isForcedRender, runControlTask]);
 
   const handleAreaSelect = useCallback(
     async (areaId: string) => {
-        if (areaId === effectiveCurrentArea?.id) {
-          setStatusMessage(
-            isForcedRender
-              ? `当前已经在预览 ${effectiveCurrentArea.name}。`
-              : `当前已经位于 ${effectiveCurrentArea.name}。`,
-          );
-          return;
-        }
+      if (areaId === effectiveCurrentArea?.id) {
+        setStatusMessage(`当前已位于 ${effectiveCurrentArea.name}。`);
+        return;
+      }
 
       if (isForcedRender) {
         await closeDialogue();
@@ -220,9 +220,7 @@ export function GamePage() {
           forcedAreaId: areaId,
         });
         const nextArea = areas.find((area) => area.id === areaId);
-        setStatusMessage(
-          `强制渲染已切换到 ${nextArea?.name ?? '所选区域'}，正式进度保持不变。`,
-        );
+        setStatusMessage(`调试预览已切换到 ${nextArea?.name ?? '目标区域'}。`);
         return;
       }
 
@@ -233,26 +231,19 @@ export function GamePage() {
         const result = await appAreaNavigationController.enterArea(areaId);
 
         if (result && 'ok' in result && !result.ok) {
-          setStatusMessage(result.reasons[0] ?? '区域切换失败。');
+          setStatusMessage(result.reasons[0] ?? '当前无法进入该区域。');
           return;
         }
 
         const nextArea = areas.find((area) => area.id === areaId);
-        setStatusMessage(`已进入 ${nextArea?.name ?? '所选区域'}，并自动保存了路线状态。`);
+        setStatusMessage(`已前往 ${nextArea?.name ?? '目标区域'}。`);
       } catch (error) {
-        const message = error instanceof Error ? error.message : '无法进入所选区域。';
-        setStatusMessage(message);
+        setStatusMessage(error instanceof Error ? error.message : '区域切换失败。');
       } finally {
         setBusyAreaId(null);
       }
     },
-    [
-      areas,
-      closeDialogue,
-      effectiveCurrentArea,
-      isForcedRender,
-      patchDebugToolsState,
-    ],
+    [areas, closeDialogue, effectiveCurrentArea, isForcedRender, patchDebugToolsState],
   );
 
   const handleNpcSelect = useCallback(
@@ -264,21 +255,18 @@ export function GamePage() {
       );
 
       if (!result) {
-        setStatusMessage('当前无法打开该角色对话。');
+        setStatusMessage('当前无法开始对话。');
         return;
       }
 
       setDialogueState(result);
-      setStatusMessage(`已与 ${result.npcName} 开启对话，可使用下方控制项推进分支。`);
+      setStatusMessage(`已与 ${result.npcName} 开始对话。`);
     },
     [closeDialogue, runControlTask],
   );
 
   const sceneMarkersById = useMemo(
-    () =>
-      Object.fromEntries(
-        viewModel.scene.stage.markers.map((marker) => [marker.id, marker]),
-      ),
+    () => Object.fromEntries(viewModel.scene.stage.markers.map((marker) => [marker.id, marker])),
     [viewModel.scene.stage.markers],
   );
 
@@ -287,12 +275,12 @@ export function GamePage() {
       const marker = sceneMarkersById[markerId];
 
       if (!marker) {
-        setStatusMessage('该交互点当前不可用。');
+        setStatusMessage('未找到对应的交互标记。');
         return;
       }
 
       if (!marker.enabled) {
-        setStatusMessage(`${marker.label} 当前不可用。`);
+        setStatusMessage(`${marker.label} 当前不可交互。`);
         return;
       }
 
@@ -306,18 +294,66 @@ export function GamePage() {
         return;
       }
 
+      if (marker.type === 'item') {
+        await closeDialogue();
+        const result = await runControlTask(`item:${marker.id}`, () =>
+          appExplorationEncounterController.searchInteraction(marker.id),
+        );
+
+        if (!result) {
+          setStatusMessage(`${marker.label} 搜索失败。`);
+          return;
+        }
+
+        if (result.searchedAlready) {
+          setStatusMessage(`${marker.label} 已被搜索过。`);
+          return;
+        }
+
+        if (result.resourceGain && result.signals.length > 0) {
+          setStatusMessage(
+            `${marker.label} 获得了 ${result.resourceGain.label}，并暴露了 ${result.signals.length} 个战斗信号。`,
+          );
+          return;
+        }
+
+        if (result.resourceGain) {
+          setStatusMessage(`${marker.label} 获得了 ${result.resourceGain.label}。`);
+          return;
+        }
+
+        if (result.signals.length > 0) {
+          setStatusMessage(`${marker.label} 暴露了 ${result.signals.length} 个战斗信号。`);
+          return;
+        }
+
+        setStatusMessage(`${marker.label} 没有发现额外线索。`);
+        return;
+      }
+
       if (marker.type === 'battle' && marker.targetId) {
         await closeDialogue();
+        const activationResult = await runControlTask(`battle:${marker.id}`, () =>
+          appExplorationEncounterController.activateSignal(marker.id, {
+            autoSave: true,
+          }),
+        );
+
+        if (activationResult) {
+          setStatusMessage(`已确认 ${marker.label}，战斗标记已同步到当前区域。`);
+          return;
+        }
+
         const result = await runControlTask(`battle:${marker.targetId}`, () =>
           appCombatController.startEncounter(marker.targetId ?? marker.id),
         );
 
         if (result) {
-          setStatusMessage(`已在 ${marker.label} 开启遭遇战，战斗控制现已激活。`);
+          setStatusMessage(`已进入 ${marker.label}，请根据敌方战术选择行动。`);
           return;
         }
 
-        setStatusMessage('该遭遇战无法启动。');
+        setStatusMessage('战斗入口未能开启。');
         return;
       }
 
@@ -331,23 +367,17 @@ export function GamePage() {
         );
 
         if (result && 'ok' in result && !result.ok) {
-          setStatusMessage(result.reasons[0] ?? '事件未能触发。');
+          setStatusMessage(result.reasons[0] ?? '当前事件无法触发。');
           return;
         }
 
-        setStatusMessage(`已触发事件节点：${marker.label}。`);
+        setStatusMessage(`已触发 ${marker.label}。`);
         return;
       }
 
-      setStatusMessage(`${marker.label} 已在场景中高亮，但暂未接入直接控制动作。`);
+      setStatusMessage(`${marker.label} 目前没有可执行的交互。`);
     },
-    [
-      closeDialogue,
-      handleAreaSelect,
-      handleNpcSelect,
-      runControlTask,
-      sceneMarkersById,
-    ],
+    [closeDialogue, handleAreaSelect, handleNpcSelect, runControlTask, sceneMarkersById],
   );
 
   const handleEventActivate = useCallback(
@@ -357,11 +387,11 @@ export function GamePage() {
       );
 
       if (result && 'ok' in result && !result.ok) {
-        setStatusMessage(result.reasons[0] ?? '所选事件未能触发。');
+        setStatusMessage(result.reasons[0] ?? '当前事件无法触发。');
         return;
       }
 
-      setStatusMessage('动态事件已触发，并写入世界时间线。');
+      setStatusMessage('事件已触发。');
     },
     [runControlTask],
   );
@@ -375,9 +405,7 @@ export function GamePage() {
 
       if (controlId === 'clear-forced-render') {
         patchDebugToolsState({ forcedAreaId: null });
-        setStatusMessage(
-          `已回到 ${currentArea?.name ?? '当前区域'} 的正式进度路线。`,
-        );
+        setStatusMessage(`已返回 ${currentArea?.name ?? '当前区域'} 的正常渲染。`);
         return;
       }
 
@@ -387,9 +415,8 @@ export function GamePage() {
         );
 
         if (result) {
-          setStatusMessage('玩家模型已刷新，可解释提示已同步最新行为。');
+          setStatusMessage('玩家模型已刷新。');
         }
-
         return;
       }
 
@@ -398,12 +425,7 @@ export function GamePage() {
           appEventTriggerController.evaluateDirectorEvent(),
         );
 
-        if (result) {
-          setStatusMessage('游戏主持已评估当前场景，并更新世界压力。');
-        } else {
-          setStatusMessage('当前状态下没有新的主持事件被触发。');
-        }
-
+        setStatusMessage(result ? '导演事件已评估。' : '当前没有可触发的导演事件。');
         return;
       }
 
@@ -413,15 +435,14 @@ export function GamePage() {
         );
 
         if (result) {
-          setStatusMessage('回顾载荷已生成，可解释信息已刷新。');
+          setStatusMessage('已生成当前回顾。');
         }
-
         return;
       }
 
       if (controlId === 'leave-dialogue') {
         await closeDialogue();
-        setStatusMessage('对话已关闭，场景控制已恢复。');
+        setStatusMessage('已结束当前对话。');
         return;
       }
 
@@ -433,7 +454,7 @@ export function GamePage() {
         controlId === 'persuade'
       ) {
         if (!dialogueState) {
-          setStatusMessage('请先开启一段角色对话，再使用对话控制。');
+          setStatusMessage('当前没有可继续的对话。');
           return;
         }
 
@@ -442,7 +463,7 @@ export function GamePage() {
         );
 
         if (!result) {
-          setStatusMessage('当前没有可用的对话回应。');
+          setStatusMessage('对话分支执行失败。');
           return;
         }
 
@@ -453,7 +474,7 @@ export function GamePage() {
           state: result.state,
           explanation: result.explanation,
         });
-        setStatusMessage(`已推进与 ${dialogueState.npcName} 的对话，信任与任务状态可能已经变化。`);
+        setStatusMessage(`已与 ${result.npcName} 推进新的对话分支。`);
         return;
       }
 
@@ -469,9 +490,24 @@ export function GamePage() {
           appCombatController.submitPlayerAction(controlId),
         );
 
-        if (result) {
-          setStatusMessage('本回合战斗已结算，请查看日志与可解释提示了解战术变化。');
+        if (!result) {
+          setStatusMessage('战斗指令未能执行。');
+          return;
         }
+
+        if ('ok' in result && !result.ok) {
+          setStatusMessage(result.reason ?? '当前战斗指令无法执行。');
+          return;
+        }
+
+        if (result.result) {
+          setStatusMessage(`战斗已结算：${formatCombatResultLabel(result.result)}。已生成战斗回顾。`);
+          return;
+        }
+
+        setStatusMessage(
+          `本回合行动已执行，敌方当前战术为 ${formatEnemyTacticLabel(result.combatState.activeTactic)}，玩家当前能量为 ${result.playerState.energy ?? 0}。`,
+        );
       }
     },
     [
@@ -491,7 +527,11 @@ export function GamePage() {
         .flatMap((log) =>
           log.actions.map((action) => ({
             speaker:
-              action.actor === 'enemy' ? '敌方' : action.actor === 'player' ? '玩家' : '系统',
+              action.actor === 'enemy'
+                ? '敌方'
+                : action.actor === 'player'
+                  ? '玩家'
+                  : '系统',
             text: action.description,
           })),
         ) ?? [];
@@ -505,32 +545,73 @@ export function GamePage() {
             : '系统',
       text: line.text,
     }));
-    const attitudeSummary = dialogueState
+
+    const combatPhaseLabel = combatState
+      ? activeCombatEncounter?.bossPhases?.find(
+          (phase) => phase.id === combatState.currentPhaseId,
+        )?.label ?? '未分阶段'
+      : '未分阶段';
+
+    const attitudeSummary = combatState
       ? [
           {
-            label: '当前态度',
-            value: dialogueState.explanation?.attitudeLabel ??
-              formatNpcDispositionLabel(dialogueState.state.currentDisposition),
+            label: '玩家生命',
+            value: `${combatState.player.hp} / ${combatState.player.maxHp}`,
           },
           {
-            label: '当前情绪',
-            value: dialogueState.explanation?.emotionalStateLabel ??
-              formatNpcEmotionalStateLabel(dialogueState.state.emotionalState),
+            label: '玩家能量',
+            value: `${player.energy ?? 0}`,
           },
           {
-            label: '信任 / 关系',
-            value: `${dialogueState.state.trust} / ${dialogueState.state.relationship}`,
+            label: '敌方生命',
+            value: `${combatState.enemy.hp} / ${combatState.enemy.maxHp}`,
           },
-          ...(debugTools.debugModeEnabled && dialogueState.state.memory.shortTerm.length > 0
+          {
+            label: '当前阶段',
+            value: combatPhaseLabel,
+          },
+          {
+            label: '当前战术',
+            value: formatEnemyTacticLabel(combatState.activeTactic),
+          },
+          ...(combatState.result
             ? [
                 {
-                  label: '短期记忆',
-                  value: dialogueState.state.memory.shortTerm.slice(-1)[0],
+                  label: '战斗结果',
+                  value: formatCombatResultLabel(combatState.result),
                 },
               ]
             : []),
         ]
-      : undefined;
+      : dialogueState
+        ? [
+            {
+              label: '当前态度',
+              value:
+                dialogueState.explanation?.attitudeLabel ??
+                formatNpcDispositionLabel(dialogueState.state.currentDisposition),
+            },
+            {
+              label: '当前情绪',
+              value:
+                dialogueState.explanation?.emotionalStateLabel ??
+                formatNpcEmotionalStateLabel(dialogueState.state.emotionalState),
+            },
+            {
+              label: '信任 / 关系',
+              value: `${dialogueState.state.trust} / ${dialogueState.state.relationship}`,
+            },
+            ...(debugTools.debugModeEnabled && dialogueState.state.memory.shortTerm.length > 0
+              ? [
+                  {
+                    label: '短期记忆',
+                    value: dialogueState.state.memory.shortTerm.slice(-1)[0],
+                  },
+                ]
+              : []),
+          ]
+        : undefined;
+
     const dialogueTips = dialogueState?.explanation
       ? [
           {
@@ -561,7 +642,7 @@ export function GamePage() {
             ? [
                 {
                   id: `npc-debug:${dialogueState.npcId}`,
-                  title: '对话判定依据',
+                  title: '对话决策依据',
                   summary: dialogueState.explanation.decisionBasis.join('；'),
                   tone: 'info' as const,
                 },
@@ -570,13 +651,13 @@ export function GamePage() {
         ]
       : [];
 
-    const controls = combatState
+    const controls = combatState && !combatState.result
       ? [
           { id: 'attack', label: '攻击', tone: 'warning' as const },
           { id: 'guard', label: '防御', tone: 'info' as const },
           { id: 'heal', label: '治疗', tone: 'success' as const },
-          { id: 'analyze', label: '解析', tone: 'default' as const },
-          { id: 'special', label: '特技', tone: 'warning' as const },
+          { id: 'analyze', label: '分析', tone: 'default' as const },
+          { id: 'special', label: '技能', tone: 'warning' as const },
           { id: 'retreat', label: '撤退', tone: 'default' as const },
         ]
       : dialogueState
@@ -586,30 +667,32 @@ export function GamePage() {
             { id: 'quest', label: '任务', tone: 'warning' as const },
             { id: 'trade', label: '交易', tone: 'default' as const },
             { id: 'persuade', label: '说服', tone: 'warning' as const },
-            { id: 'leave-dialogue', label: '离开', tone: 'default' as const },
+            { id: 'leave-dialogue', label: '离开对话', tone: 'default' as const },
           ]
         : [
             ...(isForcedRender
               ? [
                   {
                     id: 'clear-forced-render',
-                    label: '回到正式路线',
+                    label: '退出区域预览',
                     tone: 'info' as const,
                   },
                 ]
               : []),
-            { id: 'manual-save', label: '保存游戏', tone: 'success' as const },
-            { id: 'trigger-director-event', label: '触发主持事件', tone: 'warning' as const },
-            { id: 'refresh-player-model', label: '刷新玩家画像', tone: 'info' as const },
+            { id: 'manual-save', label: '手动存档', tone: 'success' as const },
+            { id: 'trigger-director-event', label: '评估导演事件', tone: 'warning' as const },
+            { id: 'refresh-player-model', label: '刷新玩家模型', tone: 'info' as const },
             { id: 'generate-review', label: '生成回顾', tone: 'default' as const },
           ];
 
     return {
       dialogueTitle: combatState
-        ? '战斗播报'
+        ? combatState.result
+          ? '战斗结算'
+          : '战斗指挥'
         : dialogueState
-          ? '实时对话'
-          : '场景简报',
+          ? '当前对话'
+          : '区域概览',
       dialogueSpeaker: combatState
         ? `${combatState.enemy.name} · 第 ${combatState.turn} 回合`
         : dialogueState
@@ -623,7 +706,7 @@ export function GamePage() {
           },
           {
             speaker: '提示',
-            text: '底部停靠栏会根据当前互动状态，在对话、战斗与系统控制之间自动切换。',
+            text: '可从地图标记、右侧事件与底部指令进入下一步流程。',
           },
         ],
       controls,
@@ -634,11 +717,13 @@ export function GamePage() {
       attitudeSummary,
     };
   }, [
+    activeCombatEncounter,
     busyControlId,
     combatState,
     debugTools.debugModeEnabled,
     dialogueState,
     isForcedRender,
+    player.energy,
     statusMessage,
     viewModel.logs,
     viewModel.scene.areaName,
@@ -690,7 +775,7 @@ export function GamePage() {
       leftSidebar={viewModel.leftSidebar}
       scene={{
         ...viewModel.scene,
-        interactionLocked: dialogueState !== null || combatState !== null,
+        interactionLocked: dialogueState !== null || isCombatInteractionLocked,
       }}
       rightSidebar={viewModel.rightSidebar}
       bottom={bottomModel}

@@ -26,6 +26,12 @@ describe('save rules', () => {
 
     expect(result.ok).toBe(true);
     expect(result.snapshot?.metadata.version).toBe(CURRENT_SAVE_SCHEMA_VERSION);
+    expect(result.snapshot?.exploration).toEqual({
+      signals: [],
+      ruleStates: [],
+      searchedInteractionIds: [],
+      collectedResourceNodeIds: [],
+    });
   });
 
   it('backfills explicit area scene data for legacy saves that only stored area metadata', () => {
@@ -54,5 +60,11 @@ describe('save rules', () => {
           area.scene.grid.height >= 8,
       ),
     ).toBe(true);
+    expect(result.snapshot?.exploration).toEqual({
+      signals: [],
+      ruleStates: [],
+      searchedInteractionIds: [],
+      collectedResourceNodeIds: [],
+    });
   });
 });

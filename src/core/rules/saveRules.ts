@@ -9,7 +9,7 @@ import {
 } from '../schemas';
 import { ensureAreaSceneDefinition } from '../utils/areaSceneDefinition';
 
-export const CURRENT_SAVE_SCHEMA_VERSION = '0.4.0';
+export const CURRENT_SAVE_SCHEMA_VERSION = '0.5.0';
 
 const migrateableSaveSnapshotSchema = saveSnapshotSchema.extend({
   areas: z.array(z.union([areaSchema, legacyAreaSchema])),
@@ -68,6 +68,12 @@ export class VersionedSaveMigrator implements SaveMigrator {
     return saveSnapshotSchema.parse({
       ...snapshot,
       areas: snapshot.areas.map((area) => ensureAreaSceneDefinition(area)),
+      exploration: snapshot.exploration ?? {
+        signals: [],
+        ruleStates: [],
+        searchedInteractionIds: [],
+        collectedResourceNodeIds: [],
+      },
       metadata: {
         ...snapshot.metadata,
         version: this.currentVersion,

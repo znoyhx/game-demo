@@ -12,6 +12,14 @@ interface AreaNavigationControllerOptions {
   eventBus?: GameEventBus;
   saveController?: SaveWriter;
   questController?: QuestProgressionController;
+  explorationController?: {
+    handleAreaEnter: (
+      areaId: string,
+      options?: {
+        autoSave?: boolean;
+      },
+    ) => Promise<unknown>;
+  };
   eventController?: {
     triggerAreaEntryEvents: (
       areaId: string,
@@ -31,6 +39,8 @@ export class AreaNavigationController {
 
   private readonly questController?: QuestProgressionController;
 
+  private readonly explorationController?: AreaNavigationControllerOptions['explorationController'];
+
   private readonly eventController?: AreaNavigationControllerOptions['eventController'];
 
   constructor(options: AreaNavigationControllerOptions) {
@@ -38,6 +48,7 @@ export class AreaNavigationController {
     this.eventBus = options.eventBus;
     this.saveController = options.saveController;
     this.questController = options.questController;
+    this.explorationController = options.explorationController;
     this.eventController = options.eventController;
   }
 
@@ -87,6 +98,10 @@ export class AreaNavigationController {
     });
 
     await this.eventController?.triggerAreaEntryEvents(targetArea.id, {
+      autoSave: false,
+    });
+
+    await this.explorationController?.handleAreaEnter(targetArea.id, {
       autoSave: false,
     });
 

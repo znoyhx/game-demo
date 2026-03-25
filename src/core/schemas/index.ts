@@ -5,6 +5,7 @@ export * from './combat.schema';
 export * from './config.schema';
 export * from './creation.schema';
 export * from './event.schema';
+export * from './exploration.schema';
 export * from './npc.schema';
 export * from './player.schema';
 export * from './quest.schema';

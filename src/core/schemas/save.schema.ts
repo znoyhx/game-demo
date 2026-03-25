@@ -13,6 +13,7 @@ import {
   eventLogEntrySchema,
   worldEventSchema,
 } from './event.schema';
+import { explorationStateSchema } from './exploration.schema';
 import { npcDefinitionSchema, npcStateSchema } from './npc.schema';
 import { playerModelStateSchema, playerStateSchema } from './player.schema';
 import {
@@ -89,6 +90,7 @@ export const saveSnapshotSchema = z
     resources: resourceStateSchema.optional(),
     review: reviewPayloadSchema.nullable().optional(),
     reviewState: reviewStateSchema.optional(),
+    exploration: explorationStateSchema.optional(),
   })
   .strict();
 

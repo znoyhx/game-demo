@@ -7,6 +7,7 @@ import type {
   EventLogEntry,
   ExplainCoachInput,
   ExplainCoachOutput,
+  ExplorationState,
   GameConfigState,
   GameMasterInput,
   GameMasterOutput,
@@ -77,6 +78,7 @@ export const sampleWorldEvent: WorldEvent = mockWorldEvents[0];
 export const sampleEventLogEntry: EventLogEntry = mockEventHistory[0];
 export const sampleCombatEncounterDefinition = mockBossEncounterDefinition;
 export const sampleCombatState = mockBossCombatState;
+export const sampleExplorationState: ExplorationState = mockSaveSnapshot.exploration!;
 export const sampleReviewPayload = mockReviewPayload;
 export const sampleReviewState: ReviewState = mockReviewState;
 export const sampleSaveSnapshot: SaveSnapshot = mockSaveSnapshot;

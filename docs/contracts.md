@@ -147,6 +147,7 @@ export interface InteractionPoint {
   x: number;
   y: number;
   targetId?: string;
+  resourceNodeId?: string;
   enabled?: boolean;
   travelMode?: InteractionTravelMode;
 }
@@ -946,6 +947,39 @@ export interface CombatState {
 }
 ```
 
+## 10.9 Exploration Runtime State
+
+```ts
+export interface ExplorationEncounterSignal {
+  id: string;
+  areaId: AreaId;
+  ruleId: string;
+  label: string;
+  encounterId: EncounterId;
+  trigger: EnemySpawnTrigger;
+  status: "pending" | "engaged" | "resolved";
+  createdAt: IsoTimestamp;
+  x: number;
+  y: number;
+  sourceInteractionId?: string;
+  enemyArchetype?: string;
+}
+
+export interface ExplorationRuleState {
+  areaId: AreaId;
+  ruleId: string;
+  triggerCount: number;
+  lastTriggeredAt?: IsoTimestamp;
+}
+
+export interface ExplorationState {
+  signals: ExplorationEncounterSignal[];
+  ruleStates: ExplorationRuleState[];
+  searchedInteractionIds: string[];
+  collectedResourceNodeIds: string[];
+}
+```
+
 ---
 
 # 11. Review and Explainability Contracts
@@ -1091,6 +1125,7 @@ export interface SaveSnapshot {
     }>;
   };
   combat?: CombatState | null;
+  exploration?: ExplorationState;
   config?: {
     theme: string;
     worldStyle: string;
@@ -1461,6 +1496,31 @@ export interface CombatController {
 }
 ```
 
+## 15.4.1 Exploration Encounter Controller
+
+```ts
+export interface ExplorationEncounterController {
+  handleAreaEnter(
+    areaId: AreaId,
+    options?: {
+      autoSave?: boolean;
+    },
+  ): Promise<unknown>;
+  searchInteraction(
+    interactionId: string,
+    options?: {
+      autoSave?: boolean;
+    },
+  ): Promise<unknown>;
+  activateSignal(
+    signalId: string,
+    options?: {
+      autoSave?: boolean;
+    },
+  ): Promise<unknown>;
+}
+```
+
 ## 15.5 Area Navigation Controller
 
 ```ts
@@ -1613,6 +1673,7 @@ src/core/schemas/
   creation.schema.ts
   event.schema.ts
   combat.schema.ts
+  exploration.schema.ts
   review.schema.ts
   save.schema.ts
   session.schema.ts

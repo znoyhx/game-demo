@@ -337,6 +337,12 @@ export class CombatController {
       });
 
       await this.reviewController?.generateReview();
+      state.clearCombatState();
+
+      if (!this.reviewController) {
+        state.setActivePanel('map');
+      }
+
       await maybeAutoSave(this.store, this.saveController, 'auto');
     }
 

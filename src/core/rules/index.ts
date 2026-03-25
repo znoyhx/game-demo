@@ -1,6 +1,7 @@
 export * from './areaRules';
 export * from './combatRules';
 export * from './eventRules';
+export * from './explorationRules';
 export * from './npcRules';
 export * from './questRules';
 export * from './reviewRules';

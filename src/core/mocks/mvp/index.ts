@@ -3,6 +3,7 @@ export * from './combat';
 export * from './config';
 export * from './constants';
 export * from './events';
+export * from './explorationEncounters';
 export * from './npcs';
 export * from './player';
 export * from './quests';

@@ -169,6 +169,7 @@ Translate user actions and system triggers into coordinated use cases.
 * choose fallback path when save is missing or invalid
 * execute NPC interaction flow
 * trigger quest transition after dialogue
+* convert area entry and search actions into exploration encounter signals
 * trigger auto-save after important events
 * launch combat encounter
 * generate review payload after encounter
@@ -193,6 +194,7 @@ Translate user actions and system triggers into coordinated use cases.
 * `worldCreationController`
 * `dialogueController`
 * `questProgressController`
+* `explorationEncounterController`
 * `combatController`
 * `saveController`
 * `areaDebugController`
@@ -690,8 +692,24 @@ When the player sprite overlaps a portal or activates a route marker inside the 
 * controller still owns legality, unlock, autosave, and event emission
   -> if allowed: update current area
   -> emit AREA_ENTERED
+  -> evaluate exploration on-enter spawn rules
   -> evaluate event triggers
   -> autosave
+```
+
+---
+
+## 6.4.1 Exploration Search / Ambush Flow
+
+```text
+Player activates a search node or visible battle marker
+  -> explorationEncounterController.searchInteraction() / activateSignal()
+  -> explorationRules validate search legality and reward collection
+  -> explorationRules generate deterministic encounter signals when triggers match
+  -> controller merges generated encounters into combat definitions
+  -> UI scene rebuilds with visible battle markers
+  -> player can activate the signal to enter combat
+  -> autosave persists exploration runtime state when relevant
 ```
 
 ---
@@ -880,7 +898,18 @@ Contains:
 * status flags
 * result summary
 
-## 8.7 Event State
+## 8.7 Exploration State
+
+Contains:
+
+* pending exploration encounter signals
+* per-rule trigger counters
+* searched interaction ids
+* collected resource node ids
+
+This slice stores runtime exploration outcomes separately from area definitions so visible ambushes, searchable nodes, and replay/debug flows remain deterministic and save-compatible.
+
+## 8.8 Event State
 
 Contains:
 
@@ -888,7 +917,7 @@ Contains:
 * pending event queue
 * world tension or pacing indicators
 
-## 8.8 Save Metadata State
+## 8.9 Save Metadata State
 
 Contains:
 
@@ -899,7 +928,7 @@ Contains:
 * last load result
 * recovery notices
 
-## 8.9 Player Model State
+## 8.10 Player Model State
 
 Contains:
 
@@ -910,7 +939,7 @@ Contains:
 * NPC interaction count
 * optional risk or stuck-point hints
 
-## 8.10 Review State
+## 8.11 Review State
 
 Contains:
 
@@ -918,7 +947,7 @@ Contains:
 * review history
 * explanation artifacts for debug/replay
 
-## 8.11 Config and Resource State
+## 8.12 Config and Resource State
 
 Contains:
 
@@ -928,7 +957,7 @@ Contains:
 * resource catalog entries
 * selected background/music/tileset keys
 
-## 8.12 Session and Debug State
+## 8.13 Session and Debug State
 
 Contains:
 
@@ -1009,6 +1038,7 @@ A save snapshot should contain:
 * NPC state snapshot
 * player state snapshot
 * player model state
+* exploration runtime state for searched nodes and visible ambush signals
 * event history plus director/runtime state
 * combat definitions plus combat runtime/history if relevant
 * review state if retained

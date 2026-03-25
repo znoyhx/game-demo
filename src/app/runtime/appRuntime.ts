@@ -5,6 +5,7 @@ import {
   CombatController,
   DebugScenarioController,
   EventTriggerController,
+  ExplorationEncounterController,
   NpcInteractionController,
   PlayerModelController,
   QuestDebugController,
@@ -63,20 +64,6 @@ export const appEventTriggerController = new EventTriggerController({
   logger: gameLogger,
 });
 
-export const appAreaNavigationController = new AreaNavigationController({
-  store: gameStore,
-  eventBus: gameEventBus,
-  saveController: appSaveLoadController,
-  questController: appQuestProgressionController,
-  eventController: appEventTriggerController,
-});
-
-export const appAreaDebugController = new AreaDebugController({
-  store: gameStore,
-  eventBus: gameEventBus,
-  saveController: appSaveLoadController,
-});
-
 export const appNpcInteractionController = new NpcInteractionController({
   store: gameStore,
   agents: appAgents,
@@ -93,6 +80,29 @@ export const appCombatController = new CombatController({
   saveController: appSaveLoadController,
   reviewController: appReviewGenerationController,
   logger: gameLogger,
+});
+
+export const appExplorationEncounterController = new ExplorationEncounterController({
+  store: gameStore,
+  saveController: appSaveLoadController,
+  combatController: appCombatController,
+  questController: appQuestProgressionController,
+});
+
+export const appAreaNavigationController = new AreaNavigationController({
+  store: gameStore,
+  eventBus: gameEventBus,
+  saveController: appSaveLoadController,
+  questController: appQuestProgressionController,
+  explorationController: appExplorationEncounterController,
+  eventController: appEventTriggerController,
+});
+
+export const appAreaDebugController = new AreaDebugController({
+  store: gameStore,
+  eventBus: gameEventBus,
+  saveController: appSaveLoadController,
+  explorationController: appExplorationEncounterController,
 });
 
 export const appDebugScenarioController = new DebugScenarioController({

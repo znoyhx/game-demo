@@ -1,4 +1,4 @@
-export const MOCK_SCHEMA_VERSION = '0.4.0';
+export const MOCK_SCHEMA_VERSION = '0.5.0';
 
 export const mockTimeline = {
   worldCreatedAt: '2026-03-23T00:00:00.000Z',

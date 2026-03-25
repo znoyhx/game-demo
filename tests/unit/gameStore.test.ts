@@ -9,6 +9,7 @@ import {
   selectCurrentArea,
   selectCurrentAreaId,
   selectEventDirector,
+  selectExplorationState,
   selectGameConfig,
   selectMapState,
   selectPlayerState,
@@ -45,6 +46,7 @@ describe('game store', () => {
     expect(selectCombatEncounters(state)).toHaveLength(
       mockSaveSnapshot.combatSystem?.encounters.length ?? 0,
     );
+    expect(selectExplorationState(state)).toEqual(mockSaveSnapshot.exploration);
     expect(selectReviewState(state)).toEqual(mockSaveSnapshot.reviewState);
     expect(selectGameConfig(state)).toEqual(mockSaveSnapshot.config);
     expect(selectResourceState(state)).toEqual(mockSaveSnapshot.resources);
@@ -82,6 +84,33 @@ describe('game store', () => {
         currentAreaId: mockIds.areas.sanctum,
         unlockedAreaIds: [...mockSaveSnapshot.map!.unlockedAreaIds, mockIds.areas.sanctum],
       },
+      exploration: {
+        signals: [
+          {
+            id: 'exploration-signal:test',
+            areaId: mockIds.areas.archive,
+            ruleId: 'spawn:archive-echo-sentries',
+            label: '测试遭遇信号',
+            encounterId: 'encounter:test-exploration',
+            trigger: 'on-search',
+            status: 'pending',
+            createdAt: '2026-03-23T00:35:00.000Z',
+            x: 6,
+            y: 8,
+            enemyArchetype: 'echo-sentry',
+          },
+        ],
+        ruleStates: [
+          {
+            areaId: mockIds.areas.archive,
+            ruleId: 'spawn:archive-echo-sentries',
+            triggerCount: 1,
+            lastTriggeredAt: '2026-03-23T00:35:00.000Z',
+          },
+        ],
+        searchedInteractionIds: ['interaction:archive-relay-cache'],
+        collectedResourceNodeIds: ['resource-node:archive-relay-core'],
+      },
       combatSystem: {
         ...mockSaveSnapshot.combatSystem!,
         active: mockBossCombatState,
@@ -118,6 +147,10 @@ describe('game store', () => {
     expect(selectCombatState(state)).toEqual(mockBossCombatState);
     expect(selectPlayerModelState(state).tags).toEqual(['combat', 'risky']);
     expect(selectMapState(state).currentAreaId).toBe(mockIds.areas.sanctum);
+    expect(selectExplorationState(state).signals).toHaveLength(1);
+    expect(selectExplorationState(state).searchedInteractionIds).toContain(
+      'interaction:archive-relay-cache',
+    );
     expect(selectReviewState(state).current?.suggestions[0]).toContain('guard breaks');
     expect(selectWorldFlags(state).sanctumSealBroken).toBe(true);
     expect(selectActiveQuestProgress(state).map((entry) => entry.questId)).toContain(mockIds.quests.sidePatrol);
@@ -136,6 +169,33 @@ describe('game store', () => {
     store.getState().setPlayerModelTags(['combat', 'risky']);
     store.getState().patchGameConfig({
       presentationModeEnabled: true,
+    });
+    store.getState().setExplorationState({
+      signals: [
+        {
+          id: 'exploration-signal:export',
+          areaId: mockIds.areas.archive,
+          ruleId: 'spawn:archive-echo-sentries',
+          label: '导出遭遇信号',
+          encounterId: 'encounter:export',
+          trigger: 'on-search',
+          status: 'pending',
+          createdAt: '2026-03-23T00:41:00.000Z',
+          x: 7,
+          y: 7,
+          enemyArchetype: 'echo-sentry',
+        },
+      ],
+      ruleStates: [
+        {
+          areaId: mockIds.areas.archive,
+          ruleId: 'spawn:archive-echo-sentries',
+          triggerCount: 1,
+          lastTriggeredAt: '2026-03-23T00:41:00.000Z',
+        },
+      ],
+      searchedInteractionIds: ['interaction:archive-relay-cache'],
+      collectedResourceNodeIds: ['resource-node:archive-relay-core'],
     });
     store.getState().upsertQuestProgress({
       ...mockQuestProgress[0],
@@ -158,6 +218,10 @@ describe('game store', () => {
     expect(exportedSnapshot.map?.currentAreaId).toBe(mockIds.areas.sanctum);
     expect(exportedSnapshot.playerModel?.tags).toEqual(['combat', 'risky']);
     expect(exportedSnapshot.config?.presentationModeEnabled).toBe(true);
+    expect(exportedSnapshot.exploration?.signals).toHaveLength(1);
+    expect(exportedSnapshot.exploration?.searchedInteractionIds).toContain(
+      'interaction:archive-relay-cache',
+    );
     expect(exportedSnapshot.events.history[exportedSnapshot.events.history.length - 1]?.eventId).toBe(
       mockIds.events.wardenCountermeasure,
     );

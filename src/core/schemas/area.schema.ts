@@ -37,6 +37,7 @@ export const interactionPointSchema = z
     x: finiteNumberSchema,
     y: finiteNumberSchema,
     targetId: nonEmptyStringSchema.optional(),
+    resourceNodeId: genericIdSchema.optional(),
     enabled: z.boolean().optional(),
     travelMode: interactionTravelModeSchema.optional(),
   })
@@ -313,6 +314,24 @@ export const areaSchema = areaSchemaBase.superRefine((area, ctx) => {
         code: z.ZodIssueCode.custom,
         path: ['scene', 'portalSpawns', index, 'interactionId'],
         message: `scene portal spawn "${spawn.interactionId}" must reference a portal interaction point`,
+      });
+    }
+  });
+
+  area.interactionPoints.forEach((point, index) => {
+    if (point.type !== 'item' || !point.resourceNodeId) {
+      return;
+    }
+
+    const resourceNodeExists = area.resourceNodes.some(
+      (resourceNode) => resourceNode.id === point.resourceNodeId,
+    );
+
+    if (!resourceNodeExists) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['interactionPoints', index, 'resourceNodeId'],
+        message: `item interaction "${point.id}" references missing resource node "${point.resourceNodeId}"`,
       });
     }
   });

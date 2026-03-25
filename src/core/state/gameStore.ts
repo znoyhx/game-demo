@@ -12,6 +12,9 @@ import {
   type DebugToolsState,
   type EventDirectorState,
   type EventLogEntry,
+  type ExplorationEncounterSignal,
+  type ExplorationRuleState,
+  type ExplorationState,
   type GameConfigState,
   type GameUiPanel,
   type GameUiState,
@@ -85,6 +88,7 @@ interface HydratedGameData {
   combatEncounterOrder: string[];
   combatState: CombatState | null;
   combatHistory: CombatHistoryEntry[];
+  explorationState: ExplorationState;
   eventDefinitionsById: EntityMap<WorldEvent>;
   eventDefinitionOrder: string[];
   eventHistory: EventLogEntry[];
@@ -172,6 +176,17 @@ export interface CombatSlice {
   appendCombatHistory: (entry: CombatHistoryEntry) => void;
 }
 
+export interface ExplorationSlice {
+  explorationState: ExplorationState;
+  setExplorationState: (explorationState: ExplorationState) => void;
+  setExplorationSignals: (signals: ExplorationEncounterSignal[]) => void;
+  upsertExplorationSignal: (signal: ExplorationEncounterSignal) => void;
+  removeExplorationSignal: (signalId: string) => void;
+  setExplorationRuleStates: (ruleStates: ExplorationRuleState[]) => void;
+  markInteractionSearched: (interactionId: string) => void;
+  markResourceCollected: (resourceNodeId: string) => void;
+}
+
 export interface EventSlice {
   eventDefinitionsById: EntityMap<WorldEvent>;
   eventDefinitionOrder: string[];
@@ -250,6 +265,7 @@ export type GameStoreState = WorldSlice &
   NpcSlice &
   PlayerSlice &
   CombatSlice &
+  ExplorationSlice &
   EventSlice &
   ReviewSlice &
   ConfigResourceSlice &
@@ -414,6 +430,13 @@ const buildDefaultEventDirectorState = (): EventDirectorState => ({
   randomnessDisabled: false,
 });
 
+const buildDefaultExplorationState = (): ExplorationState => ({
+  signals: [],
+  ruleStates: [],
+  searchedInteractionIds: [],
+  collectedResourceNodeIds: [],
+});
+
 const buildDefaultReviewState = (
   review: ReviewPayload | null | undefined,
 ): ReviewState => ({
@@ -553,6 +576,8 @@ const buildHydratedGameData = (snapshot: SaveSnapshot): HydratedGameData => {
     combatState:
       parsedSnapshot.combatSystem?.active ?? parsedSnapshot.combat ?? null,
     combatHistory: parsedSnapshot.combatSystem?.history ?? [],
+    explorationState:
+      parsedSnapshot.exploration ?? buildDefaultExplorationState(),
     eventDefinitionsById: toEntityMap(
       parsedSnapshot.events.definitions,
       (event) => event.id,
@@ -600,6 +625,7 @@ const buildSaveSnapshotFromState = (
     | 'combatEncounterOrder'
     | 'combatState'
     | 'combatHistory'
+    | 'explorationState'
     | 'eventDefinitionsById'
     | 'eventDefinitionOrder'
     | 'eventHistory'
@@ -656,6 +682,7 @@ const buildSaveSnapshotFromState = (
       history: state.combatHistory,
     },
     combat: state.combatState,
+    exploration: state.explorationState,
     config: state.gameConfig,
     resources: state.resourceState,
     review: state.reviewState.current,
@@ -1048,6 +1075,88 @@ export const createGameStore = (initialSnapshot: SaveSnapshot = mockSaveSnapshot
       );
     },
 
+    setExplorationState: (explorationState) => {
+      set(markDirtyState({ explorationState }));
+    },
+    setExplorationSignals: (signals) => {
+      set((state) =>
+        markDirtyState({
+          explorationState: {
+            ...state.explorationState,
+            signals,
+          },
+        }),
+      );
+    },
+    upsertExplorationSignal: (signal) => {
+      set((state) => {
+        const existingIndex = state.explorationState.signals.findIndex(
+          (entry) => entry.id === signal.id,
+        );
+        const signals =
+          existingIndex >= 0
+            ? state.explorationState.signals.map((entry, index) =>
+                index === existingIndex ? signal : entry,
+              )
+            : [...state.explorationState.signals, signal];
+
+        return markDirtyState({
+          explorationState: {
+            ...state.explorationState,
+            signals,
+          },
+        });
+      });
+    },
+    removeExplorationSignal: (signalId) => {
+      set((state) =>
+        markDirtyState({
+          explorationState: {
+            ...state.explorationState,
+            signals: state.explorationState.signals.filter(
+              (entry) => entry.id !== signalId,
+            ),
+          },
+        }),
+      );
+    },
+    setExplorationRuleStates: (ruleStates) => {
+      set((state) =>
+        markDirtyState({
+          explorationState: {
+            ...state.explorationState,
+            ruleStates,
+          },
+        }),
+      );
+    },
+    markInteractionSearched: (interactionId) => {
+      set((state) =>
+        markDirtyState({
+          explorationState: {
+            ...state.explorationState,
+            searchedInteractionIds: appendUnique(
+              state.explorationState.searchedInteractionIds,
+              interactionId,
+            ),
+          },
+        }),
+      );
+    },
+    markResourceCollected: (resourceNodeId) => {
+      set((state) =>
+        markDirtyState({
+          explorationState: {
+            ...state.explorationState,
+            collectedResourceNodeIds: appendUnique(
+              state.explorationState.collectedResourceNodeIds,
+              resourceNodeId,
+            ),
+          },
+        }),
+      );
+    },
+
     setWorldEvents: (events) => {
       set(
         markDirtyState({
@@ -1283,7 +1392,11 @@ export const createGameStore = (initialSnapshot: SaveSnapshot = mockSaveSnapshot
   }));
 };
 
-export const gameStore = createGameStore();
+const gameStoreInstance = createGameStore();
+
+export const gameStore = Object.assign(gameStoreInstance, {
+  getInitialState: () => gameStoreInstance.getState(),
+});
 
 export const useGameStore = <T>(
   selector: (state: GameStoreState) => T,
@@ -1356,6 +1469,8 @@ export const selectCombatEncounters = (state: GameStoreState) =>
   );
 export const selectCombatState = (state: GameStoreState) => state.combatState;
 export const selectCombatHistory = (state: GameStoreState) => state.combatHistory;
+export const selectExplorationState = (state: GameStoreState) =>
+  state.explorationState;
 export const makeSelectCombatEncounterById =
   (encounterId: string) =>
   (state: GameStoreState): CombatEncounterDefinition | null =>

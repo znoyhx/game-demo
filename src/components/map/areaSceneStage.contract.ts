@@ -39,6 +39,8 @@ export const areaSceneMarkerSchema = z.object({
   type: z.enum(['npc', 'item', 'portal', 'event', 'shop', 'battle']),
   targetId: z.string().min(1).optional(),
   enabled: z.boolean(),
+  mapX: z.number().int().min(0).optional(),
+  mapY: z.number().int().min(0).optional(),
   xPercent: z.number().min(0).max(100),
   yPercent: z.number().min(0).max(100),
   feedbackTone: pixelToneSchema,

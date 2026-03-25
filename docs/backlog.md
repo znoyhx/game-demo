@@ -6,7 +6,7 @@
 ```md
 # PixelForge Agent Backlog
 Version: v0.1  
-Status: Active delivery backlog（当前标记：阶段 7——完整实现战斗与敌人策略模块）
+Status: Active delivery backlog（当前标记：阶段 7——完整实现战斗与敌人策略模块；补强探索遭遇可视化与搜索交互）
 
 ---
 
@@ -319,6 +319,11 @@ Prove the core loop end-to-end with one small but complete playable scenario.
 
 ### Objective
 Expand the MVP into a recognizably game-like exploration flow.
+
+补充说明：
+- 探索区域中的可搜索节点需要真正落地为可交互物品点
+- 非 Boss 探索遭遇需要以地图可见战斗标记呈现，而不是只停留在侧边提示
+- 探索遭遇运行态必须进入存档、调试和回放链路
 
 ### Tasks
 

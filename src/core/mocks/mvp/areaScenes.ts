@@ -113,6 +113,8 @@ const buildArchiveScene = () => {
   draft.carveWalkable(9, 5);
   draft.carveWalkable(12, 2);
   draft.carveWalkable(2, 2);
+  draft.carveWalkable(5, 9);
+  draft.carveWalkable(14, 8);
 
   return draft.build({
     playerSpawn: { x: 3, y: 9 },
@@ -133,6 +135,16 @@ const buildArchiveScene = () => {
         interactionId: 'interaction:archive-echo-core',
         x: 12,
         y: 4,
+      },
+      {
+        interactionId: 'interaction:archive-relay-cache',
+        x: 5,
+        y: 9,
+      },
+      {
+        interactionId: 'interaction:archive-dustbloom-cluster',
+        x: 14,
+        y: 8,
       },
     ],
     portalSpawns: [

@@ -112,6 +112,7 @@ describe('CombatController', () => {
     expect(currentReview?.combatSummary?.result.totalTurns).toBe(4);
     expect(currentReview?.suggestions.length).toBeGreaterThan(0);
     expect(store.getState().reviewState.history.length).toBeGreaterThan(1);
+    expect(store.getState().combatState).toBeNull();
     expect(store.getState().ui.activePanel).toBe('review');
   });
 });

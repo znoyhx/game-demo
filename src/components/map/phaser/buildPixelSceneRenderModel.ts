@@ -168,6 +168,14 @@ const buildPixelEntity = (input: {
         : 0.95,
 });
 
+const toGridCoordinateFromPercent = (percent: number, size: number) => {
+  const maxIndex = Math.max(0, size - 1);
+  return Math.min(
+    maxIndex,
+    Math.max(0, Math.round((percent / 100) * maxIndex)),
+  );
+};
+
 const buildEntities = (area: Area, markers: AreaSceneMarker[]) => {
   const scene = area.scene ?? buildDefaultAreaSceneDefinition(area);
   const interactionPointById = new Map(
@@ -251,7 +259,38 @@ const buildEntities = (area: Area, markers: AreaSceneMarker[]) => {
     });
   });
 
-  return [...npcEntities, ...interactionEntities, ...portalEntities];
+  const existingEntityIds = new Set(
+    [...npcEntities, ...interactionEntities, ...portalEntities].map(
+      (entity) => entity.id,
+    ),
+  );
+
+  const dynamicMarkerEntities = markers
+    .filter((marker) => !existingEntityIds.has(marker.id))
+    .map((marker) =>
+      buildPixelEntity({
+        id: marker.id,
+        type: marker.type,
+        label: marker.label,
+        caption: marker.caption,
+        targetId: marker.targetId,
+        enabled: marker.enabled,
+        x:
+          marker.mapX ??
+          toGridCoordinateFromPercent(marker.xPercent, scene.grid.width),
+        y:
+          marker.mapY ??
+          toGridCoordinateFromPercent(marker.yPercent, scene.grid.height),
+        feedbackTone: marker.feedbackTone,
+      }),
+    );
+
+  return [
+    ...npcEntities,
+    ...interactionEntities,
+    ...portalEntities,
+    ...dynamicMarkerEntities,
+  ];
 };
 
 export function buildPixelSceneRenderModel(input: {

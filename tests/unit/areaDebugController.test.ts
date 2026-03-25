@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import { AreaDebugController } from '../../src/core/controllers/areaDebugController';
 import { AreaNavigationController } from '../../src/core/controllers/areaNavigationController';
+import { ExplorationEncounterController } from '../../src/core/controllers/explorationEncounterController';
 import { createGameEventBus } from '../../src/core/events/domainEvents';
 import { mockIds, mockSaveSnapshot } from '../../src/core/mocks/mvp';
 import {
   createGameStore,
   selectDebugToolsState,
+  selectExplorationState,
   selectMapState,
   selectWorldFlags,
 } from '../../src/core/state';
@@ -121,6 +123,29 @@ describe('area debug controller', () => {
     expect(result?.resolvedState?.id).toBe('env:sanctum-awakened');
     expect(selectWorldFlags(store.getState()).sanctumSealBroken).toBe(true);
     expect(selectWorldFlags(store.getState()).wardenAlertRaised).toBe(true);
+    expect(saveWriter.calls).toEqual(['debug']);
+  });
+
+  it('can jump into an area and still seed visible exploration encounters for debug inspection', async () => {
+    const store = createGameStore(mockSaveSnapshot);
+    const saveWriter = new SaveWriterSpy();
+    const explorationController = new ExplorationEncounterController({
+      store,
+      now: () => '2026-03-25T09:10:00.000Z',
+    });
+    const controller = new AreaDebugController({
+      store,
+      saveController: saveWriter,
+      explorationController,
+    });
+
+    const result = await controller.jumpToArea(mockIds.areas.grotto);
+
+    expect(result?.ok).toBe(true);
+    expect(selectExplorationState(store.getState()).signals).toHaveLength(1);
+    expect(selectExplorationState(store.getState()).signals[0]?.areaId).toBe(
+      mockIds.areas.grotto,
+    );
     expect(saveWriter.calls).toEqual(['debug']);
   });
 });

@@ -55,4 +55,10 @@ export const mockSaveSnapshot: SaveSnapshot = {
   resources: mockResourceState,
   review: mockReviewPayload,
   reviewState: mockReviewState,
+  exploration: {
+    signals: [],
+    ruleStates: [],
+    searchedInteractionIds: [],
+    collectedResourceNodeIds: [],
+  },
 };

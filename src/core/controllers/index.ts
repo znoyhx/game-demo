@@ -4,6 +4,7 @@ export * from './combatController';
 export * from './controllerUtils';
 export * from './debugScenarioController';
 export * from './eventTriggerController';
+export * from './explorationEncounterController';
 export * from './npcInteractionController';
 export * from './playerModelController';
 export * from './questDebugController';

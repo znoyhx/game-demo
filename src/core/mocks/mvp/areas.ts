@@ -168,6 +168,24 @@ export const mockAreas: Area[] = [
         targetId: mockIds.events.archiveEchoes,
         enabled: true,
       },
+      {
+        id: 'interaction:archive-relay-cache',
+        label: '搜索中继残匣',
+        type: 'item',
+        x: 5,
+        y: 9,
+        resourceNodeId: 'resource-node:archive-relay-core',
+        enabled: true,
+      },
+      {
+        id: 'interaction:archive-dustbloom-cluster',
+        label: '搜索尘辉花丛',
+        type: 'item',
+        x: 14,
+        y: 8,
+        resourceNodeId: 'resource-node:archive-dustbloom',
+        enabled: true,
+      },
     ],
     enemySpawnRules: [
       {
@@ -384,6 +402,7 @@ export const mockAreas: Area[] = [
         type: 'item',
         x: 9,
         y: 5,
+        resourceNodeId: 'resource-node:grotto-relic-cache',
         enabled: true,
       },
     ],

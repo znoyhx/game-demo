@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
 import { AreaNavigationController } from '../../src/core/controllers/areaNavigationController';
+import { ExplorationEncounterController } from '../../src/core/controllers/explorationEncounterController';
 import { EventTriggerController } from '../../src/core/controllers/eventTriggerController';
 import { QuestProgressionController } from '../../src/core/controllers/questProgressionController';
 import { createMockAgentSet } from '../../src/core/agents';
 import { createGameEventBus } from '../../src/core/events/domainEvents';
 import { mockIds, mockSaveSnapshot } from '../../src/core/mocks/mvp';
-import { createGameStore, selectMapState } from '../../src/core/state';
+import {
+  createGameStore,
+  selectExplorationState,
+  selectMapState,
+} from '../../src/core/state';
 
 class SaveWriterSpy {
   calls: Array<'auto' | 'manual' | 'debug'> = [];
@@ -140,6 +145,29 @@ describe('area navigation controller', () => {
     expect(result?.ok).toBe(true);
     expect(triggeredEvent?.source).toBe('location');
     expect(store.getState().worldRuntime.flags.ashfallWarningSeen).toBe(true);
+    expect(saveWriter.calls).toEqual(['auto']);
+  });
+
+  it('wires on-enter exploration signals into normal area navigation without extra saves', async () => {
+    const store = createGameStore(mockSaveSnapshot);
+    const saveWriter = new SaveWriterSpy();
+    const explorationController = new ExplorationEncounterController({
+      store,
+      now: () => '2026-03-25T09:00:00.000Z',
+    });
+    const controller = new AreaNavigationController({
+      store,
+      saveController: saveWriter,
+      explorationController,
+    });
+
+    const result = await controller.enterArea(mockIds.areas.grotto);
+
+    expect(result?.ok).toBe(true);
+    expect(selectExplorationState(store.getState()).signals).toHaveLength(1);
+    expect(selectExplorationState(store.getState()).signals[0]?.areaId).toBe(
+      mockIds.areas.grotto,
+    );
     expect(saveWriter.calls).toEqual(['auto']);
   });
 });

@@ -42,6 +42,7 @@ import {
   selectEventDefinitions,
   selectEventDirector,
   selectEventHistory,
+  selectExplorationState,
   selectMapState,
   selectNpcDefinitions,
   selectNpcStates,
@@ -95,6 +96,7 @@ export function DebugPage() {
   const npcStates = useGameStore(useShallow(selectNpcStates));
   const player = useGameStore(selectPlayerState);
   const playerModel = useGameStore(selectPlayerModelState);
+  const explorationState = useGameStore(selectExplorationState);
   const combatEncounters = useGameStore(useShallow(selectCombatEncounters));
   const combatState = useGameStore(selectCombatState);
   const eventDefinitions = useGameStore(useShallow(selectEventDefinitions));
@@ -341,6 +343,7 @@ export function DebugPage() {
       npcStates,
       player,
       playerModel,
+      explorationState,
       combatEncounters,
       combatState,
       eventDefinitions,
@@ -365,6 +368,7 @@ export function DebugPage() {
       npcStates,
       player,
       playerModel,
+      explorationState,
       questDefinitions,
       questProgressEntries,
       review,

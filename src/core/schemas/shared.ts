@@ -29,6 +29,7 @@ export const genericIdSchema = createIdSchema('id');
 export const schemaOwnerSchema = z.enum([
   'world',
   'area',
+  'exploration',
   'quest',
   'npc',
   'player',

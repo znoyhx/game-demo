@@ -55,6 +55,22 @@ describe('pixel scene render model', () => {
           feedbackTone: 'warning',
           state: 'alert',
         },
+        {
+          id: 'exploration-signal:archive-echo-sentries:1',
+          label: '秘库回响守卫',
+          caption: '搜索触发伏击',
+          glyph: '敌',
+          typeLabel: '战斗',
+          type: 'battle',
+          targetId: 'encounter:exploration:archive-echo-sentries:1',
+          enabled: true,
+          mapX: 6,
+          mapY: 9,
+          xPercent: 40,
+          yPercent: 78,
+          feedbackTone: 'warning',
+          state: 'alert',
+        },
       ],
     });
 
@@ -87,6 +103,16 @@ describe('pixel scene render model', () => {
     expect(
       model.entities.find((entity) => entity.type === 'battle')?.autoInteractOnApproach ?? false,
     ).toBe(false);
+    expect(
+      model.entities.find(
+        (entity) => entity.id === 'exploration-signal:archive-echo-sentries:1',
+      ),
+    ).toMatchObject({
+      x: 6,
+      y: 9,
+      type: 'battle',
+      targetId: 'encounter:exploration:archive-echo-sentries:1',
+    });
     expect(
       model.entities.every(
         (entity) =>

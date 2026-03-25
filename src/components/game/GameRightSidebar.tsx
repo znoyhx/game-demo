@@ -70,7 +70,7 @@ export function GameRightSidebar({
       <GamePanel
         title="玩家状态"
         eyebrow="即时状态"
-        description="展示生命、精力、资源以及当前玩法倾向标签。"
+        description="展示生命、能量、资源以及当前玩法倾向标签。"
       >
         <dl className="game-stat-list">
           {playerStatus.map((stat) => (

@@ -6,6 +6,7 @@ import { combatStateSchema } from './combat.schema';
 import { gameConfigStateSchema } from './config.schema';
 import { worldCreationRequestSchema } from './creation.schema';
 import { eventLogEntrySchema } from './event.schema';
+import { explorationStateSchema } from './exploration.schema';
 import { npcStateSchema } from './npc.schema';
 import { playerStateSchema } from './player.schema';
 import { questDefinitionSchema } from './quest.schema';
@@ -31,6 +32,7 @@ export const schemaRegistry: SchemaRegistryEntry[] = [
   { name: 'config.schema', owner: 'config', status: 'ready', schema: gameConfigStateSchema },
   { name: 'creation.schema', owner: 'creation', status: 'ready', schema: worldCreationRequestSchema },
   { name: 'event.schema', owner: 'event', status: 'ready', schema: eventLogEntrySchema },
+  { name: 'exploration.schema', owner: 'exploration', status: 'ready', schema: explorationStateSchema },
   { name: 'combat.schema', owner: 'combat', status: 'ready', schema: combatStateSchema },
   { name: 'review.schema', owner: 'review', status: 'ready', schema: reviewPayloadSchema },
   { name: 'save.schema', owner: 'save', status: 'ready', schema: saveSnapshotSchema },

@@ -18,6 +18,14 @@ interface AreaDebugControllerOptions {
   store: StoreApi<GameStoreState>;
   eventBus?: GameEventBus;
   saveController?: SaveWriter;
+  explorationController?: {
+    handleAreaEnter: (
+      areaId: string,
+      options?: {
+        autoSave?: boolean;
+      },
+    ) => Promise<unknown>;
+  };
 }
 
 export interface AreaDebugJumpResult {
@@ -55,10 +63,13 @@ export class AreaDebugController {
 
   private readonly saveController?: SaveWriter;
 
+  private readonly explorationController?: AreaDebugControllerOptions['explorationController'];
+
   constructor(options: AreaDebugControllerOptions) {
     this.store = options.store;
     this.eventBus = options.eventBus;
     this.saveController = options.saveController;
+    this.explorationController = options.explorationController;
   }
 
   private enableDebugState(patch?: Partial<DebugToolsState>) {
@@ -116,6 +127,10 @@ export class AreaDebugController {
       areaId: targetArea.id,
       previousAreaId,
       unlockedAreaIds: nextState.mapState.unlockedAreaIds,
+    });
+
+    await this.explorationController?.handleAreaEnter(targetArea.id, {
+      autoSave: false,
     });
 
     if (options?.autoSave ?? true) {
