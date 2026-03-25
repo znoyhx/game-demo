@@ -5,8 +5,12 @@ import type {
   ReviewPayload,
   ReviewState,
 } from '../../schemas';
+import { buildReviewPayload } from '../../rules';
 
 import { mockIds, mockTimeline } from './constants';
+import { mockEventHistory } from './events';
+import { mockPlayerModelState, mockPlayerState } from './player';
+import { mockQuestProgress } from './quests';
 
 export const mockBossEncounterDefinition: CombatEncounterDefinition = {
   id: mockIds.encounter,
@@ -153,6 +157,8 @@ export const mockCombatHistory: CombatHistoryEntry[] = [
     resolvedAt: mockTimeline.combatResolvedAt,
     turnCount: 4,
     finalPhaseId: 'phase:embers-unbound',
+    playerRemainingHp: 14,
+    enemyRemainingHp: 21,
     tacticChanges: [
       {
         turn: 2,
@@ -204,65 +210,22 @@ export const mockCombatHistory: CombatHistoryEntry[] = [
   },
 ];
 
-export const mockReviewPayload: ReviewPayload = {
+export const mockReviewPayload: ReviewPayload = buildReviewPayload({
   generatedAt: mockTimeline.reviewGeneratedAt,
-  encounterId: mockBossEncounterDefinition.id,
-  playerTags: ['exploration', 'story', 'risky'],
-  combatSummary: {
-    result: {
-      result: 'victory',
-      totalTurns: 4,
-      finalTactic: 'counter',
-      finalPhaseId: 'phase:embers-unbound',
-      playerRemainingHp: 14,
-      enemyRemainingHp: 21,
-      summary: '本场首领战以“胜利”结束，共经历 4 回合，最终战术为“套路反制”。',
-    },
-    tacticChanges: mockCombatHistory[0].tacticChanges,
-    phaseChanges: mockCombatHistory[0].phaseChanges,
-    keyPlayerBehaviors: mockCombatHistory[0].keyPlayerBehaviors,
+  player: mockPlayerState,
+  playerTags: mockPlayerState.profileTags,
+  playerModel: mockPlayerModelState,
+  difficulty: 'normal',
+  reviewRequest: {
+    trigger: 'combat',
   },
-  keyEvents: [
-    '本场首领战以“胜利”结束，共经历 4 回合，最终战术为“套路反制”。',
-    '首领在本场战斗中触发了 1 次阶段切换。',
-    '首领共进行了 3 次可见战术切换。',
-    '本轮流程中已完成 1 条任务线，仍有 2 条任务线处于进行中。',
-  ],
-  explanations: [
-    {
-      type: 'combat',
-      title: '首领战术切换轨迹',
-      summary: '首领共发生 3 次战术切换，说明它会根据回合推进与玩家习惯动态调整。',
-      evidence: [
-        '第 2 回合切换为“诱导陷阱”，当前阶段为“封印守势”。',
-        '第 3 回合切换为“召唤支援”，当前阶段为“余烬失控”。',
-        '第 4 回合切换为“套路反制”，当前阶段为“余烬失控”。',
-      ],
-    },
-    {
-      type: 'combat',
-      title: '首领阶段变化',
-      summary: '首领共进入 2 个阶段，阶段切换会直接影响战术偏好。',
-      evidence: ['第 3 回合从“封印守势”切换到“余烬失控”。'],
-    },
-    {
-      type: 'playerModel',
-      title: '玩家行为重点',
-      summary: '玩家本场最常用的操作为“攻击”、“特技”、“治疗”。',
-      evidence: [
-        '玩家共使用“攻击”2 次。',
-        '玩家共使用“特技”1 次。',
-        '玩家共使用“治疗”1 次。',
-        '当前玩家标签：探索、剧情、高风险',
-      ],
-    },
-  ],
-  suggestions: [
-    '下次面对“套路反制”时，避免连续重复攻击，穿插防御或解析来打断读招。',
-    '留意首领阶段切换前的血量阈值，提前准备下一轮的应对资源。',
-    '你已经摸清了首领节奏，下一次可以尝试更早逼出阶段切换并压缩战斗回合数。',
-  ],
-};
+  reviewHistory: [],
+  encounter: mockBossEncounterDefinition,
+  combat: mockBossCombatState,
+  combatHistory: mockCombatHistory,
+  questProgress: mockQuestProgress,
+  eventHistory: mockEventHistory,
+});
 
 export const mockReviewState: ReviewState = {
   current: mockReviewPayload,

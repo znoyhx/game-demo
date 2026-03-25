@@ -5,6 +5,7 @@ import type { GameStoreState } from '../state';
 import { evaluateAreaAccess } from '../rules';
 
 import { maybeAutoSave, type SaveWriter } from './controllerUtils';
+import type { PlayerModelController } from './playerModelController';
 import type { QuestProgressionController } from './questProgressionController';
 
 interface AreaNavigationControllerOptions {
@@ -12,6 +13,7 @@ interface AreaNavigationControllerOptions {
   eventBus?: GameEventBus;
   saveController?: SaveWriter;
   questController?: QuestProgressionController;
+  playerModelController?: PlayerModelController;
   explorationController?: {
     handleAreaEnter: (
       areaId: string,
@@ -39,6 +41,8 @@ export class AreaNavigationController {
 
   private readonly questController?: QuestProgressionController;
 
+  private readonly playerModelController?: PlayerModelController;
+
   private readonly explorationController?: AreaNavigationControllerOptions['explorationController'];
 
   private readonly eventController?: AreaNavigationControllerOptions['eventController'];
@@ -48,6 +52,7 @@ export class AreaNavigationController {
     this.eventBus = options.eventBus;
     this.saveController = options.saveController;
     this.questController = options.questController;
+    this.playerModelController = options.playerModelController;
     this.explorationController = options.explorationController;
     this.eventController = options.eventController;
   }
@@ -99,6 +104,11 @@ export class AreaNavigationController {
 
     await this.eventController?.triggerAreaEntryEvents(targetArea.id, {
       autoSave: false,
+    });
+
+    await this.playerModelController?.recordAreaVisit(targetArea.id, {
+      autoSave: false,
+      appendRecentVisit: false,
     });
 
     await this.explorationController?.handleAreaEnter(targetArea.id, {

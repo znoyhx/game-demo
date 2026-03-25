@@ -54,6 +54,8 @@ interface GameHudProps {
       detail: string;
       isPending: boolean;
       isTriggered: boolean;
+      naturallyTriggerable: boolean;
+      naturalReason?: string;
     }>;
     interactionLocked?: boolean;
   };

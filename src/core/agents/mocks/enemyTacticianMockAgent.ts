@@ -6,6 +6,7 @@ import {
   type EnemyTacticianOutput,
   type EnemyTacticType,
 } from '../../schemas';
+import { resolveEnemyCounterStrategyBias } from '../../rules';
 import { formatEnemyTacticLabel } from '../../utils/displayLabels';
 
 import type { EnemyTacticianAgent } from '../interfaces';
@@ -58,40 +59,36 @@ export class MockEnemyTacticianAgent
         ? 0
         : input.combatState.enemy.hp / input.combatState.enemy.maxHp;
     const playerHealthRatio =
-      input.playerState.maxHp === 0 ? 0 : input.playerState.hp / input.playerState.maxHp;
+      input.playerState.maxHp === 0
+        ? 0
+        : input.playerState.hp / input.playerState.maxHp;
     const dominantAction = getDominantAction(input.commonPlayerActions);
     const currentPhase = input.encounter.bossPhases?.find(
       (phase) => phase.id === (input.bossPhaseId ?? input.combatState.currentPhaseId),
     );
     const phaseBias = currentPhase?.tacticBias ?? [];
+    const playerModelBias = resolveEnemyCounterStrategyBias(input.playerTags);
     const hasTrackedEnergy = typeof input.playerState.energy === 'number';
     const playerEnergy = input.playerState.energy ?? 0;
-    const dominantIsGuard = dominantAction === 'guard';
-    const dominantIsHeal = dominantAction === 'heal';
-    const dominantIsAnalyze = dominantAction === 'analyze';
-    const dominantIsSpecial = dominantAction === 'special';
     const trapPressureActive =
       input.environmentState?.hazard === 'volatile' ||
-      dominantIsGuard ||
-      dominantIsHeal ||
-      dominantIsAnalyze;
+      dominantAction === 'guard' ||
+      dominantAction === 'heal' ||
+      dominantAction === 'analyze';
 
     const candidateTactics: EnemyTacticType[] = [];
     const tacticReasons: Partial<Record<EnemyTacticType, string>> = {};
 
-    if (
-      hasTrackedEnergy &&
-      (playerEnergy <= 3 || (!trapPressureActive && dominantIsSpecial))
-    ) {
+    if (hasTrackedEnergy && (playerEnergy <= 3 || dominantAction === 'special')) {
       candidateTactics.push('resource-lock');
       tacticReasons['resource-lock'] =
-        '玩家资源储备正在见底或高度依赖技能指令，优先封锁能量回路';
+        '检测到玩家能量紧张或依赖特殊招式，优先通过资源压制打断节奏。';
     }
 
     if (trapPressureActive) {
       candidateTactics.push('trap');
       tacticReasons.trap =
-        '战场环境或玩家节奏容易诱导停顿，适合布置陷阱和牵引动作';
+        '玩家近期更偏防守或环境波动更强，布置陷阱更容易迫使其改变站位。';
     }
 
     if (
@@ -102,13 +99,13 @@ export class MockEnemyTacticianAgent
     ) {
       candidateTactics.push('counter');
       tacticReasons.counter =
-        '玩家近期偏好正面强压，适合用反制手段惩罚常用输出节奏';
+        '玩家近期以正面压制为主，使用反制战术更容易抓住进攻节奏。';
     }
 
     if (playerHealthRatio <= 0.45 || input.combatState.turn >= 5) {
       candidateTactics.push('aggressive');
       tacticReasons.aggressive =
-        '玩家生命已压低或战斗拖长，应切换到压制强攻尽快逼出结果';
+        '战斗已进入压血或拖长阶段，敌方会提高压迫感争取尽快收尾。';
     }
 
     if (
@@ -118,7 +115,7 @@ export class MockEnemyTacticianAgent
     ) {
       candidateTactics.push('defensive');
       tacticReasons.defensive =
-        '当前更适合用防守消耗拖住节奏，等待下一次明确破绽';
+        '玩家更偏稳妥推进，敌方保持防守与拖节奏会更容易建立优势。';
     }
 
     if (
@@ -128,8 +125,14 @@ export class MockEnemyTacticianAgent
     ) {
       candidateTactics.push('summon');
       tacticReasons.summon =
-        '已进入中后段回合，召唤支援能制造额外压迫与换位机会';
+        '当前局面适合通过召唤额外压力单位来分散玩家注意力。';
     }
+
+    playerModelBias.tacticPriorities.forEach((tactic) => {
+      candidateTactics.push(tactic);
+      tacticReasons[tactic] ??=
+        playerModelBias.reasons[0] ?? '系统根据玩家画像补充了额外战术偏置。';
+    });
 
     const selectedTactic = pickFirstAvailable(input.encounter.tacticPool, [
       ...candidateTactics,
@@ -142,12 +145,23 @@ export class MockEnemyTacticianAgent
       tacticReasons[selectedTactic] ??
       `mock 战术代理根据当前遭遇配置，选择了${formatEnemyTacticLabel(selectedTactic)}。`;
 
+    if (phaseBias.includes(selectedTactic)) {
+      return {
+        selectedTactic,
+        reason: `${reason} 当前阶段本身就偏好这种战术。`,
+      };
+    }
+
+    if (playerModelBias.tacticPriorities.includes(selectedTactic)) {
+      return {
+        selectedTactic,
+        reason: `${reason} 这也符合当前玩家画像触发的反制优先级。`,
+      };
+    }
+
     return {
       selectedTactic,
-      reason:
-        phaseBias.includes(selectedTactic)
-          ? `${reason} 当前首领阶段对这套战术有额外偏好。`
-          : reason,
+      reason,
     };
   }
 }

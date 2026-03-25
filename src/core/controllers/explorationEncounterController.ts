@@ -21,6 +21,7 @@ import {
   type TimestampProvider,
 } from './controllerUtils';
 import type { CombatController } from './combatController';
+import type { PlayerModelController } from './playerModelController';
 import type { QuestProgressionController } from './questProgressionController';
 
 interface ExplorationEncounterControllerOptions {
@@ -28,6 +29,7 @@ interface ExplorationEncounterControllerOptions {
   saveController?: SaveWriter;
   combatController?: CombatController;
   questController?: QuestProgressionController;
+  playerModelController?: PlayerModelController;
   now?: TimestampProvider;
 }
 
@@ -65,6 +67,8 @@ export class ExplorationEncounterController {
 
   private readonly questController?: QuestProgressionController;
 
+  private readonly playerModelController?: PlayerModelController;
+
   private readonly now: TimestampProvider;
 
   constructor(options: ExplorationEncounterControllerOptions) {
@@ -72,6 +76,7 @@ export class ExplorationEncounterController {
     this.saveController = options.saveController;
     this.combatController = options.combatController;
     this.questController = options.questController;
+    this.playerModelController = options.playerModelController;
     this.now = options.now ?? defaultTimestampProvider;
   }
 
@@ -223,6 +228,18 @@ export class ExplorationEncounterController {
     }
 
     this.mergeGeneratedEncounters(generatedEncounters);
+
+    if (!searchResolution.searchedAlready) {
+      await this.playerModelController?.recordExplorationSearch(
+        {
+          resourceFound: Boolean(searchResolution.resourceGain),
+          triggeredAmbush: signals.length > 0,
+        },
+        {
+          autoSave: false,
+        },
+      );
+    }
 
     if (
       (options?.autoSave ?? true) &&

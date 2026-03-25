@@ -354,7 +354,51 @@ export const zhCN = {
     review: {
       title: '回顾与解释',
       description:
-        '这个页面已经为战斗总结、战术说明、任务分支原因和玩家模型输出预留好接入位置。',
+        '这里集中展示当前玩家画像、任务分支原因、角色态度变化、敌方策略原因、关键成败因素与下一步建议。',
+      triggerBadge: (trigger: string) => `触发来源：${trigger}`,
+      sections: {
+        keyEvents: {
+          title: '关键节点',
+          empty: '当前还没有可展示的关键节点。',
+          footer: '会汇总本次解释触发时最值得向评委或玩家展示的事件。',
+        },
+        playerModel: {
+          title: '当前玩家画像',
+          empty: '当前还没有可展示的玩家画像解释。',
+          naturalBadge: '自然推导画像',
+          debugBadge: '调试注入画像',
+        },
+        questBranch: {
+          title: '任务分支原因',
+          empty: '当前还没有记录到关键任务分支变化。',
+          footer: '用于解释任务为什么进入当前分支，以及这会如何影响后续推进。',
+        },
+        npcAttitude: {
+          title: '角色态度变化',
+          empty: '当前还没有记录到需要展示的角色态度变化。',
+          footer: '用于解释角色为何转向友善、戒备或敌对，以及信任/关系如何变化。',
+        },
+        tactic: {
+          title: '敌方策略原因',
+          empty: '当前还没有记录到关键的敌方策略变化。',
+          footer: '结合阶段、玩家行为和画像标签说明敌方为何切换策略。',
+        },
+        factors: {
+          title: '成败因素',
+          empty: '当前还没有整理出可展示的成败因素。',
+          footer: '用于快速概括本轮成功、失败、风险点与可利用机会。',
+        },
+        suggestions: {
+          title: '下一步建议',
+          empty: '当前还没有生成下一步建议。',
+          footer: '建议会保持结构化，方便直接复用到演示引导或调试验证。',
+        },
+        knowledge: {
+          title: '教育模式扩展',
+          empty: '当前还没有生成教育模式知识点摘要。',
+          footer: '这部分是教育模式的扩展点，可继续生成知识点讲解与追问提示。',
+        },
+      },
       telemetry: {
         title: '回顾遥测',
         eyebrow: (count: number) => `${count} 条记录`,
@@ -504,11 +548,23 @@ export const zhCN = {
     },
     reviewGeneration: {
       noEncounter: '无',
+      triggers: {
+        combat: '战斗后复盘',
+        'quest-branch': '任务分支解释',
+        'npc-interaction': '角色互动解释',
+        'run-complete': '通关复盘',
+        'run-failed': '失败复盘',
+        manual: '手动回顾',
+      },
       logs: {
-        inputSummary: (encounterId: string, questCount: number, eventCount: number) =>
-          `战斗=${encounterId}，任务数=${questCount}，事件数=${eventCount}`,
-        outputSummary: (explanationCount: number) =>
-          `回顾解释条数=${explanationCount}`,
+        inputSummary: (
+          triggerLabel: string,
+          encounterId: string,
+          questCount: number,
+          eventCount: number,
+        ) => `触发=${triggerLabel}，战斗=${encounterId}，任务数=${questCount}，事件数=${eventCount}`,
+        outputSummary: (explanationCount: number, factorCount: number) =>
+          `回顾解释条数=${explanationCount}，成败因素数=${factorCount}`,
       },
     },
   },

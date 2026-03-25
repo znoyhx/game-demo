@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import { createMockAgentSet } from '../../src/core/agents';
-import { CombatController, ReviewGenerationController } from '../../src/core/controllers';
+import {
+  CombatController,
+  PlayerModelController,
+  ReviewGenerationController,
+} from '../../src/core/controllers';
 import { mockIds } from '../../src/core/mocks/mvp';
 import { createGameStore } from '../../src/core/state';
 
@@ -114,5 +118,34 @@ describe('CombatController', () => {
     expect(store.getState().reviewState.history.length).toBeGreaterThan(1);
     expect(store.getState().combatState).toBeNull();
     expect(store.getState().ui.activePanel).toBe('review');
+  });
+
+  it('applies player-model difficulty bias and records combat actions back into the model', async () => {
+    const agents = createMockAgentSet();
+    const store = createGameStore();
+    const playerModelController = new PlayerModelController({
+      store,
+      agents,
+    });
+    const controller = new CombatController({
+      store,
+      agents,
+      playerModelController,
+    });
+
+    store.getState().setPlayerModelState({
+      ...store.getState().playerModel,
+      tags: ['combat', 'risky'],
+      dominantStyle: 'combat',
+    });
+
+    await controller.startEncounter(mockIds.encounter);
+
+    expect(store.getState().combatState?.enemy.maxHp).toBeGreaterThan(90);
+
+    await controller.submitPlayerAction('special');
+
+    expect(store.getState().playerModel.recentCombatActions).toContain('special');
+    expect(store.getState().player.profileTags).toEqual(store.getState().playerModel.tags);
   });
 });

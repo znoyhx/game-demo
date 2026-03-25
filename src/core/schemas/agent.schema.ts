@@ -26,10 +26,20 @@ import {
   positiveIntegerSchema,
   questIdSchema,
 } from './shared';
-import { npcDefinitionSchema, npcDialogueTurnSchema, npcStateSchema } from './npc.schema';
-import { playerModelStateSchema, playerProfileTagSchema, playerStateSchema } from './player.schema';
+import {
+  npcDefinitionSchema,
+  npcDialogueIntentSchema,
+  npcDialogueTurnSchema,
+  npcStateSchema,
+} from './npc.schema';
+import {
+  playerModelSignalWeightsSchema,
+  playerModelStateSchema,
+  playerProfileTagSchema,
+  playerStateSchema,
+} from './player.schema';
 import { questDefinitionSchema, questProgressSchema } from './quest.schema';
-import { reviewPayloadSchema } from './review.schema';
+import { reviewPayloadSchema, reviewRequestSchema } from './review.schema';
 import { factionSchema, worldModeSchema, worldSchema } from './world.schema';
 
 export const difficultyLevelSchema = z.enum(['easy', 'normal', 'hard']);
@@ -119,6 +129,7 @@ export const npcBrainInputSchema = z
     questProgressEntries: z.array(questProgressSchema),
     playerState: playerStateSchema,
     playerModel: playerModelStateSchema,
+    selectedIntent: npcDialogueIntentSchema.optional(),
     recentDialogue: z.array(npcDialogueTurnSchema),
   })
   .strict();
@@ -186,9 +197,23 @@ export const gameMasterOutputSchema = z
 export const playerModelInputSchema = z
   .object({
     recentAreaVisits: z.array(areaIdSchema),
+    recentCombatActions: z.array(combatCommandActionSchema).default([]),
+    recentNpcInteractionIntents: z.array(npcDialogueIntentSchema).default([]),
     recentQuestChoices: z.array(nonEmptyStringSchema),
     combatSummary: combatStateSchema.nullable().optional(),
+    combatHistory: z.array(combatHistoryEntrySchema).default([]),
     npcInteractionCount: nonNegativeIntegerSchema,
+    activeQuestCount: nonNegativeIntegerSchema.default(0),
+    completedQuestCount: nonNegativeIntegerSchema.default(0),
+    signalWeights: playerModelSignalWeightsSchema.default({
+      exploration: 0,
+      combat: 0,
+      social: 0,
+      story: 0,
+      speedrun: 0,
+      cautious: 0,
+      risky: 0,
+    }),
   })
   .strict();
 
@@ -196,12 +221,20 @@ export const playerModelOutputSchema = z
   .object({
     tags: z.array(playerProfileTagSchema),
     rationale: z.array(nonEmptyStringSchema).optional(),
+    riskForecast: nonEmptyStringSchema.optional(),
+    stuckPoint: nonEmptyStringSchema.optional(),
   })
   .strict();
 
 export const explainCoachInputSchema = z
   .object({
     player: playerStateSchema,
+    playerModel: playerModelStateSchema,
+    difficulty: difficultyLevelSchema,
+    reviewRequest: reviewRequestSchema.default({
+      trigger: 'manual',
+    }),
+    reviewHistory: z.array(reviewPayloadSchema).default([]),
     encounter: combatEncounterDefinitionSchema.nullable().optional(),
     combat: combatStateSchema.nullable().optional(),
     combatHistory: z.array(combatHistoryEntrySchema).default([]),

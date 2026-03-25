@@ -152,6 +152,8 @@ export const combatHistoryEntrySchema = z
     resolvedAt: isoTimestampSchema,
     turnCount: positiveIntegerSchema,
     finalPhaseId: genericIdSchema.optional(),
+    playerRemainingHp: nonNegativeIntegerSchema.optional(),
+    enemyRemainingHp: nonNegativeIntegerSchema.optional(),
     tacticChanges: z.array(combatTacticChangeSchema),
     phaseChanges: z.array(combatPhaseChangeSchema),
     keyPlayerBehaviors: z.array(combatPlayerBehaviorSummarySchema),

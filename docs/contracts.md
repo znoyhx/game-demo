@@ -689,12 +689,32 @@ export interface PlayerModelState {
   tags: PlayerProfileTag[];
   rationale: string[];
   recentAreaVisits: AreaId[];
+  recentCombatActions: CombatCommandAction[];
+  recentNpcInteractionIntents: Array<
+    "greet" | "ask" | "trade" | "quest" | "persuade" | "leave"
+  >;
   recentQuestChoices: string[];
   npcInteractionCount: number;
+  signalWeights: Record<PlayerProfileTag, number>;
   dominantStyle?: PlayerProfileTag;
   riskForecast?: string;
   stuckPoint?: string;
+  debugProfile?: {
+    injected: true;
+    source: "manual-tags" | "behavior-replay" | "preset-scenario";
+    label: string;
+  };
   lastUpdatedAt?: IsoTimestamp;
+}
+```
+
+```ts
+export interface PlayerModelDebugScenario {
+  id: string;
+  label: string;
+  description: string;
+  replaySteps: PlayerModelBehaviorReplayStep[];
+  expectedTags: PlayerProfileTag[];
 }
 ```
 
@@ -1097,10 +1117,31 @@ export interface ExplanationItem {
 ## 11.2 Review Payload
 
 ```ts
+export type ReviewTriggerType =
+  | "combat"
+  | "quest-branch"
+  | "npc-interaction"
+  | "run-complete"
+  | "run-failed"
+  | "manual";
+
 export interface ReviewPayload {
   generatedAt: IsoTimestamp;
+  trigger: ReviewTriggerType;
   encounterId?: EncounterId;
   playerTags: PlayerProfileTag[];
+  playerModelSnapshot: {
+    tags: PlayerProfileTag[];
+    dominantStyle?: PlayerProfileTag;
+    rationale: string[];
+    riskForecast?: string;
+    stuckPoint?: string;
+    debugProfile?: {
+      injected: boolean;
+      source: "manual-tags" | "behavior-replay" | "preset-scenario";
+      label: string;
+    };
+  };
   combatSummary: {
     result: {
       result: "victory" | "defeat" | "escape";
@@ -1130,7 +1171,49 @@ export interface ReviewPayload {
       summary: string;
     }>;
   } | null;
+  questBranchReasons: Array<{
+    questId: QuestId;
+    questTitle: string;
+    branchId?: string;
+    branchLabel?: string;
+    status: QuestStatus;
+    summary: string;
+    reasons: string[];
+  }>;
+  npcAttitudeReasons: Array<{
+    npcId: NpcId;
+    npcName: string;
+    attitudeLabel: string;
+    emotionalStateLabel: string;
+    trustDelta: number;
+    relationshipDelta: number;
+    summary: string;
+    reasons: string[];
+    decisionBasis: string[];
+  }>;
+  enemyTacticReasons: Array<{
+    turn: number;
+    fromTactic?: EnemyTacticType;
+    toTactic: EnemyTacticType;
+    phaseId?: string;
+    summary: string;
+    reasons: string[];
+  }>;
+  outcomeFactors: Array<{
+    kind: "success" | "failure" | "risk" | "opportunity";
+    title: string;
+    summary: string;
+    evidence: string[];
+  }>;
   keyEvents: string[];
+  nextStepSuggestions: string[];
+  knowledgeSummary: {
+    extensionKey: "education-mode";
+    title: string;
+    summary: string;
+    keyPoints: string[];
+    suggestedPrompt?: string;
+  } | null;
   explanations: ExplanationItem[];
   suggestions: string[];
 }
@@ -1198,6 +1281,8 @@ export interface SaveSnapshot {
       resolvedAt: IsoTimestamp;
       turnCount: number;
       finalPhaseId?: string;
+      playerRemainingHp?: number;
+      enemyRemainingHp?: number;
       tacticChanges: Array<{
         turn: number;
         fromTactic?: EnemyTacticType;
@@ -1372,6 +1457,7 @@ export interface NpcBrainInput {
   questProgressEntries: QuestProgress[];
   playerState: PlayerState;
   playerModel: PlayerModelState;
+  selectedIntent?: "greet" | "ask" | "trade" | "quest" | "persuade" | "leave";
   recentDialogue: NpcDialogueTurn[];
 }
 ```
@@ -1469,9 +1555,17 @@ export interface GameMasterOutput {
 ```ts
 export interface PlayerModelInput {
   recentAreaVisits: AreaId[];
+  recentCombatActions: CombatCommandAction[];
+  recentNpcInteractionIntents: Array<
+    "greet" | "ask" | "trade" | "quest" | "persuade" | "leave"
+  >;
   recentQuestChoices: string[];
   combatSummary?: CombatState | null;
+  combatHistory: CombatHistoryEntry[];
   npcInteractionCount: number;
+  activeQuestCount: number;
+  completedQuestCount: number;
+  signalWeights: Record<PlayerProfileTag, number>;
 }
 ```
 
@@ -1481,6 +1575,8 @@ export interface PlayerModelInput {
 export interface PlayerModelOutput {
   tags: PlayerProfileTag[];
   rationale?: string[];
+  riskForecast?: string;
+  stuckPoint?: string;
 }
 ```
 
@@ -1491,13 +1587,59 @@ export interface PlayerModelOutput {
 ### Input
 
 ```ts
+export interface ReviewRequest {
+  trigger: ReviewTriggerType;
+  questBranch?: {
+    questId: QuestId;
+    questTitle: string;
+    branchId?: string;
+    branchLabel?: string;
+    status: QuestStatus;
+    summary: string;
+    reasons: string[];
+  };
+  npcInteraction?: {
+    npcId: NpcId;
+    npcName: string;
+    explanation: NpcInteractionExplanation;
+    unlockedQuestIds: QuestId[];
+    isMajor: boolean;
+  };
+  runOutcome?: {
+    result: "completed" | "failed";
+    questId?: QuestId;
+    questTitle?: string;
+    summary: string;
+    reasons: string[];
+  };
+}
+
+export interface ReviewReconstructionTarget {
+  trigger?: ReviewTriggerType;
+  encounterId?: EncounterId;
+  combatHistoryIndex?: number;
+  questId?: QuestId;
+  questHistoryIndex?: number;
+  npcId?: NpcId;
+  eventId?: EventId;
+  eventHistoryIndex?: number;
+}
+
 export interface ExplainCoachInput {
   player: PlayerState;
+  playerModel: PlayerModelState;
+  difficulty: "easy" | "normal" | "hard";
+  reviewRequest: ReviewRequest;
+  reviewHistory: ReviewPayload[];
+  encounter?: CombatEncounterDefinition | null;
   combat?: CombatState | null;
+  combatHistory: CombatHistoryEntry[];
   questProgress: QuestProgress[];
   eventHistory: EventLogEntry[];
 }
 ```
+
+`ExplainCoachInput` is reused for both live review generation and deterministic reconstruction from saved snapshots, so standalone debug and test replay flows stay on the same validated agent boundary.
 
 ### Output
 

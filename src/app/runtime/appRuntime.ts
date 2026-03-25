@@ -28,16 +28,12 @@ export const appSaveLoadController = new SaveLoadController({
   eventBus: gameEventBus,
 });
 
-export const appQuestProgressionController = new QuestProgressionController({
+export const appPlayerModelController = new PlayerModelController({
   store: gameStore,
+  agents: appAgents,
   eventBus: gameEventBus,
   saveController: appSaveLoadController,
-});
-
-export const appQuestDebugController = new QuestDebugController({
-  store: gameStore,
-  questController: appQuestProgressionController,
-  saveController: appSaveLoadController,
+  logger: gameLogger,
 });
 
 export const appReviewGenerationController = new ReviewGenerationController({
@@ -48,12 +44,18 @@ export const appReviewGenerationController = new ReviewGenerationController({
   logger: gameLogger,
 });
 
-export const appPlayerModelController = new PlayerModelController({
+export const appQuestProgressionController = new QuestProgressionController({
   store: gameStore,
-  agents: appAgents,
   eventBus: gameEventBus,
   saveController: appSaveLoadController,
-  logger: gameLogger,
+  playerModelController: appPlayerModelController,
+  reviewController: appReviewGenerationController,
+});
+
+export const appQuestDebugController = new QuestDebugController({
+  store: gameStore,
+  questController: appQuestProgressionController,
+  saveController: appSaveLoadController,
 });
 
 export const appEventTriggerController = new EventTriggerController({
@@ -77,6 +79,8 @@ export const appNpcInteractionController = new NpcInteractionController({
   eventBus: gameEventBus,
   saveController: appSaveLoadController,
   questController: appQuestProgressionController,
+  playerModelController: appPlayerModelController,
+  reviewController: appReviewGenerationController,
   logger: gameLogger,
 });
 
@@ -86,6 +90,7 @@ export const appCombatController = new CombatController({
   eventBus: gameEventBus,
   saveController: appSaveLoadController,
   reviewController: appReviewGenerationController,
+  playerModelController: appPlayerModelController,
   logger: gameLogger,
 });
 
@@ -94,6 +99,7 @@ export const appExplorationEncounterController = new ExplorationEncounterControl
   saveController: appSaveLoadController,
   combatController: appCombatController,
   questController: appQuestProgressionController,
+  playerModelController: appPlayerModelController,
 });
 
 export const appAreaNavigationController = new AreaNavigationController({
@@ -101,6 +107,7 @@ export const appAreaNavigationController = new AreaNavigationController({
   eventBus: gameEventBus,
   saveController: appSaveLoadController,
   questController: appQuestProgressionController,
+  playerModelController: appPlayerModelController,
   explorationController: appExplorationEncounterController,
   eventController: appEventTriggerController,
 });
@@ -122,6 +129,7 @@ export const appDebugScenarioController = new DebugScenarioController({
   combatController: appCombatController,
   eventController: appEventTriggerController,
   playerModelController: appPlayerModelController,
+  reviewController: appReviewGenerationController,
 });
 
 export const appWorldCreationController = new WorldCreationController({

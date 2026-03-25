@@ -23,11 +23,15 @@ import {
   type SaveWriter,
   type TimestampProvider,
 } from './controllerUtils';
+import type { PlayerModelController } from './playerModelController';
+import type { ReviewGenerationController } from './reviewGenerationController';
 
 interface QuestProgressionControllerOptions {
   store: StoreApi<GameStoreState>;
   eventBus?: GameEventBus;
   saveController?: SaveWriter;
+  playerModelController?: PlayerModelController;
+  reviewController?: ReviewGenerationController;
   now?: TimestampProvider;
 }
 
@@ -38,12 +42,18 @@ export class QuestProgressionController {
 
   private readonly saveController?: SaveWriter;
 
+  private readonly playerModelController?: PlayerModelController;
+
+  private readonly reviewController?: ReviewGenerationController;
+
   private readonly now: TimestampProvider;
 
   constructor(options: QuestProgressionControllerOptions) {
     this.store = options.store;
     this.eventBus = options.eventBus;
     this.saveController = options.saveController;
+    this.playerModelController = options.playerModelController;
+    this.reviewController = options.reviewController;
     this.now = options.now ?? defaultTimestampProvider;
   }
 
@@ -135,6 +145,36 @@ export class QuestProgressionController {
     }
   }
 
+  private async maybeGenerateRunOutcomeReview(
+    definition: QuestDefinition | undefined,
+    progress: QuestProgress | undefined,
+    summary: string,
+    reasons: string[],
+  ) {
+    if (!this.reviewController || !definition || !progress || definition.type !== 'main') {
+      return;
+    }
+
+    if (progress.status !== 'completed' && progress.status !== 'failed') {
+      return;
+    }
+
+    await this.reviewController.generateReview({
+      request: {
+        trigger: progress.status === 'completed' ? 'run-complete' : 'run-failed',
+        runOutcome: {
+          result: progress.status === 'completed' ? 'completed' : 'failed',
+          questId: definition.id,
+          questTitle: definition.title,
+          summary,
+          reasons,
+        },
+      },
+      autoOpenPanel: true,
+      autoSave: false,
+    });
+  }
+
   async activateQuest(
     questId: string,
     options?: {
@@ -224,6 +264,12 @@ export class QuestProgressionController {
           state.appendQuestHistory(failureResult.historyEntry);
           this.emitQuestUpdated(failureResult.progress);
           updatedProgressEntries.push(failureResult.progress);
+          await this.maybeGenerateRunOutcomeReview(
+            definition,
+            failureResult.progress,
+            failureResult.historyEntry.note,
+            failureResult.reasons,
+          );
         }
 
         continue;
@@ -328,6 +374,33 @@ export class QuestProgressionController {
       updatedAt: nextProgress.updatedAt,
     });
     this.emitQuestUpdated(nextProgress);
+    await this.playerModelController?.recordQuestChoice(branchId, {
+      autoSave: false,
+    });
+    await this.reviewController?.generateReview({
+      request: {
+        trigger: 'quest-branch',
+        questBranch: {
+          questId,
+          questTitle: definition.title,
+          branchId,
+          branchLabel: branchSelection.branchResult?.label,
+          status: nextProgress.status,
+          summary: branchSelection.branchResult
+            ? `任务“${definition.title}”已切换到“${branchSelection.branchResult.label}”分支。`
+            : `任务“${definition.title}”已切换分支。`,
+          reasons:
+            branchSelection.branchResult &&
+            branchSelection.branchResult.activationConditions.length > 0
+              ? branchSelection.branchResult.activationConditions.map(
+                  (condition) => `满足条件：${condition.label}`,
+                )
+              : branchSelection.reasons,
+        },
+      },
+      autoOpenPanel: false,
+      autoSave: false,
+    });
 
     await maybeAutoSave(
       this.store,
@@ -384,6 +457,12 @@ export class QuestProgressionController {
       state.appendQuestHistory(result.historyEntry);
       this.applyTransitionEffects(result);
       this.emitQuestUpdated(result.progress);
+      await this.maybeGenerateRunOutcomeReview(
+        definition,
+        result.progress,
+        result.historyEntry.note,
+        result.reasons,
+      );
 
       results.push(result);
     }
@@ -447,6 +526,14 @@ export class QuestProgressionController {
     });
 
     this.emitQuestUpdated(progress);
+    await this.maybeGenerateRunOutcomeReview(
+      definition,
+      progress,
+      locale.controllers.questProgression.forceStatusNote(
+        locale.labels.questStatuses[status],
+      ),
+      [`调试流程将任务“${definition.title}”直接设置为${locale.labels.questStatuses[status]}。`],
+    );
 
     await maybeAutoSave(
       this.store,

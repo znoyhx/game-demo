@@ -6,11 +6,13 @@ import {
   appAreaDebugController,
   appDebugScenarioController,
   appEventDebugController,
+  appPlayerModelController,
   appQuestDebugController,
   appWorldCreationController,
 } from '../../app/runtime/appRuntime';
 import { CombatDebugPanel } from '../../components/debug/CombatDebugPanel';
 import { EventDebugPanel } from '../../components/debug/EventDebugPanel';
+import { PlayerModelDebugPanel } from '../../components/debug/PlayerModelDebugPanel';
 import { RenderingPreviewGallery } from '../../components/debug/RenderingPreviewGallery';
 import { DebugPanel } from '../../components/debug/DebugPanel';
 import { NpcDebugPanel } from '../../components/debug/NpcDebugPanel';
@@ -19,6 +21,10 @@ import { PageFrame } from '../../components/layout/PageFrame';
 import { SectionCard } from '../../components/layout/SectionCard';
 import { Badge } from '../../components/pixel-ui/Badge';
 import { useGameLogStore } from '../../core/logging';
+import {
+  playerModelBehaviorReplayPresets,
+  playerModelPresetScenarios,
+} from '../../core/mocks/mvp';
 import { debugPanels } from '../../core/mocks/shellContent';
 import {
   resolveAreaEnvironmentState,
@@ -34,6 +40,7 @@ import type {
   NpcDisposition,
   NpcEmotionalState,
   NpcState,
+  PlayerProfileTag,
 } from '../../core/schemas';
 import {
   selectAreas,
@@ -63,6 +70,7 @@ import {
 import {
   formatCombatResultLabel,
   formatEnemyTacticLabel,
+  formatPlayerTagLabel,
   npcDispositionLabels,
   npcDialogueIntentLabels,
   npcEmotionalStateLabels,
@@ -181,6 +189,24 @@ export function DebugPage() {
   const [busyCombatDebugActionId, setBusyCombatDebugActionId] = useState<
     string | null
   >(null);
+  const [selectedManualPlayerTags, setSelectedManualPlayerTags] = useState<
+    PlayerProfileTag[]
+  >(playerModel.tags);
+  const [selectedComparisonTags, setSelectedComparisonTags] = useState<
+    PlayerProfileTag[]
+  >(playerModel.tags);
+  const [selectedPlayerReplayId, setSelectedPlayerReplayId] = useState(
+    playerModelBehaviorReplayPresets[0]?.id ?? '',
+  );
+  const [selectedPlayerScenarioId, setSelectedPlayerScenarioId] = useState(
+    playerModelPresetScenarios[0]?.id ?? '',
+  );
+  const [selectedPlayerCompareIntent, setSelectedPlayerCompareIntent] =
+    useState<NpcDialogueIntent>('quest');
+  const [playerModelDebugStatusMessage, setPlayerModelDebugStatusMessage] =
+    useState<string | null>(null);
+  const [busyPlayerModelDebugActionId, setBusyPlayerModelDebugActionId] =
+    useState<string | null>(null);
   const logs = useMemo(() => logEntries.slice(0, 8), [logEntries]);
 
   useEffect(() => {
@@ -249,6 +275,16 @@ export function DebugPage() {
   useEffect(() => {
     setCombatSeedValue(String(debugTools.combatSeed ?? 7));
   }, [debugTools.combatSeed]);
+
+  useEffect(() => {
+    setSelectedManualPlayerTags(playerModel.tags);
+  }, [playerModel.tags]);
+
+  useEffect(() => {
+    if (selectedComparisonTags.length === 0) {
+      setSelectedComparisonTags(playerModel.tags);
+    }
+  }, [playerModel.tags, selectedComparisonTags.length]);
 
   const selectedArea = useMemo(
     () => areas.find((area) => area.id === selectedAreaId) ?? currentArea ?? areas[0] ?? null,
@@ -450,6 +486,126 @@ export function DebugPage() {
       })),
     [],
   );
+  const playerTagOptions = useMemo(
+    () =>
+      ([
+        'exploration',
+        'combat',
+        'social',
+        'story',
+        'speedrun',
+        'cautious',
+        'risky',
+      ] satisfies PlayerProfileTag[]).map((tag) => ({
+        value: tag,
+        label: formatPlayerTagLabel(tag),
+      })),
+    [],
+  );
+  const playerReplayOptions = useMemo(
+    () =>
+      playerModelBehaviorReplayPresets.map((preset) => ({
+        value: preset.id,
+        label: preset.label,
+        description: preset.description,
+        expectedTagLabels: preset.expectedTags.map(formatPlayerTagLabel),
+      })),
+    [],
+  );
+  const playerScenarioOptions = useMemo(
+    () =>
+      playerModelPresetScenarios.map((scenario) => ({
+        value: scenario.id,
+        label: scenario.label,
+        description: scenario.description,
+        expectedTagLabels: scenario.expectedTags.map(formatPlayerTagLabel),
+      })),
+    [],
+  );
+  const playerCompareIntentOptions = useMemo(
+    () =>
+      Object.entries(npcDialogueIntentLabels).map(([value, label]) => ({
+        value: value as NpcDialogueIntent,
+        label,
+      })),
+    [],
+  );
+  const playerModelSummaryViewModel = useMemo(() => {
+    const debugSourceLabels = {
+      'manual-tags': '手动标签注入',
+      'behavior-replay': '行为回放生成',
+      'preset-scenario': '预设场景生成',
+    } as const;
+
+    return {
+      tagLabels: playerModel.tags.map(formatPlayerTagLabel),
+      dominantStyleLabel: playerModel.dominantStyle
+        ? formatPlayerTagLabel(playerModel.dominantStyle)
+        : undefined,
+      rationale: playerModel.rationale,
+      riskForecast: playerModel.riskForecast,
+      stuckPoint: playerModel.stuckPoint,
+      injected: Boolean(playerModel.debugProfile?.injected),
+      debugSourceLabel: playerModel.debugProfile
+        ? debugSourceLabels[playerModel.debugProfile.source]
+        : undefined,
+      debugLabel: playerModel.debugProfile?.label,
+      lastUpdatedAt: playerModel.lastUpdatedAt,
+    };
+  }, [playerModel]);
+  const playerModelReactionPreview = useMemo(() => {
+    const current = appPlayerModelController.previewSystemReactions({
+      tags: playerModel.tags,
+      rationale: playerModel.rationale,
+      dominantStyle: playerModel.dominantStyle,
+      riskForecast: playerModel.riskForecast,
+      stuckPoint: playerModel.stuckPoint,
+      npcIntent: selectedPlayerCompareIntent,
+    });
+    const candidate =
+      selectedComparisonTags.length > 0
+        ? appPlayerModelController.previewSystemReactions({
+            tags: selectedComparisonTags,
+            npcIntent: selectedPlayerCompareIntent,
+          })
+        : null;
+    const buildViewModel = (
+      tags: PlayerProfileTag[],
+      preview: ReturnType<typeof appPlayerModelController.previewSystemReactions>,
+    ) => ({
+      tagLabels: tags.map(formatPlayerTagLabel),
+      difficultyLabel: preview.difficulty.label,
+      difficultySummary: preview.difficulty.summary,
+      hintSummaries: preview.hints.map((hint) => hint.summary),
+      npcReactionSummary: `在“${npcDialogueIntentLabels[selectedPlayerCompareIntent]}”意图下，信任 ${preview.npcReaction.trustDelta >= 0 ? '+' : ''}${preview.npcReaction.trustDelta}，关系 ${preview.npcReaction.relationshipDelta >= 0 ? '+' : ''}${preview.npcReaction.relationshipDelta}。`,
+      npcReasonSummary:
+        preview.npcReaction.reasons.length > 0
+          ? preview.npcReaction.reasons.join('；')
+          : undefined,
+      enemyPriorityLabels: preview.enemyStrategy.tacticPriorities.map(
+        formatEnemyTacticLabel,
+      ),
+      enemyReasonSummary:
+        preview.enemyStrategy.reasons.length > 0
+          ? preview.enemyStrategy.reasons.join('；')
+          : undefined,
+    });
+
+    return {
+      current: buildViewModel(playerModel.tags, current),
+      candidate: candidate
+        ? buildViewModel(selectedComparisonTags, candidate)
+        : null,
+    };
+  }, [
+    playerModel.dominantStyle,
+    playerModel.rationale,
+    playerModel.riskForecast,
+    playerModel.stuckPoint,
+    playerModel.tags,
+    selectedComparisonTags,
+    selectedPlayerCompareIntent,
+  ]);
   const combatEncounterViewModels = useMemo(
     () =>
       combatEncounters.map((encounter) => ({
@@ -757,6 +913,25 @@ export function DebugPage() {
     [],
   );
 
+  const runPlayerModelDebugTask = useCallback(
+    async <T,>(actionId: string, task: () => Promise<T>) => {
+      setBusyPlayerModelDebugActionId(actionId);
+      setPlayerModelDebugStatusMessage(null);
+
+      try {
+        return await task();
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : '玩家画像调试执行失败。';
+        setPlayerModelDebugStatusMessage(message);
+        return null;
+      } finally {
+        setBusyPlayerModelDebugActionId(null);
+      }
+    },
+    [],
+  );
+
   const handleTriggerSelectedEvent = useCallback(() => {
     const event = eventDebugSnapshot.events.find((entry) => entry.eventId === selectedEventId);
 
@@ -953,6 +1128,116 @@ export function DebugPage() {
     runCombatDebugTask,
     selectedCombatPattern,
   ]);
+
+  const handleToggleManualPlayerTag = useCallback((tag: PlayerProfileTag) => {
+    setSelectedManualPlayerTags((currentTags) =>
+      currentTags.includes(tag)
+        ? currentTags.filter((currentTag) => currentTag !== tag)
+        : [...currentTags, tag],
+    );
+  }, []);
+
+  const handleToggleComparisonPlayerTag = useCallback((tag: PlayerProfileTag) => {
+    setSelectedComparisonTags((currentTags) =>
+      currentTags.includes(tag)
+        ? currentTags.filter((currentTag) => currentTag !== tag)
+        : [...currentTags, tag],
+    );
+  }, []);
+
+  const handleApplyManualPlayerTags = useCallback(() => {
+    if (selectedManualPlayerTags.length === 0) {
+      setPlayerModelDebugStatusMessage('请至少选择一个玩家标签。');
+      return;
+    }
+
+    void runPlayerModelDebugTask('player-model-manual', async () => {
+      const result = await appDebugScenarioController.injectPlayerTags(
+        selectedManualPlayerTags,
+        '手动标签注入',
+      );
+
+      if (!result) {
+        setPlayerModelDebugStatusMessage('玩家画像标签注入失败。');
+        return null;
+      }
+
+      setPlayerModelDebugStatusMessage(
+        `已将玩家画像切换为：${selectedManualPlayerTags
+          .map(formatPlayerTagLabel)
+          .join('、')}。`,
+      );
+      return result;
+    });
+  }, [runPlayerModelDebugTask, selectedManualPlayerTags]);
+
+  const handleReplayPlayerBehavior = useCallback(() => {
+    if (!selectedPlayerReplayId) {
+      setPlayerModelDebugStatusMessage('请先选择一个行为回放预设。');
+      return;
+    }
+
+    const replay = playerModelBehaviorReplayPresets.find(
+      (preset) => preset.id === selectedPlayerReplayId,
+    );
+
+    void runPlayerModelDebugTask('player-model-replay', async () => {
+      const result = await appDebugScenarioController.replayPlayerBehaviorPreset(
+        selectedPlayerReplayId,
+      );
+
+      if (!result) {
+        setPlayerModelDebugStatusMessage('行为回放生成失败。');
+        return null;
+      }
+
+      setPlayerModelDebugStatusMessage(
+        `已按「${replay?.label ?? '回放预设'}」重建玩家画像。`,
+      );
+      return result;
+    });
+  }, [runPlayerModelDebugTask, selectedPlayerReplayId]);
+
+  const handleApplyPlayerScenario = useCallback(() => {
+    if (!selectedPlayerScenarioId) {
+      setPlayerModelDebugStatusMessage('请先选择一个玩家画像场景。');
+      return;
+    }
+
+    const scenario = playerModelPresetScenarios.find(
+      (entry) => entry.id === selectedPlayerScenarioId,
+    );
+
+    void runPlayerModelDebugTask('player-model-scenario', async () => {
+      const result = await appDebugScenarioController.applyPlayerModelScenario(
+        selectedPlayerScenarioId,
+      );
+
+      if (!result) {
+        setPlayerModelDebugStatusMessage('玩家画像场景应用失败。');
+        return null;
+      }
+
+      setPlayerModelDebugStatusMessage(
+        `已应用「${scenario?.label ?? '预设场景'}」画像场景。`,
+      );
+      return result;
+    });
+  }, [runPlayerModelDebugTask, selectedPlayerScenarioId]);
+
+  const handleClearInjectedPlayerProfile = useCallback(() => {
+    void runPlayerModelDebugTask('player-model-clear', async () => {
+      const result = await appDebugScenarioController.clearInjectedPlayerProfile();
+
+      if (!result) {
+        setPlayerModelDebugStatusMessage('当前没有需要清除的调试画像，已保持自然推导结果。');
+        return null;
+      }
+
+      setPlayerModelDebugStatusMessage('已清除调试注入，并恢复为基于行为记录的自然画像。');
+      return result;
+    });
+  }, [runPlayerModelDebugTask]);
 
   const handleActivateQuest = useCallback(
     (questId: string) => {
@@ -1615,6 +1900,32 @@ export function DebugPage() {
         onOpenDialogue={handleOpenNpcDialogue}
         onTestBranch={handleTestNpcBranch}
         onResetOutcome={handleResetNpcDebug}
+      />
+
+      <PlayerModelDebugPanel
+        summary={playerModelSummaryViewModel}
+        manualTagOptions={playerTagOptions}
+        manualSelectedTags={selectedManualPlayerTags}
+        comparisonSelectedTags={selectedComparisonTags}
+        replayOptions={playerReplayOptions}
+        scenarioOptions={playerScenarioOptions}
+        npcIntentOptions={playerCompareIntentOptions}
+        selectedReplayId={selectedPlayerReplayId}
+        selectedScenarioId={selectedPlayerScenarioId}
+        selectedComparisonNpcIntent={selectedPlayerCompareIntent}
+        statusMessage={playerModelDebugStatusMessage}
+        busyActionId={busyPlayerModelDebugActionId}
+        currentReaction={playerModelReactionPreview.current}
+        comparisonReaction={playerModelReactionPreview.candidate}
+        onToggleManualTag={handleToggleManualPlayerTag}
+        onToggleComparisonTag={handleToggleComparisonPlayerTag}
+        onSelectReplay={setSelectedPlayerReplayId}
+        onSelectScenario={setSelectedPlayerScenarioId}
+        onSelectComparisonNpcIntent={setSelectedPlayerCompareIntent}
+        onApplyManualTags={handleApplyManualPlayerTags}
+        onReplayBehavior={handleReplayPlayerBehavior}
+        onApplyScenario={handleApplyPlayerScenario}
+        onClearInjected={handleClearInjectedPlayerProfile}
       />
 
       <CombatDebugPanel

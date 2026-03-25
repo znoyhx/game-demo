@@ -228,9 +228,15 @@ export const sampleGameMasterOutput: GameMasterOutput = {
 
 export const samplePlayerModelInput: PlayerModelInput = {
   recentAreaVisits: [mockIds.areas.crossroads, mockIds.areas.archive],
+  recentCombatActions: ['attack', 'guard', 'special'],
+  recentNpcInteractionIntents: ['ask', 'quest', 'trade'],
   recentQuestChoices: ['branch:main-trust-rowan'],
   combatSummary: sampleCombatState,
+  combatHistory: mockCombatHistory,
   npcInteractionCount: 4,
+  activeQuestCount: mockQuestProgress.filter((entry) => entry.status === 'active').length,
+  completedQuestCount: mockQuestProgress.filter((entry) => entry.status === 'completed').length,
+  signalWeights: samplePlayerModelState.signalWeights,
 };
 
 export const samplePlayerModelOutput: PlayerModelOutput = {
@@ -240,6 +246,12 @@ export const samplePlayerModelOutput: PlayerModelOutput = {
 
 export const sampleExplainCoachInput: ExplainCoachInput = {
   player: samplePlayerState,
+  playerModel: samplePlayerModelState,
+  difficulty: sampleGameConfigState.difficulty,
+  reviewRequest: {
+    trigger: 'combat',
+  },
+  reviewHistory: [mockReviewPayload],
   encounter: sampleCombatEncounterDefinition,
   combat: sampleCombatState,
   combatHistory: mockCombatHistory,

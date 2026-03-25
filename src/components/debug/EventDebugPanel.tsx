@@ -8,7 +8,7 @@ import { SectionCard } from '../layout/SectionCard';
 const eventTypeLabels: Record<WorldEventType, string> = {
   'weather-change': '天气变化',
   'resource-reduction': '资源减少',
-  'npc-movement': 'NPC 移动',
+  'npc-movement': '角色移动',
   'faction-conflict': '派系冲突',
   'hidden-clue-exposure': '隐藏线索曝光',
   'early-boss-appearance': 'Boss 提前现身',

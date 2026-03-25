@@ -24,7 +24,9 @@ import {
   type SaveWriter,
   type TimestampProvider,
 } from './controllerUtils';
+import type { PlayerModelController } from './playerModelController';
 import { QuestProgressionController } from './questProgressionController';
+import type { ReviewGenerationController } from './reviewGenerationController';
 
 interface NpcInteractionControllerOptions {
   store: StoreApi<GameStoreState>;
@@ -32,6 +34,8 @@ interface NpcInteractionControllerOptions {
   eventBus?: GameEventBus;
   saveController?: SaveWriter;
   questController?: QuestProgressionController;
+  playerModelController?: PlayerModelController;
+  reviewController?: ReviewGenerationController;
   logger?: GameLogger;
   now?: TimestampProvider;
 }
@@ -40,6 +44,19 @@ const dialogueOptionText = npcInteractionText.dialogueOptions;
 
 const isDialogueIntent = (value: string): value is NpcDialogueIntent =>
   value in dialogueOptionText;
+
+const isMajorNpcInteraction = (options: {
+  trustDelta: number;
+  relationshipDelta: number;
+  explanationReasons: string[];
+  disclosedInfoCount: number;
+  unlockedQuestCount: number;
+}) =>
+  Math.abs(options.trustDelta) >= 3 ||
+  Math.abs(options.relationshipDelta) >= 3 ||
+  options.explanationReasons.length > 0 ||
+  options.disclosedInfoCount > 0 ||
+  options.unlockedQuestCount > 0;
 
 export class NpcInteractionController {
   private readonly store: StoreApi<GameStoreState>;
@@ -51,6 +68,10 @@ export class NpcInteractionController {
   private readonly saveController?: SaveWriter;
 
   private readonly questController?: QuestProgressionController;
+
+  private readonly playerModelController?: PlayerModelController;
+
+  private readonly reviewController?: ReviewGenerationController;
 
   private readonly logger?: GameLogger;
 
@@ -64,6 +85,8 @@ export class NpcInteractionController {
     this.eventBus = options.eventBus;
     this.saveController = options.saveController;
     this.questController = options.questController;
+    this.playerModelController = options.playerModelController;
+    this.reviewController = options.reviewController;
     this.logger = options.logger;
     this.now = options.now ?? defaultTimestampProvider;
   }
@@ -137,6 +160,7 @@ export class NpcInteractionController {
       questProgressEntries,
       playerState: state.player,
       playerModel: state.playerModel,
+      selectedIntent: intent,
       recentDialogue,
     });
 
@@ -184,13 +208,6 @@ export class NpcInteractionController {
       this.store.getState().setPlayerState(tradeResult.playerState);
     }
 
-    const latestState = this.store.getState();
-    latestState.setPlayerModelState({
-      ...latestState.playerModel,
-      npcInteractionCount: latestState.playerModel.npcInteractionCount + 1,
-      lastUpdatedAt: createdAt,
-    });
-
     const questTitlesById = Object.fromEntries(
       questDefinitions.map((quest) => [quest.id, quest.title]),
     );
@@ -216,6 +233,17 @@ export class NpcInteractionController {
     await this.questController?.refreshQuestStatuses({
       autoSave: false,
     });
+
+    await this.playerModelController?.recordNpcInteraction(
+      {
+        intent,
+        trustDelta: output.trustDelta,
+        relationshipDelta: output.relationshipDelta,
+      },
+      {
+        autoSave: false,
+      },
+    );
 
     const tradeTurns =
       tradeResult.ok && (output.itemTransfers.length > 0 || output.playerGoldDelta !== 0)
@@ -363,6 +391,32 @@ export class NpcInteractionController {
       unlockedQuestIds: output.questOfferIds,
     });
 
+    if (
+      this.reviewController &&
+      isMajorNpcInteraction({
+        trustDelta: output.trustDelta ?? 0,
+        relationshipDelta: output.relationshipDelta ?? 0,
+        explanationReasons: uniqueReasonEntries(explanation),
+        disclosedInfoCount: explanation.disclosedInfo.length,
+        unlockedQuestCount: output.questOfferIds.length,
+      })
+    ) {
+      await this.reviewController.generateReview({
+        request: {
+          trigger: 'npc-interaction',
+          npcInteraction: {
+            npcId,
+            npcName: npcDefinition.name,
+            explanation,
+            unlockedQuestIds: output.questOfferIds,
+            isMajor: true,
+          },
+        },
+        autoOpenPanel: false,
+        autoSave: false,
+      });
+    }
+
     await maybeAutoSave(this.store, this.saveController, 'auto');
 
     return {
@@ -382,3 +436,12 @@ export class NpcInteractionController {
     state.setSelectedNpcId(null);
   }
 }
+
+const uniqueReasonEntries = (explanation: NonNullable<NpcDialogueSession['explanation']>) =>
+  Array.from(
+    new Set([
+      ...explanation.trust.reasons,
+      ...explanation.relationship.reasons,
+      ...explanation.decisionBasis,
+    ]),
+  );

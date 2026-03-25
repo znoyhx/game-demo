@@ -7,27 +7,71 @@ import type {
   CombatResult,
   CombatState,
   CombatTacticChange,
+  DifficultyLevel,
   EventLogEntry,
   ExplanationItem,
+  PlayerModelState,
   PlayerProfileTag,
+  PlayerState,
   QuestProgress,
   ReviewCombatSummary,
+  ReviewEnemyTacticReason,
+  ReviewKnowledgeSummary,
+  ReviewNpcAttitudeReason,
+  ReviewOutcomeFactor,
   ReviewPayload,
+  ReviewQuestBranchReason,
+  ReviewRequest,
 } from '../schemas';
-
 import {
   formatCombatResultLabel,
   formatEnemyTacticLabel,
   formatPlayerTagLabel,
 } from '../utils/displayLabels';
+import { resolvePlayerDifficultyAdjustment } from './playerModelRules';
 
 const combatActionLabels: Record<CombatCommandAction, string> = {
   attack: '攻击',
   guard: '防御',
   heal: '治疗',
-  analyze: '解析',
+  analyze: '分析',
   special: '特技',
   retreat: '撤退',
+};
+
+const uniqueStrings = (entries: Array<string | undefined | null>) =>
+  Array.from(
+    new Set(
+      entries
+        .map((entry) => entry?.trim())
+        .filter((entry): entry is string => Boolean(entry)),
+    ),
+  );
+
+const takeUniqueBy = <T>(
+  entries: T[],
+  getKey: (entry: T) => string,
+  limit?: number,
+) => {
+  const seen = new Set<string>();
+  const output: T[] = [];
+
+  for (const entry of entries) {
+    const key = getKey(entry);
+
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    output.push(entry);
+
+    if (limit && output.length >= limit) {
+      break;
+    }
+  }
+
+  return output;
 };
 
 const getEncounterPhaseLabel = (
@@ -35,7 +79,7 @@ const getEncounterPhaseLabel = (
   phaseId: string | undefined,
 ) => {
   if (!phaseId) {
-    return '未知阶段';
+    return '未命名阶段';
   }
 
   return (
@@ -78,6 +122,35 @@ const countPlayerActions = (combatState: CombatState) => {
   return counts;
 };
 
+const getDominantPlayerAction = (
+  combatSummary: ReviewCombatSummary | null,
+): CombatCommandAction | null =>
+  (combatSummary?.keyPlayerBehaviors[0]?.actionType as CombatCommandAction | undefined) ??
+  null;
+
+const getTriggerLabel = (trigger: ReviewRequest['trigger']) => {
+  switch (trigger) {
+    case 'combat':
+      return '战斗后复盘';
+    case 'quest-branch':
+      return '任务分支解释';
+    case 'npc-interaction':
+      return '角色互动解释';
+    case 'run-complete':
+      return '通关复盘';
+    case 'run-failed':
+      return '失败复盘';
+    case 'manual':
+    default:
+      return '手动回顾';
+  }
+};
+
+const collectFromReviewHistory = <T>(
+  reviewHistory: ReviewPayload[],
+  pick: (review: ReviewPayload) => T[],
+) => [...reviewHistory].reverse().flatMap((review) => pick(review));
+
 export const summarizeCombatTacticChanges = (
   combatState: CombatState,
   encounter?: CombatEncounterDefinition | null,
@@ -97,7 +170,9 @@ export const summarizeCombatTacticChanges = (
         fromTactic: previousTactic,
         toTactic: log.activeTactic,
         phaseId: log.phaseId,
-        summary: `第 ${log.turn} 回合切换为“${formatEnemyTacticLabel(log.activeTactic)}”，当前阶段为“${phaseLabel}”。`,
+        summary: `第 ${log.turn} 回合，敌方从“${formatEnemyTacticLabel(
+          previousTactic,
+        )}”切换为“${formatEnemyTacticLabel(log.activeTactic)}”，当时处于“${phaseLabel}”。`,
       });
     }
 
@@ -129,7 +204,10 @@ export const summarizeCombatPhaseChanges = (
         turn: log.turn,
         fromPhaseId: previousPhaseId,
         toPhaseId: log.phaseId,
-        summary: `第 ${log.turn} 回合从“${getEncounterPhaseLabel(encounter, previousPhaseId)}”切换到“${getEncounterPhaseLabel(encounter, log.phaseId)}”。`,
+        summary: `第 ${log.turn} 回合，首领从“${getEncounterPhaseLabel(
+          encounter,
+          previousPhaseId,
+        )}”进入“${getEncounterPhaseLabel(encounter, log.phaseId)}”。`,
       });
     }
 
@@ -157,7 +235,7 @@ export const summarizeCombatPlayerBehaviors = (
     .map(([actionType, stats]) => ({
       actionType,
       count: stats.count,
-      summary: `玩家共使用“${combatActionLabels[actionType]}”${stats.count} 次。`,
+      summary: `玩家在本场战斗中共使用“${combatActionLabels[actionType]}”${stats.count} 次。`,
     }));
 
 export const buildCombatHistoryEntry = (options: {
@@ -171,6 +249,8 @@ export const buildCombatHistoryEntry = (options: {
   resolvedAt: options.resolvedAt,
   turnCount: getCompletedTurnCount(options.combatState),
   finalPhaseId: options.combatState.currentPhaseId,
+  playerRemainingHp: options.combatState.player.hp,
+  enemyRemainingHp: options.combatState.enemy.hp,
   tacticChanges: summarizeCombatTacticChanges(options.combatState, options.encounter),
   phaseChanges: summarizeCombatPhaseChanges(options.combatState, options.encounter),
   keyPlayerBehaviors: summarizeCombatPlayerBehaviors(options.combatState),
@@ -192,12 +272,13 @@ export const buildCombatReviewSummary = (options: {
       finalPhaseId: options.combatState.currentPhaseId,
       playerRemainingHp: options.combatState.player.hp,
       enemyRemainingHp: options.combatState.enemy.hp,
-      summary:
-        options.combatState.result === 'victory'
-          ? `本场首领战以“${formatCombatResultLabel(options.combatState.result)}”结束，共经历 ${getCompletedTurnCount(options.combatState)} 回合，最终战术为“${formatEnemyTacticLabel(options.combatState.activeTactic)}”。`
-          : options.combatState.result === 'defeat'
-            ? `本场首领战以“${formatCombatResultLabel(options.combatState.result)}”结束，共经历 ${getCompletedTurnCount(options.combatState)} 回合，首领最终保持“${formatEnemyTacticLabel(options.combatState.activeTactic)}”节奏。`
-            : `本场战斗以“${formatCombatResultLabel(options.combatState.result)}”结束，共经历 ${getCompletedTurnCount(options.combatState)} 回合。`,
+      summary: `本场战斗以“${formatCombatResultLabel(
+        options.combatState.result,
+      )}”结束，共进行了 ${getCompletedTurnCount(
+        options.combatState,
+      )} 回合，敌方最终保持“${formatEnemyTacticLabel(
+        options.combatState.activeTactic,
+      )}”节奏。`,
     },
     tacticChanges: summarizeCombatTacticChanges(options.combatState, options.encounter),
     phaseChanges: summarizeCombatPhaseChanges(options.combatState, options.encounter),
@@ -205,180 +286,720 @@ export const buildCombatReviewSummary = (options: {
   };
 };
 
-const buildCombatExplanations = (options: {
+export const buildCombatReviewSummaryFromHistory = (options: {
   encounter?: CombatEncounterDefinition | null;
-  combatSummary: ReviewCombatSummary;
+  combatHistoryEntry: CombatHistoryEntry;
+  player?: PlayerState | null;
+}): ReviewCombatSummary => {
+  const { combatHistoryEntry } = options;
+  const playerRemainingHp =
+    combatHistoryEntry.playerRemainingHp ??
+    (combatHistoryEntry.result === 'defeat'
+      ? 0
+      : Math.max(0, options.player?.hp ?? 0));
+  const enemyRemainingHp =
+    combatHistoryEntry.enemyRemainingHp ??
+    (combatHistoryEntry.result === 'victory' ? 0 : 1);
+
+  return {
+    result: {
+      result: combatHistoryEntry.result,
+      totalTurns: combatHistoryEntry.turnCount,
+      finalTactic: combatHistoryEntry.finalTactic,
+      finalPhaseId: combatHistoryEntry.finalPhaseId,
+      playerRemainingHp,
+      enemyRemainingHp,
+      summary: `战斗以${formatCombatResultLabel(
+        combatHistoryEntry.result,
+      )}结束，共持续 ${combatHistoryEntry.turnCount} 回合，敌方最终战术为${formatEnemyTacticLabel(
+        combatHistoryEntry.finalTactic,
+      )}。`,
+    },
+    tacticChanges: combatHistoryEntry.tacticChanges,
+    phaseChanges: combatHistoryEntry.phaseChanges,
+    keyPlayerBehaviors: combatHistoryEntry.keyPlayerBehaviors,
+  };
+};
+
+const buildPlayerModelExplanation = (options: {
   playerTags: PlayerProfileTag[];
-}): ExplanationItem[] => {
-  const explanations: ExplanationItem[] = [];
-  const { combatSummary } = options;
+  playerModel: PlayerModelState;
+  difficulty: DifficultyLevel;
+}): ExplanationItem => {
+  const difficultyAdjustment = resolvePlayerDifficultyAdjustment(
+    options.playerModel,
+    options.difficulty,
+  );
+  const styleLabel =
+    options.playerModel.dominantStyle
+      ? formatPlayerTagLabel(options.playerModel.dominantStyle)
+      : '未定型';
 
-  explanations.push({
-    type: 'combat',
-    title: '首领战术切换轨迹',
-    summary:
-      combatSummary.tacticChanges.length > 0
-        ? `首领共发生 ${combatSummary.tacticChanges.length} 次战术切换，说明它会根据回合推进与玩家习惯动态调整。`
-        : `首领本场未出现明显战术切换，主要维持“${formatEnemyTacticLabel(combatSummary.result.finalTactic)}”策略。`,
-    evidence:
-      combatSummary.tacticChanges.length > 0
-        ? combatSummary.tacticChanges.map((change) => change.summary)
-        : [combatSummary.result.summary],
-  });
+  return {
+    type: 'playerModel',
+    title: '当前玩家画像',
+    summary: `当前主导画像为“${styleLabel}”，系统会据此采用“${difficultyAdjustment.label}”并调整提示、战术与关系反馈。`,
+    evidence: uniqueStrings([
+      ...options.playerModel.rationale.slice(0, 2),
+      difficultyAdjustment.summary,
+      options.playerModel.riskForecast,
+      options.playerModel.stuckPoint,
+      options.playerTags.length > 0
+        ? `当前标签：${options.playerTags.map(formatPlayerTagLabel).join('、')}`
+        : '当前标签尚不明显',
+    ]),
+  };
+};
 
-  explanations.push({
-    type: 'combat',
-    title: '首领阶段变化',
-    summary:
-      combatSummary.phaseChanges.length > 0
-        ? `首领共进入 ${combatSummary.phaseChanges.length + 1} 个阶段，阶段切换会直接影响战术偏好。`
-        : `首领本场未发生阶段变化，始终停留在“${getEncounterPhaseLabel(options.encounter, combatSummary.result.finalPhaseId)}”。`,
-    evidence:
-      combatSummary.phaseChanges.length > 0
-        ? combatSummary.phaseChanges.map((change) => change.summary)
-        : [combatSummary.result.summary],
-  });
+const buildQuestBranchReasons = (options: {
+  reviewRequest: ReviewRequest;
+  reviewHistory: ReviewPayload[];
+}) => {
+  const current =
+    options.reviewRequest.questBranch !== undefined
+      ? [options.reviewRequest.questBranch]
+      : [];
+  const fromHistory = collectFromReviewHistory(
+    options.reviewHistory,
+    (review) => review.questBranchReasons ?? [],
+  );
 
-  if (combatSummary.keyPlayerBehaviors.length > 0) {
-    explanations.push({
-      type: 'playerModel',
-      title: '玩家行为重点',
-      summary: `玩家本场最常用的操作为 ${combatSummary.keyPlayerBehaviors
-        .map((behavior) => `“${combatActionLabels[behavior.actionType]}”`)
-        .join('、')}。`,
-      evidence: [
-        ...combatSummary.keyPlayerBehaviors.map((behavior) => behavior.summary),
-        `当前玩家标签：${options.playerTags.map(formatPlayerTagLabel).join('、') || '无'}`,
-      ],
+  return takeUniqueBy<ReviewQuestBranchReason>(
+    [...current, ...fromHistory],
+    (entry) => `${entry.questId}:${entry.branchId ?? entry.status}`,
+    3,
+  );
+};
+
+const buildNpcAttitudeReasons = (options: {
+  reviewRequest: ReviewRequest;
+  reviewHistory: ReviewPayload[];
+}) => {
+  const current: ReviewNpcAttitudeReason[] = [];
+
+  if (options.reviewRequest.npcInteraction) {
+    const interaction = options.reviewRequest.npcInteraction;
+    const explanation = interaction.explanation;
+    const reasons = uniqueStrings([
+      ...explanation.trust.reasons,
+      ...explanation.relationship.reasons,
+      ...explanation.decisionBasis,
+    ]);
+    const summaryParts = uniqueStrings([
+      explanation.trust.delta !== 0
+        ? `信任 ${explanation.trust.delta >= 0 ? '+' : ''}${explanation.trust.delta}`
+        : undefined,
+      explanation.relationship.delta !== 0
+        ? `关系 ${explanation.relationship.delta >= 0 ? '+' : ''}${explanation.relationship.delta}`
+        : undefined,
+      explanation.debugSummary,
+    ]);
+
+    current.push({
+      npcId: interaction.npcId,
+      npcName: interaction.npcName,
+      attitudeLabel: explanation.attitudeLabel,
+      emotionalStateLabel: explanation.emotionalStateLabel,
+      trustDelta: explanation.trust.delta,
+      relationshipDelta: explanation.relationship.delta,
+      summary:
+        summaryParts.join('；') ||
+        `${interaction.npcName} 的态度与情绪已更新为“${explanation.attitudeLabel} / ${explanation.emotionalStateLabel}”。`,
+      reasons,
+      decisionBasis: explanation.decisionBasis,
     });
   }
 
-  return explanations;
+  const fromHistory = collectFromReviewHistory(
+    options.reviewHistory,
+    (review) => review.npcAttitudeReasons ?? [],
+  );
+
+  return takeUniqueBy<ReviewNpcAttitudeReason>(
+    [...current, ...fromHistory],
+    (entry) => entry.npcId,
+    3,
+  );
+};
+
+const buildTacticReasonList = (options: {
+  encounter?: CombatEncounterDefinition | null;
+  combatSummary: ReviewCombatSummary;
+  playerTags: PlayerProfileTag[];
+}): ReviewEnemyTacticReason[] => {
+  const dominantAction = getDominantPlayerAction(options.combatSummary);
+
+  return options.combatSummary.tacticChanges.map((change) => {
+    const reasons = uniqueStrings([
+      options.encounter?.bossPhases?.find((phase) => phase.id === change.phaseId)?.tacticBias?.includes(
+        change.toTactic,
+      )
+        ? `“${getEncounterPhaseLabel(
+            options.encounter,
+            change.phaseId,
+          )}”阶段天然更偏向“${formatEnemyTacticLabel(change.toTactic)}”。`
+        : undefined,
+      dominantAction &&
+      (dominantAction === 'attack' || dominantAction === 'special') &&
+      change.toTactic === 'counter'
+        ? '玩家连续采用正面强压动作，敌方转入反制以惩罚重复输出。'
+        : undefined,
+      dominantAction === 'heal' && change.toTactic === 'trap'
+        ? '玩家在恢复回合暴露节奏，敌方改用陷阱来放大停顿。'
+        : undefined,
+      dominantAction === 'attack' && change.toTactic === 'defensive'
+        ? '玩家进攻频率过高，敌方用防守拖慢你的推进速度。'
+        : undefined,
+      change.toTactic === 'summon'
+        ? '敌方需要扩大战场压力，于是转向召唤支援。'
+        : undefined,
+      change.toTactic === 'resource-lock'
+        ? '敌方开始压制资源与技能窗口，逼迫你提前交出解法。'
+        : undefined,
+      options.playerTags.includes('risky') && change.toTactic === 'counter'
+        ? '玩家画像呈现高风险倾向，敌方更容易选择反制型策略。'
+        : undefined,
+      options.playerTags.includes('cautious') && change.toTactic === 'trap'
+        ? '玩家较谨慎时常会停顿观察，敌方会尝试用陷阱逼出失误。'
+        : undefined,
+      `敌方试图通过“${formatEnemyTacticLabel(change.toTactic)}”打断当前回合节奏。`,
+    ]);
+
+    return {
+      turn: change.turn,
+      fromTactic: change.fromTactic,
+      toTactic: change.toTactic,
+      phaseId: change.phaseId,
+      summary: `第 ${change.turn} 回合敌方切到“${formatEnemyTacticLabel(
+        change.toTactic,
+      )}”，核心原因是${reasons[0] ?? '需要改变当前节奏'}。`,
+      reasons,
+    };
+  });
+};
+
+const buildEnemyTacticReasons = (options: {
+  encounter?: CombatEncounterDefinition | null;
+  combatSummary: ReviewCombatSummary | null;
+  playerTags: PlayerProfileTag[];
+  reviewHistory: ReviewPayload[];
+}) => {
+  const current = options.combatSummary
+    ? buildTacticReasonList({
+        encounter: options.encounter,
+        combatSummary: options.combatSummary,
+        playerTags: options.playerTags,
+      })
+    : [];
+  const fromHistory = collectFromReviewHistory(
+    options.reviewHistory,
+    (review) => review.enemyTacticReasons ?? [],
+  );
+
+  return takeUniqueBy<ReviewEnemyTacticReason>(
+    [...current, ...fromHistory],
+    (entry) => `${entry.turn}:${entry.toTactic}:${entry.phaseId ?? 'none'}`,
+    4,
+  );
+};
+
+const buildCombatOutcomeFactors = (options: {
+  combatSummary: ReviewCombatSummary;
+  enemyTacticReasons: ReviewEnemyTacticReason[];
+  playerModel: PlayerModelState;
+}): ReviewOutcomeFactor[] => {
+  const dominantBehavior = options.combatSummary.keyPlayerBehaviors[0];
+  const factors: ReviewOutcomeFactor[] = [];
+
+  if (options.combatSummary.result.result === 'victory') {
+    factors.push({
+      kind: 'success',
+      title: '战斗结果',
+      summary: '你成功读懂了阶段与战术切换，并在关键窗口完成了推进。',
+      evidence: uniqueStrings([
+        options.combatSummary.result.summary,
+        options.enemyTacticReasons[0]?.summary,
+      ]),
+    });
+  } else {
+    factors.push({
+      kind: 'failure',
+      title: '战斗结果',
+      summary: '失败主要来自节奏判断与敌方策略应对不匹配。',
+      evidence: uniqueStrings([
+        options.combatSummary.result.summary,
+        options.enemyTacticReasons[0]?.summary,
+      ]),
+    });
+  }
+
+  if (dominantBehavior) {
+    factors.push({
+      kind:
+        dominantBehavior.actionType === 'attack' ||
+        dominantBehavior.actionType === 'special'
+          ? 'risk'
+          : 'opportunity',
+      title: '玩家常用动作',
+      summary: `本场最明显的行为模式是“${combatActionLabels[dominantBehavior.actionType]}”，它直接影响了敌方的应对方式。`,
+      evidence: options.combatSummary.keyPlayerBehaviors.map((behavior) => behavior.summary),
+    });
+  }
+
+  if (options.combatSummary.phaseChanges.length > 0) {
+    factors.push({
+      kind: 'opportunity',
+      title: '阶段切换窗口',
+      summary: '阶段切换既是风险点，也是最适合提前备招的窗口。',
+      evidence: options.combatSummary.phaseChanges.map((change) => change.summary),
+    });
+  }
+
+  if (options.playerModel.riskForecast) {
+    factors.push({
+      kind: 'risk',
+      title: '玩家画像提示',
+      summary: options.playerModel.riskForecast,
+      evidence: options.playerModel.rationale.slice(0, 2),
+    });
+  }
+
+  return factors;
+};
+
+const buildQuestOutcomeFactors = (
+  questBranchReasons: ReviewQuestBranchReason[],
+): ReviewOutcomeFactor[] =>
+  questBranchReasons.slice(0, 2).map((item) => ({
+    kind: 'opportunity',
+    title: `任务分支：${item.questTitle}`,
+    summary: item.summary,
+    evidence: item.reasons,
+  }));
+
+const buildNpcOutcomeFactors = (
+  npcAttitudeReasons: ReviewNpcAttitudeReason[],
+): ReviewOutcomeFactor[] =>
+  npcAttitudeReasons.slice(0, 2).map((item) => ({
+    kind:
+      item.trustDelta < 0 || item.relationshipDelta < 0 ? 'risk' : 'success',
+    title: `角色态度：${item.npcName}`,
+    summary: item.summary,
+    evidence: uniqueStrings([...item.reasons, ...item.decisionBasis]),
+  }));
+
+const buildRunOutcomeFactors = (options: {
+  reviewRequest: ReviewRequest;
+  questProgress: QuestProgress[];
+}): ReviewOutcomeFactor[] => {
+  if (!options.reviewRequest.runOutcome) {
+    return [];
+  }
+
+  const completedQuestCount = options.questProgress.filter(
+    (quest) => quest.status === 'completed',
+  ).length;
+  const failedQuestCount = options.questProgress.filter(
+    (quest) => quest.status === 'failed',
+  ).length;
+
+  return [
+    {
+      kind:
+        options.reviewRequest.runOutcome.result === 'completed'
+          ? 'success'
+          : 'failure',
+      title:
+        options.reviewRequest.runOutcome.result === 'completed'
+          ? '本轮结果'
+          : '失败结论',
+      summary: options.reviewRequest.runOutcome.summary,
+      evidence: uniqueStrings([
+        ...options.reviewRequest.runOutcome.reasons,
+        `已完成任务 ${completedQuestCount} 条`,
+        failedQuestCount > 0 ? `失败任务 ${failedQuestCount} 条` : undefined,
+      ]),
+    },
+  ];
+};
+
+const buildOutcomeFactors = (options: {
+  reviewRequest: ReviewRequest;
+  combatSummary: ReviewCombatSummary | null;
+  enemyTacticReasons: ReviewEnemyTacticReason[];
+  questBranchReasons: ReviewQuestBranchReason[];
+  npcAttitudeReasons: ReviewNpcAttitudeReason[];
+  playerModel: PlayerModelState;
+  questProgress: QuestProgress[];
+}) => {
+  const factors = [
+    ...(options.combatSummary
+      ? buildCombatOutcomeFactors({
+          combatSummary: options.combatSummary,
+          enemyTacticReasons: options.enemyTacticReasons,
+          playerModel: options.playerModel,
+        })
+      : []),
+    ...buildQuestOutcomeFactors(options.questBranchReasons),
+    ...buildNpcOutcomeFactors(options.npcAttitudeReasons),
+    ...buildRunOutcomeFactors({
+      reviewRequest: options.reviewRequest,
+      questProgress: options.questProgress,
+    }),
+  ];
+
+  return takeUniqueBy<ReviewOutcomeFactor>(factors, (entry) => entry.title, 5);
 };
 
 const buildCombatSuggestions = (
   combatSummary: ReviewCombatSummary,
   result: CombatResult,
+  playerModel?: PlayerModelState,
 ) => {
   const suggestions = new Set<string>();
 
   switch (combatSummary.result.finalTactic) {
     case 'aggressive':
-      suggestions.add('下次首领转入“压制强攻”时，优先保留防御与治疗窗口，不要连续硬拼。');
+      suggestions.add(
+        '下次遇到高压冲锋时，优先保留防御或恢复资源，不要把爆发全部压在同一回合。',
+      );
       break;
     case 'defensive':
-      suggestions.add('下次面对“防守消耗”时，优先用解析和特技制造破防窗口。');
+      suggestions.add(
+        '面对防守型敌人时，可以先用分析或资源消耗逼出换招，再决定爆发时机。',
+      );
       break;
     case 'counter':
-      suggestions.add('下次面对“套路反制”时，避免连续重复攻击，穿插防御或解析来打断读招。');
+      suggestions.add(
+        '面对反制型敌人时，不要连续重复同一种高压动作，适当穿插防御和分析会更稳。',
+      );
       break;
     case 'trap':
-      suggestions.add('下次面对“诱导陷阱”时，不要连续守御或治疗，先观察再出手。');
+      suggestions.add(
+        '面对陷阱型敌人时，优先确认阶段变化与环境提示，再决定是否继续前压。',
+      );
       break;
     case 'summon':
-      suggestions.add('下次面对“召唤支援”时，优先在援军成型前集中爆发，压缩首领铺场时间。');
+      suggestions.add(
+        '面对召唤型敌人时，先清理额外威胁或打断节奏，再回头处理首领主体。',
+      );
       break;
     case 'resource-lock':
-      suggestions.add('下次面对“资源封锁”时，要提前保留能量，避免在低资源时交出关键技能。');
+      suggestions.add(
+        '面对资源压制时，保留关键能量并避免过早交出全部技能资源。',
+      );
       break;
     default:
       break;
   }
 
   if (combatSummary.phaseChanges.length > 0) {
-    suggestions.add('留意首领阶段切换前的血量阈值，提前准备下一轮的应对资源。');
+    suggestions.add(
+      '阶段切换前后通常会改变战术偏好，下次可提前为换阶段预留资源。',
+    );
   }
 
   if (combatSummary.keyPlayerBehaviors[0]?.actionType === 'attack') {
-    suggestions.add('如果你仍然偏好连续攻击，可以在每两次输出之间插入一次防御或解析，降低被针对概率。');
+    suggestions.add(
+      '你本场偏爱直接攻击，若想降低被反制概率，可以在进攻回合之间穿插观察或防御。',
+    );
   }
 
   if (result === 'defeat') {
-    suggestions.add('下次先把前两回合打成稳态，再决定是否投入高消耗特技。');
+    suggestions.add(
+      '这场失败更像是节奏判断失误，建议先看复盘中的阶段与战术切换再调整打法。',
+    );
   }
 
   if (result === 'victory') {
-    suggestions.add('你已经摸清了首领节奏，下一次可以尝试更早逼出阶段切换并压缩战斗回合数。');
+    suggestions.add(
+      '这场胜利已经验证了你的有效节奏，下一次可在相似阶段继续沿用并微调。',
+    );
   }
 
-  return [...suggestions].slice(0, 3);
+  if (playerModel?.stuckPoint) {
+    suggestions.add(playerModel.stuckPoint);
+  }
+
+  return [...suggestions];
 };
 
-export const buildReviewPayload = (options: {
-  generatedAt: string;
+const buildQuestSuggestions = (
+  questBranchReasons: ReviewQuestBranchReason[],
+): string[] =>
+  questBranchReasons.slice(0, 2).map((item) =>
+    item.branchLabel
+      ? `优先沿“${item.branchLabel}”分支继续推进，并围绕当前理由去补齐相关条件。`
+      : `围绕“${item.questTitle}”继续推进，先验证最近一次分支变化带来的影响。`,
+  );
+
+const buildNpcSuggestions = (
+  npcAttitudeReasons: ReviewNpcAttitudeReason[],
+): string[] =>
+  npcAttitudeReasons.slice(0, 2).map((item) => {
+    if (item.trustDelta < 0 || item.relationshipDelta < 0) {
+      return `和 ${item.npcName} 继续推进前，先用更稳妥的问候、交易或任务反馈修复关系。`;
+    }
+
+    return `趁 ${item.npcName} 当前态度转好，优先继续追问线索或承接其后续任务。`;
+  });
+
+const buildRunSuggestions = (reviewRequest: ReviewRequest): string[] => {
+  if (!reviewRequest.runOutcome) {
+    return [];
+  }
+
+  return reviewRequest.runOutcome.result === 'completed'
+    ? [
+        '可切换到教育模式，把这轮成功路线拆成任务推进、关系建立与战术判断三个知识点继续讲解。',
+      ]
+    : [
+        '建议先从失败复盘页回看任务分支、NPC 态度与战术切换，再决定要重开哪一段流程。',
+      ];
+};
+
+const buildNextStepSuggestions = (options: {
+  combatSummary: ReviewCombatSummary | null;
+  questBranchReasons: ReviewQuestBranchReason[];
+  npcAttitudeReasons: ReviewNpcAttitudeReason[];
+  reviewRequest: ReviewRequest;
+  playerModel: PlayerModelState;
+}) => {
+  const suggestions = uniqueStrings([
+    ...(options.combatSummary
+      ? buildCombatSuggestions(
+          options.combatSummary,
+          options.combatSummary.result.result,
+          options.playerModel,
+        )
+      : []),
+    ...buildQuestSuggestions(options.questBranchReasons),
+    ...buildNpcSuggestions(options.npcAttitudeReasons),
+    ...buildRunSuggestions(options.reviewRequest),
+    options.playerModel.stuckPoint,
+  ]);
+
+  return suggestions.slice(0, 5);
+};
+
+const buildKnowledgeSummary = (options: {
+  reviewRequest: ReviewRequest;
   playerTags: PlayerProfileTag[];
-  encounter?: CombatEncounterDefinition | null;
-  combat?: CombatState | null;
-  combatHistory?: CombatHistoryEntry[];
+  questBranchReasons: ReviewQuestBranchReason[];
+  npcAttitudeReasons: ReviewNpcAttitudeReason[];
+  enemyTacticReasons: ReviewEnemyTacticReason[];
+  outcomeFactors: ReviewOutcomeFactor[];
+}): ReviewKnowledgeSummary => ({
+  extensionKey: 'education-mode',
+  title: `${getTriggerLabel(options.reviewRequest.trigger)}知识点`,
+  summary:
+    '这份结构化总结可以直接作为教育模式的讲解入口，用来解释玩家画像、任务因果、关系变化与敌方策略。',
+  keyPoints: uniqueStrings([
+    options.playerTags.length > 0
+      ? `当前玩家画像：${options.playerTags.map(formatPlayerTagLabel).join('、')}`
+      : '当前玩家画像尚未形成明显标签',
+    options.questBranchReasons[0]?.summary,
+    options.npcAttitudeReasons[0]?.summary,
+    options.enemyTacticReasons[0]?.summary,
+    options.outcomeFactors[0]?.summary,
+  ]).slice(0, 4),
+  suggestedPrompt:
+    options.reviewRequest.trigger === 'combat'
+      ? '可继续追问：如果玩家改用更谨慎的行动节奏，敌方会如何调整策略？'
+      : options.reviewRequest.trigger === 'quest-branch'
+        ? '可继续追问：如果选择另一条分支，世界与角色关系会如何变化？'
+        : '可继续追问：这次关系或结果变化背后的关键因果链是什么？',
+});
+
+const buildKeyEvents = (options: {
+  reviewRequest: ReviewRequest;
+  combatSummary: ReviewCombatSummary | null;
+  questBranchReasons: ReviewQuestBranchReason[];
+  npcAttitudeReasons: ReviewNpcAttitudeReason[];
+  playerModel: PlayerModelState;
   questProgress: QuestProgress[];
   eventHistory: EventLogEntry[];
-}): ReviewPayload => {
-  const combatSummary =
-    options.combat ? buildCombatReviewSummary({ encounter: options.encounter, combatState: options.combat }) : null;
+}) => {
   const activeQuestCount = options.questProgress.filter(
     (quest) => quest.status === 'active',
   ).length;
   const completedQuestCount = options.questProgress.filter(
     (quest) => quest.status === 'completed',
   ).length;
-  const latestCombatHistory = options.combatHistory?.[options.combatHistory.length - 1];
 
-  const keyEvents = combatSummary
-    ? [
-        combatSummary.result.summary,
-        combatSummary.phaseChanges.length > 0
-          ? `首领在本场战斗中触发了 ${combatSummary.phaseChanges.length} 次阶段切换。`
-          : '首领本场未进入新的阶段。',
-        combatSummary.tacticChanges.length > 0
-          ? `首领共进行了 ${combatSummary.tacticChanges.length} 次可见战术切换。`
-          : '首领本场没有出现额外的战术切换。',
-        `本轮流程中已完成 ${completedQuestCount} 条任务线，仍有 ${activeQuestCount} 条任务线处于进行中。`,
-      ]
-    : [
-        `本轮流程中已完成 ${completedQuestCount} 条任务线结算。`,
-        `当前仍有 ${activeQuestCount} 条任务线处于进行中。`,
-        `共有 ${options.eventHistory.length} 个世界事件影响了当前状态。`,
-      ];
+  return uniqueStrings([
+    `${getTriggerLabel(options.reviewRequest.trigger)}已生成。`,
+    options.reviewRequest.runOutcome?.summary,
+    options.combatSummary?.result.summary,
+    options.questBranchReasons[0]?.summary,
+    options.npcAttitudeReasons[0]?.summary,
+    `已完成任务 ${completedQuestCount} 条，进行中任务 ${activeQuestCount} 条。`,
+    options.playerModel.dominantStyle
+      ? `当前主导画像为“${formatPlayerTagLabel(options.playerModel.dominantStyle)}”。`
+      : undefined,
+    options.eventHistory.length > 0
+      ? `累计记录世界事件 ${options.eventHistory.length} 条。`
+      : undefined,
+  ]).slice(0, 6);
+};
 
-  const explanations = combatSummary
-    ? [
-        ...buildCombatExplanations({
+const buildExplanations = (options: {
+  playerTags: PlayerProfileTag[];
+  playerModel: PlayerModelState;
+  difficulty: DifficultyLevel;
+  questBranchReasons: ReviewQuestBranchReason[];
+  npcAttitudeReasons: ReviewNpcAttitudeReason[];
+  enemyTacticReasons: ReviewEnemyTacticReason[];
+  eventHistory: EventLogEntry[];
+}) => {
+  const explanations: ExplanationItem[] = [
+    buildPlayerModelExplanation({
+      playerTags: options.playerTags,
+      playerModel: options.playerModel,
+      difficulty: options.difficulty,
+    }),
+    ...options.questBranchReasons.slice(0, 2).map((item) => ({
+      type: 'quest' as const,
+      title: `任务分支：${item.questTitle}`,
+      summary: item.summary,
+      evidence: item.reasons,
+    })),
+    ...options.npcAttitudeReasons.slice(0, 2).map((item) => ({
+      type: 'npc' as const,
+      title: `角色态度：${item.npcName}`,
+      summary: item.summary,
+      evidence: uniqueStrings([...item.reasons, ...item.decisionBasis]),
+    })),
+  ];
+
+  if (options.enemyTacticReasons.length > 0) {
+    explanations.push({
+      type: 'combat',
+      title: '敌方策略变化',
+      summary: `本轮共识别到 ${options.enemyTacticReasons.length} 条关键战术变化原因。`,
+      evidence: options.enemyTacticReasons.map((item) => item.summary),
+    });
+  }
+
+  explanations.push({
+    type: 'event',
+    title: '事件与记录',
+    summary: `当前已累积 ${options.eventHistory.length} 条世界事件记录，可用于调试与回放。`,
+    evidence: options.eventHistory
+      .slice(-4)
+      .map((entry) => `${entry.eventId}（${entry.source}）`),
+  });
+
+  return explanations;
+};
+
+export const buildReviewPayload = (options: {
+  generatedAt: string;
+  player?: PlayerState | null;
+  playerTags: PlayerProfileTag[];
+  playerModel: PlayerModelState;
+  difficulty: DifficultyLevel;
+  reviewRequest: ReviewRequest;
+  reviewHistory: ReviewPayload[];
+  encounter?: CombatEncounterDefinition | null;
+  combat?: CombatState | null;
+  combatHistory?: CombatHistoryEntry[];
+  questProgress: QuestProgress[];
+  eventHistory: EventLogEntry[];
+}): ReviewPayload => {
+  const latestCombatHistory =
+    options.combatHistory?.[options.combatHistory.length - 1] ?? null;
+  const combatSummary = options.combat
+    ? buildCombatReviewSummary({
+        encounter: options.encounter,
+        combatState: options.combat,
+      })
+    : options.reviewRequest.trigger === 'combat' && latestCombatHistory
+      ? buildCombatReviewSummaryFromHistory({
           encounter: options.encounter,
-          combatSummary,
-          playerTags: options.playerTags,
-        }),
-        {
-          type: 'event' as const,
-          title: '世界状态干扰',
-          summary: `最近共有 ${options.eventHistory.length} 个世界事件对战斗前后的局势造成了影响。`,
-          evidence: options.eventHistory.map((event) => event.eventId).slice(0, 4),
-        },
-      ]
-    : [
-        {
-          type: 'quest' as const,
-          title: '任务压力仍然可见',
-          summary: `当前流程仍被 ${activeQuestCount} 条进行中的任务线持续推动。`,
-          evidence: options.questProgress.map(
-            (quest) => `${quest.questId}:${quest.status}`,
-          ),
-        },
-        {
-          type: 'event' as const,
-          title: '世界状态压力',
-          summary: `最近事件历史长度为 ${options.eventHistory.length}。`,
-        },
-      ];
+          combatHistoryEntry: latestCombatHistory,
+          player: options.player,
+        })
+      : null;
+  const questBranchReasons = buildQuestBranchReasons({
+    reviewRequest: options.reviewRequest,
+    reviewHistory: options.reviewHistory,
+  });
+  const npcAttitudeReasons = buildNpcAttitudeReasons({
+    reviewRequest: options.reviewRequest,
+    reviewHistory: options.reviewHistory,
+  });
+  const enemyTacticReasons = buildEnemyTacticReasons({
+    encounter: options.encounter,
+    combatSummary,
+    playerTags: options.playerTags,
+    reviewHistory: options.reviewHistory,
+  });
+  const outcomeFactors = buildOutcomeFactors({
+    reviewRequest: options.reviewRequest,
+    combatSummary,
+    enemyTacticReasons,
+    questBranchReasons,
+    npcAttitudeReasons,
+    playerModel: options.playerModel,
+    questProgress: options.questProgress,
+  });
+  const nextStepSuggestions = buildNextStepSuggestions({
+    combatSummary,
+    questBranchReasons,
+    npcAttitudeReasons,
+    reviewRequest: options.reviewRequest,
+    playerModel: options.playerModel,
+  });
+  const knowledgeSummary = buildKnowledgeSummary({
+    reviewRequest: options.reviewRequest,
+    playerTags: options.playerTags,
+    questBranchReasons,
+    npcAttitudeReasons,
+    enemyTacticReasons,
+    outcomeFactors,
+  });
+  const explanations = buildExplanations({
+    playerTags: options.playerTags,
+    playerModel: options.playerModel,
+    difficulty: options.difficulty,
+    questBranchReasons,
+    npcAttitudeReasons,
+    enemyTacticReasons,
+    eventHistory: options.eventHistory,
+  });
+  const keyEvents = buildKeyEvents({
+    reviewRequest: options.reviewRequest,
+    combatSummary,
+    questBranchReasons,
+    npcAttitudeReasons,
+    playerModel: options.playerModel,
+    questProgress: options.questProgress,
+    eventHistory: options.eventHistory,
+  });
 
   return {
     generatedAt: options.generatedAt,
+    trigger: options.reviewRequest.trigger,
     encounterId: options.combat?.encounterId ?? latestCombatHistory?.encounterId,
     playerTags: options.playerTags,
+    playerModelSnapshot: {
+      tags: options.playerModel.tags,
+      dominantStyle: options.playerModel.dominantStyle,
+      rationale: options.playerModel.rationale,
+      riskForecast: options.playerModel.riskForecast,
+      stuckPoint: options.playerModel.stuckPoint,
+      debugProfile: options.playerModel.debugProfile,
+    },
     combatSummary,
+    questBranchReasons,
+    npcAttitudeReasons,
+    enemyTacticReasons,
+    outcomeFactors,
     keyEvents,
+    nextStepSuggestions,
+    knowledgeSummary,
     explanations,
-    suggestions: combatSummary
-      ? buildCombatSuggestions(combatSummary, combatSummary.result.result)
-      : ['可以通过调试入口或任务控制器，把世界推进到更清晰的分支再做回顾。'],
+    suggestions: nextStepSuggestions,
   };
 };

@@ -6,6 +6,7 @@ export * from './events';
 export * from './explorationEncounters';
 export * from './npcs';
 export * from './player';
+export * from './playerModelDebug';
 export * from './quests';
 export * from './save';
 export * from './session';

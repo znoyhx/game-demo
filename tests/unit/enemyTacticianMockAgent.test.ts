@@ -27,15 +27,15 @@ describe('MockEnemyTacticianAgent', () => {
       commonPlayerActions: ['attack', 'special', 'attack'],
       environmentState: {
         areaId: mockBossEncounterDefinition.areaId,
-        label: '圣所回廊',
+        label: '灰烬圣所',
         hazard: 'tense',
-        weather: '余烬风',
+        weather: '余烬风暴',
       },
       bossPhaseId: 'phase:embers-unbound',
     });
 
     expect(result.selectedTactic).toBe('counter');
-    expect(result.reason).toContain('正面强压');
+    expect(result.reason).toContain('反制');
   });
 
   it('uses resource lock when the player depends on scarce energy', async () => {
@@ -56,7 +56,7 @@ describe('MockEnemyTacticianAgent', () => {
       commonPlayerActions: ['special', 'heal', 'special'],
       environmentState: {
         areaId: mockBossEncounterDefinition.areaId,
-        label: '圣所风暴前室',
+        label: '封印回廊',
         hazard: 'stable',
       },
       bossPhaseId: 'phase:sealed-guard',
@@ -84,9 +84,9 @@ describe('MockEnemyTacticianAgent', () => {
       commonPlayerActions: ['guard', 'heal', 'analyze'],
       environmentState: {
         areaId: mockBossEncounterDefinition.areaId,
-        label: '余烬裂隙',
+        label: '裂隙边缘',
         hazard: 'volatile',
-        weather: '火星雨',
+        weather: '灰烬落雨',
       },
       bossPhaseId: 'phase:sealed-guard',
     });

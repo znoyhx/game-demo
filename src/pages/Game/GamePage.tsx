@@ -47,6 +47,7 @@ import {
   formatNpcDispositionLabel,
   formatNpcEmotionalStateLabel,
 } from '../../core/utils/displayLabels';
+import { resolveGameEventActivationMessage } from './gameEventInteractionMessages';
 import { buildGamePageViewModel } from './gameViewModel';
 
 export function GamePage() {
@@ -269,6 +270,10 @@ export function GamePage() {
     () => Object.fromEntries(viewModel.scene.stage.markers.map((marker) => [marker.id, marker])),
     [viewModel.scene.stage.markers],
   );
+  const sceneEventsById = useMemo(
+    () => Object.fromEntries(viewModel.scene.events.map((event) => [event.id, event])),
+    [viewModel.scene.events],
+  );
 
   const handleMarkerActivate = useCallback(
     async (markerId: string, activationSource: 'manual' | 'approach' = 'manual') => {
@@ -359,6 +364,17 @@ export function GamePage() {
 
       if (marker.type === 'event') {
         const eventId = marker.targetId ?? marker.id;
+
+        if (isForcedRender) {
+          setStatusMessage(
+            resolveGameEventActivationMessage({
+              isForcedRender: true,
+              previewAreaName: effectiveCurrentArea?.name ?? null,
+            }),
+          );
+          return;
+        }
+
         const result = await runControlTask(`event:${eventId}`, () =>
           appEventTriggerController.triggerEvent(
             eventId,
@@ -367,7 +383,13 @@ export function GamePage() {
         );
 
         if (result && 'ok' in result && !result.ok) {
-          setStatusMessage(result.reasons[0] ?? '当前事件无法触发。');
+          setStatusMessage(
+            resolveGameEventActivationMessage({
+              isForcedRender: false,
+              naturalReason: sceneEventsById[eventId]?.naturalReason,
+              fallbackReason: result.reasons[0],
+            }),
+          );
           return;
         }
 
@@ -377,23 +399,48 @@ export function GamePage() {
 
       setStatusMessage(`${marker.label} 目前没有可执行的交互。`);
     },
-    [closeDialogue, handleAreaSelect, handleNpcSelect, runControlTask, sceneMarkersById],
+    [
+      closeDialogue,
+      effectiveCurrentArea?.name,
+      handleAreaSelect,
+      handleNpcSelect,
+      isForcedRender,
+      runControlTask,
+      sceneEventsById,
+      sceneMarkersById,
+    ],
   );
 
   const handleEventActivate = useCallback(
     async (eventId: string) => {
+      if (isForcedRender) {
+        setStatusMessage(
+          resolveGameEventActivationMessage({
+            isForcedRender: true,
+            previewAreaName: effectiveCurrentArea?.name ?? null,
+          }),
+        );
+        return;
+      }
+
       const result = await runControlTask(`event:${eventId}`, () =>
         appEventTriggerController.triggerEvent(eventId, 'manual'),
       );
 
       if (result && 'ok' in result && !result.ok) {
-        setStatusMessage(result.reasons[0] ?? '当前事件无法触发。');
+        setStatusMessage(
+          resolveGameEventActivationMessage({
+            isForcedRender: false,
+            naturalReason: sceneEventsById[eventId]?.naturalReason,
+            fallbackReason: result.reasons[0],
+          }),
+        );
         return;
       }
 
       setStatusMessage('事件已触发。');
     },
-    [runControlTask],
+    [effectiveCurrentArea?.name, isForcedRender, runControlTask, sceneEventsById],
   );
 
   const handleControlSelect = useCallback(

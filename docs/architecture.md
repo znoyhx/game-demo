@@ -521,6 +521,24 @@ Make AI and rules behavior visible for demo, explanation, and debugging.
 * issue reproduction
 * event replay and cause/effect verification
 
+Review generation is now trigger-aware:
+
+* combat end can generate a battle-focused review
+* quest branch selection can generate a branch-reason review without forcing a panel switch
+* major NPC interactions can generate an attitude-change review without breaking dialogue flow
+* main-quest completion/failure can generate a full run review and open the review panel
+* saved snapshots can reconstruct the same review surfaces later by rebuilding `ExplainCoachInput` from persisted combat, quest, NPC, and event data
+
+The persisted review payload should expose, at minimum:
+
+* current player model snapshot
+* quest branch reason entries
+* NPC attitude reason entries
+* enemy tactic reason entries
+* structured success/failure factors
+* next-step suggestions
+* an education-mode knowledge-summary extension point
+
 ---
 
 ## 5.5 Locale and Display Dictionary
@@ -942,9 +960,34 @@ Contains:
 * inferred player tags
 * rationale snippets
 * recent area visits
+* recent combat actions
+* recent NPC interaction intents
 * recent quest choices
 * NPC interaction count
+* persisted signal weights for deterministic re-evaluation
 * optional risk or stuck-point hints
+
+Player model updates should be driven by explicit controller-recorded behavior signals:
+
+* area entry / exploration search
+* combat actions
+* NPC interaction intents
+* quest branch choices
+
+Downstream systems may consume the validated player model for:
+
+* combat difficulty bias
+* in-game hint generation
+* NPC reaction adjustments
+* enemy counter-strategy preference
+* review/explanation summaries
+
+Debug/test support for the player model should remain controller-driven and save-compatible:
+
+* manual tag injection must explicitly mark the player model as debug-generated
+* behavior replay and preset scenario generation must reuse the same rule + mock-agent pipeline
+* profile comparison previews must stay read-only and never mutate game state
+* Debug and Review pages should surface the current player model and any debug injection marker
 
 ## 8.11 Review State
 
@@ -953,6 +996,15 @@ Contains:
 * current review payload
 * review history
 * explanation artifacts for debug/replay
+* trigger-aware structured sections for player model, quest, NPC, combat, and run-outcome explanation
+
+Design notes:
+
+* review generation should be controller-driven, not page-driven
+* review history is save-compatible so later run reviews can reuse prior quest/NPC explanation breadcrumbs
+* silent review generation is preferred for quest/NPC triggers; panel routing is preferred for combat end and run completion/failure
+* snapshot reconstruction should reuse the same Explain & Coach mock pipeline instead of introducing a second review generator
+* debug flows may call a lightweight reconstruction entrypoint so review replay can be tested without playing a full run
 
 ## 8.12 Config and Resource State
 

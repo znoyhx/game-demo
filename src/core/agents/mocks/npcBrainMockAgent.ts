@@ -5,6 +5,7 @@ import {
   type NpcBrainOutput,
 } from '../../schemas';
 import { mockIds } from '../../mocks/mvp';
+import { resolveNpcReactionBias } from '../../rules';
 
 import type { NpcBrainAgent } from '../interfaces';
 import { ValidatedMockAgent } from './baseMockAgent';
@@ -13,16 +14,14 @@ const hasSupportiveTone = (recentDialogue: NpcBrainInput['recentDialogue']) =>
   recentDialogue.some(
     (turn) =>
       turn.speaker === 'player' &&
-      /(help|aid|support|quest|team|协助|帮忙|一起|支援|补给|相信)/i.test(turn.text),
+      /(help|aid|support|quest|team|帮|协助|支持|一起|合作|任务)/i.test(turn.text),
   );
 
 const hasAggressiveTone = (recentDialogue: NpcBrainInput['recentDialogue']) =>
   recentDialogue.some(
     (turn) =>
       turn.speaker === 'player' &&
-      /(demand|threat|force|now|立刻|马上|命令|威胁|逼迫|不准拖延)/i.test(
-        turn.text,
-      ),
+      /(demand|threat|force|now|立刻|命令|威胁|交出来|马上)/i.test(turn.text),
   );
 
 const lastPlayerTurnText = (recentDialogue: NpcBrainInput['recentDialogue']) =>
@@ -34,19 +33,28 @@ const lastPlayerTurnText = (recentDialogue: NpcBrainInput['recentDialogue']) =>
 const hasInventoryItem = (input: NpcBrainInput, itemId: string) =>
   input.playerState.inventory.some((entry) => entry.itemId === itemId && entry.quantity > 0);
 
+const intentLabels = {
+  greet: '寒暄',
+  ask: '询问',
+  trade: '交易',
+  quest: '任务',
+  persuade: '说服',
+  leave: '结束对话',
+} as const;
+
 const buildHistoryCue = (input: NpcBrainInput) => {
   const cues: string[] = [];
 
   if (input.playerModel.recentQuestChoices.some((choice) => choice.includes('rowan'))) {
-    cues.push('你之前已经偏向了罗文那条协防路线。');
+    cues.push('你之前在 Rowan 的分支上做过关键选择。');
   }
 
   if (input.playerModel.recentAreaVisits.includes(mockIds.areas.archive)) {
-    cues.push('你从沉没秘库带回来的线索还在改变局势。');
+    cues.push('你最近去过沉没档案馆，这让对方更愿意把话题往那边引。');
   }
 
   if (input.recentDialogue.length >= 4) {
-    cues.push('你已经把这条线反复确认过了。');
+    cues.push('这次对话已经持续了一会儿，对方会更明显地回应你的态度。');
   }
 
   if (cues.length > 0) {
@@ -54,10 +62,10 @@ const buildHistoryCue = (input: NpcBrainInput) => {
   }
 
   if (input.npcState.memory.shortTerm.length > 0) {
-    return `我还记得：${input.npcState.memory.shortTerm[input.npcState.memory.shortTerm.length - 1]}`;
+    return `对方还记得上次互动留下的印象：${input.npcState.memory.shortTerm[input.npcState.memory.shortTerm.length - 1]}`;
   }
 
-  return '这次交谈会决定下一步的节奏。';
+  return '对方会根据你当前的态度和近期行为给出回应。';
 };
 
 const buildDecisionBasis = (
@@ -65,42 +73,29 @@ const buildDecisionBasis = (
   intent: ReturnType<typeof deriveIntent>,
   supportiveTone: boolean,
   aggressiveTone: boolean,
+  playerModelBias: ReturnType<typeof resolveNpcReactionBias>,
 ) => {
-  const reasons: string[] = [
-    `当前交互意图是${intent === 'greet'
-      ? '问候'
-      : intent === 'ask'
-        ? '询问'
-        : intent === 'trade'
-          ? '交易'
-          : intent === 'quest'
-            ? '任务'
-            : intent === 'persuade'
-              ? '说服'
-              : '离开'}`,
-  ];
+  const reasons: string[] = [`玩家本轮意图偏向“${intentLabels[intent]}”。`];
 
   if (supportiveTone) {
-    reasons.push('玩家语气更偏合作，NPC 会下调戒备');
+    reasons.push('玩家这轮表达更合作，因此 NPC 更容易给出正面反馈。');
   }
 
   if (aggressiveTone) {
-    reasons.push('玩家语气偏强硬，NPC 会优先保护信息');
+    reasons.push('玩家这轮表达更强硬，因此 NPC 会提高防备。');
   }
 
   if (input.playerModel.recentQuestChoices.some((choice) => choice.includes('rowan'))) {
-    reasons.push('玩家最近偏向罗文线，NPC 会参考既有协作倾向');
+    reasons.push('NPC 识别到玩家之前在 Rowan 相关支线中的选择。');
   }
 
   if (input.playerModel.recentAreaVisits.includes(mockIds.areas.archive)) {
-    reasons.push('玩家近期到过沉没秘库，相关线索会影响回答');
+    reasons.push('玩家近期去过沉没档案馆，这改变了 NPC 对当前话题的判断。');
   }
 
-  if (input.recentDialogue.length >= 4) {
-    reasons.push('当前已经进入多轮对话，NPC 会压缩重复信息');
-  }
+  reasons.push(...playerModelBias.reasons);
 
-  return reasons.slice(0, 4);
+  return reasons.slice(0, 5);
 };
 
 const buildQuestOffers = (input: NpcBrainInput) =>
@@ -180,14 +175,14 @@ const buildTradeOutcome = (
 
 const buildNetworkChanges = (
   input: NpcBrainInput,
-  intent: string,
+  intent: ReturnType<typeof deriveIntent>,
 ) => {
   if (intent === 'quest' && input.npcDefinition.role === 'guide') {
     return [
       {
         targetNpcId: mockIds.npcs.rowan,
         delta: 6,
-        bond: '协防链路',
+        bond: '并肩侦察',
       },
     ];
   }
@@ -197,7 +192,7 @@ const buildNetworkChanges = (
       {
         targetNpcId: mockIds.npcs.lyra,
         delta: 4,
-        bond: '补给协作',
+        bond: '互通商路',
       },
     ];
   }
@@ -211,7 +206,7 @@ const buildNetworkChanges = (
       {
         targetNpcId: mockIds.npcs.rowan,
         delta: 3,
-        bond: '情报共享',
+        bond: '档案线索',
       },
     ];
   }
@@ -219,30 +214,72 @@ const buildNetworkChanges = (
   return [];
 };
 
-const deriveIntent = (recentDialogue: NpcBrainInput['recentDialogue']) => {
+const deriveIntent = (input: NpcBrainInput) => {
+  if (input.selectedIntent) {
+    return input.selectedIntent;
+  }
+
+  const { recentDialogue } = input;
   const text = lastPlayerTurnText(recentDialogue);
 
-  if (/(交换|物资|补给|trade|货)/i.test(text)) {
+  if (/(trade|买|卖|交易|补给|商店)/i.test(text)) {
     return 'trade';
   }
 
-  if (/(任务|委托|mission|quest)/i.test(text)) {
+  if (/(mission|quest|任务|委托|线索)/i.test(text)) {
     return 'quest';
   }
 
-  if (/(相信|说服|persuade|稳住)/i.test(text)) {
+  if (/(persuade|说服|请求|相信我|拜托)/i.test(text)) {
     return 'persuade';
   }
 
-  if (/(线索|情报|告诉我|ask|remember)/i.test(text)) {
+  if (/(ask|remember|问|情况|发生了什么|记得)/i.test(text)) {
     return 'ask';
   }
 
-  if (/(稍后|先走|leave)/i.test(text)) {
+  if (/(leave|再见|先走了|告辞)/i.test(text)) {
     return 'leave';
   }
 
   return 'greet';
+};
+
+const buildNpcReply = (options: {
+  input: NpcBrainInput;
+  intent: ReturnType<typeof deriveIntent>;
+  aggressiveTone: boolean;
+  questOfferIds: string[];
+  tradeOutcome: Pick<NpcBrainOutput, 'itemTransfers' | 'playerGoldDelta'>;
+  historyCue: string;
+}) => {
+  const { input, intent, aggressiveTone, questOfferIds, tradeOutcome, historyCue } = options;
+
+  if (aggressiveTone) {
+    return `${input.npcDefinition.name}皱起眉头：“你的态度太急了。${historyCue} 先把语气放缓，我们再谈。”`;
+  }
+
+  if (intent === 'quest' && questOfferIds.length > 0) {
+    return `${input.npcDefinition.name}点头道：“既然你愿意接手，我这里正好有一条线索。${historyCue} 这件事交给你试试看。”`;
+  }
+
+  if (intent === 'trade' && tradeOutcome.itemTransfers.length > 0) {
+    return `${input.npcDefinition.name}把货物推了过来：“可以，这笔交易我做。${historyCue} 你带着它会更稳妥。”`;
+  }
+
+  if (intent === 'ask') {
+    return `${input.npcDefinition.name}压低声音：“你问到点子上了。${historyCue} 我能告诉你的，比普通访客更多一点。”`;
+  }
+
+  if (intent === 'persuade') {
+    return `${input.npcDefinition.name}沉吟片刻：“你说得不是没有道理。${historyCue} 但我要先确认你是不是值得信任。”`;
+  }
+
+  if (intent === 'leave') {
+    return `${input.npcDefinition.name}轻轻点头：“那就先到这里。${historyCue} 需要时再来找我。”`;
+  }
+
+  return `${input.npcDefinition.name}抬头看向你：“来得正好。${historyCue} 你想先聊哪一件事？”`;
 };
 
 export class MockNpcBrainAgent
@@ -254,7 +291,7 @@ export class MockNpcBrainAgent
   }
 
   protected execute(input: NpcBrainInput): NpcBrainOutput {
-    const intent = deriveIntent(input.recentDialogue);
+    const intent = deriveIntent(input);
     const supportiveTone = hasSupportiveTone(input.recentDialogue);
     const aggressiveTone = hasAggressiveTone(input.recentDialogue);
     const baseDeltas: Record<
@@ -268,6 +305,7 @@ export class MockNpcBrainAgent
       persuade: { trustDelta: 2, relationshipDelta: 2 },
       leave: { trustDelta: 0, relationshipDelta: 0 },
     };
+    const playerModelBias = resolveNpcReactionBias(input.playerModel, intent);
     let trustDelta = baseDeltas[intent].trustDelta;
     let relationshipDelta = baseDeltas[intent].relationshipDelta;
 
@@ -281,8 +319,14 @@ export class MockNpcBrainAgent
       relationshipDelta -= 6;
     }
 
+    trustDelta += playerModelBias.trustDelta;
+    relationshipDelta += playerModelBias.relationshipDelta;
+
     const questOfferIds = intent === 'quest' ? buildQuestOffers(input) : [];
-    const tradeOutcome = intent === 'trade' ? buildTradeOutcome(input) : { itemTransfers: [], playerGoldDelta: 0 };
+    const tradeOutcome =
+      intent === 'trade'
+        ? buildTradeOutcome(input)
+        : { itemTransfers: [], playerGoldDelta: 0 };
     const relationshipNetworkChanges = buildNetworkChanges(input, intent);
     const historyCue = buildHistoryCue(input);
     const decisionBasis = buildDecisionBasis(
@@ -290,39 +334,34 @@ export class MockNpcBrainAgent
       intent,
       supportiveTone,
       aggressiveTone,
+      playerModelBias,
     );
-
-    const npcReply = aggressiveTone
-      ? `${input.npcDefinition.name}收紧语气，明显不满地说：“${historyCue}如果你继续这样逼问，我只会把消息收得更紧。”`
-      : intent === 'quest' && questOfferIds.length > 0
-        ? `${input.npcDefinition.name}点了点头：“${historyCue}这份委托现在交给你，别让它断在路上。”`
-        : intent === 'trade' && tradeOutcome.itemTransfers.length > 0
-          ? `${input.npcDefinition.name}压低声音：“${historyCue}这批物资我先给你，但别把路线上交代的缺口再放大。”`
-          : intent === 'ask'
-            ? `${input.npcDefinition.name}沉吟片刻：“${historyCue}我会按你之前留下的行动痕迹来判断能告诉你多少。”`
-            : intent === 'persuade'
-              ? `${input.npcDefinition.name}重新审视了你一眼：“${historyCue}如果你真能稳住局势，我愿意再把一步棋交给你。”`
-              : intent === 'leave'
-                ? `${input.npcDefinition.name}没有拦你，只留下了一句提醒：“${historyCue}别让这条线在你离开后冷掉。”`
-                : `${input.npcDefinition.name}的神情略微放松：“${historyCue}先把节奏对齐，我们再往下谈。”`;
+    const npcReply = buildNpcReply({
+      input,
+      intent,
+      aggressiveTone,
+      questOfferIds,
+      tradeOutcome,
+      historyCue,
+    });
 
     return {
       npcReply,
       trustDelta,
       relationshipDelta,
-      memoryNote: `${input.npcDefinition.name}记下了这次以“${intent}”为主的对话回应。`,
+      memoryNote: `${input.npcDefinition.name}记录了玩家本轮“${intentLabels[intent]}”的交互倾向。`,
       longTermMemoryNote:
         questOfferIds.length > 0 || relationshipNetworkChanges.length > 0
-          ? `${input.npcDefinition.name}认为玩家正在影响更大的协作网络。`
+          ? `${input.npcDefinition.name}记住了这次关键互动，后续会据此调整长期态度。`
           : supportiveTone
-            ? `${input.npcDefinition.name}对玩家的长期评价略有上升。`
+            ? `${input.npcDefinition.name}对玩家留下了积极合作的长期印象。`
             : undefined,
       questOfferIds,
       itemTransfers: tradeOutcome.itemTransfers,
       playerGoldDelta: tradeOutcome.playerGoldDelta,
       relationshipNetworkChanges,
       decisionBasis,
-      explanationHint: `${input.npcDefinition.name}根据玩家最近的区域行动、任务偏好与当前对话语气调整了回应。`,
+      explanationHint: `${input.npcDefinition.name}会结合玩家当前语气、近期画像与既往记忆来决定回应方式。`,
     };
   }
 }

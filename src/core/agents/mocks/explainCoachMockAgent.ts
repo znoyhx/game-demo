@@ -26,7 +26,12 @@ export class MockExplainCoachAgent
     return {
       review: buildReviewPayload({
         generatedAt: mockTimeline.reviewGeneratedAt,
+        player: input.player,
         playerTags: input.player.profileTags,
+        playerModel: input.playerModel,
+        difficulty: input.difficulty,
+        reviewRequest: input.reviewRequest,
+        reviewHistory: input.reviewHistory,
         encounter: input.encounter,
         combat: input.combat,
         combatHistory: input.combatHistory,

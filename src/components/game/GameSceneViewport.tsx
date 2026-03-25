@@ -21,6 +21,8 @@ interface SceneEventViewModel {
   detail: string;
   isPending: boolean;
   isTriggered: boolean;
+  naturallyTriggerable: boolean;
+  naturalReason?: string;
 }
 
 interface GameSceneViewportProps {
@@ -72,9 +74,28 @@ export function GameSceneViewport({
               <div className="game-scene__event-copy">
                 <strong>{event.title}</strong>
                 <span>{event.detail}</span>
+                {!event.isPending && !event.isTriggered && event.naturalReason ? (
+                  <span>{event.naturalReason}</span>
+                ) : null}
               </div>
-              <Badge tone={event.isPending ? 'warning' : event.isTriggered ? 'success' : 'info'}>
-                {event.isPending ? '待触发' : event.isTriggered ? '已触发' : '可触发'}
+              <Badge
+                tone={
+                  event.isPending
+                    ? 'warning'
+                    : event.isTriggered
+                      ? 'success'
+                      : event.naturallyTriggerable
+                        ? 'info'
+                        : 'default'
+                }
+              >
+                {event.isPending
+                  ? '待触发'
+                  : event.isTriggered
+                    ? '已触发'
+                    : event.naturallyTriggerable
+                      ? '当前可触发'
+                      : '当前不可触发'}
               </Badge>
             </button>
           ))}

@@ -165,6 +165,38 @@ export class EventDebugController {
     return state.questDefinitionsById[questId]?.title ?? questId;
   }
 
+  private localizeReasonIdentifiers(
+    reason: string,
+    state:
+      | Pick<GameStoreState, 'areasById' | 'npcDefinitionsById' | 'questDefinitionsById'>
+      | EventDebugBeforeState,
+  ) {
+    let localizedReason = reason;
+
+    for (const [areaId, area] of Object.entries(state.areasById)) {
+      localizedReason = localizedReason.split(areaId).join(area.name);
+    }
+
+    for (const [npcId, npcDefinition] of Object.entries(state.npcDefinitionsById)) {
+      localizedReason = localizedReason.split(npcId).join(npcDefinition.name);
+    }
+
+    for (const [questId, questDefinition] of Object.entries(state.questDefinitionsById)) {
+      localizedReason = localizedReason.split(questId).join(questDefinition.title);
+    }
+
+    return localizedReason;
+  }
+
+  private localizeNaturalReasons(
+    reasons: string[],
+    state:
+      | Pick<GameStoreState, 'areasById' | 'npcDefinitionsById' | 'questDefinitionsById'>
+      | EventDebugBeforeState,
+  ) {
+    return reasons.map((reason) => this.localizeReasonIdentifiers(reason, state));
+  }
+
   private buildChangeSummary(
     event: WorldEvent,
     effect: AppliedEventEffect,
@@ -304,7 +336,7 @@ export class EventDebugController {
       replayedFromIndex: replayEntry?.index,
       replayedFromTriggeredAt: replayEntry?.triggeredAt,
       naturalEvaluationOk: naturalEvaluation.ok,
-      naturalReasons: naturalEvaluation.reasons,
+      naturalReasons: this.localizeNaturalReasons(naturalEvaluation.reasons, afterState),
       changeSummary: this.buildChangeSummary(event, effect, beforeState, afterState),
       directorAfter: this.buildDirectorSnapshot(afterState),
     });
@@ -331,7 +363,7 @@ export class EventDebugController {
         lastTriggeredAt: historySummary.lastTriggeredAt,
         lastSource: historySummary.lastSource,
         naturallyTriggerable: naturalEvaluation.ok,
-        naturalReasons: naturalEvaluation.reasons,
+        naturalReasons: this.localizeNaturalReasons(naturalEvaluation.reasons, state),
         pending: historySummary.pending,
         scheduled: historySummary.scheduled,
       };

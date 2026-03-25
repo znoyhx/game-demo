@@ -8,13 +8,16 @@ import { buildPixelSceneRenderModel } from '../../components/map/phaser/buildPix
 import type { PixelSceneRenderModel } from '../../components/map/phaser/pixelSceneRenderer.contract';
 import type { GameLogRecord } from '../../core/logging/logTypes';
 import {
+  buildPlayerGuidanceHints,
   evaluateAreaAccess,
+  evaluateEventTrigger,
   isAreaVisibleInNavigation,
   resolveAreaEnvironmentState,
 } from '../../core/rules';
 import {
   formatNpcDispositionLabel,
   formatNpcEmotionalStateLabel,
+  formatPlayerTagLabel,
 } from '../../core/utils/displayLabels';
 import type {
   Area,
@@ -114,6 +117,8 @@ export interface GamePageViewModel {
       detail: string;
       isPending: boolean;
       isTriggered: boolean;
+      naturallyTriggerable: boolean;
+      naturalReason?: string;
     }>;
   };
   rightSidebar: {
@@ -344,6 +349,176 @@ const humanizeToken = (value: string | undefined) => {
       .replace(/[-_]/g, ' ')
       .replace(/\b\w/g, (letter) => letter.toUpperCase())
   );
+};
+
+const localizedWorldFlagLabels: Record<string, string> = {
+  tutorialCompleted: '完成前哨引导',
+  ashfallWarningSeen: '已见到灰烬预警',
+  supplyShortageActive: '补给短缺已生效',
+  marketPanicActive: '集市恐慌已生效',
+  rowanRedeployed: '巡防队已改道',
+  archiveEchoSeen: '已发现秘库回响',
+  forbiddenChantExposed: '禁咒残篇已暴露',
+  borderSkirmishActive: '边界冲突已激活',
+  ashWardenSighted: '灰烬守卫已现身',
+  wardenAlertRaised: '守卫警戒已提升',
+  sanctumLockdownActive: '圣所封锁已启动',
+  archiveDoorOpened: '秘库门已开启',
+  sanctumSealBroken: '圣所封印已破除',
+};
+
+interface EventReasonDisplayContext {
+  areasById: Record<string, Area>;
+  questDefinitionsById: Record<string, QuestDefinition>;
+  npcDefinitionsById: Record<string, NpcDefinition>;
+}
+
+interface EventDisplayState {
+  naturallyTriggerable: boolean;
+  naturalReasons: string[];
+  naturalReason?: string;
+}
+
+const localizeEventTriggerReason = (
+  reason: string,
+  context: EventReasonDisplayContext,
+) => {
+  if (reason === '事件已经触发过，且不可重复触发') {
+    return '该事件已经触发过，不能重复触发。';
+  }
+
+  if (reason === '事件触发条件已满足') {
+    return '事件触发条件已满足。';
+  }
+
+  const areaMatch = reason.match(/^需要位于区域 (.+)$/);
+  if (areaMatch) {
+    const areaName = context.areasById[areaMatch[1]]?.name ?? humanizeToken(areaMatch[1]);
+    return `需要位于“${areaName}”。`;
+  }
+
+  const questStatusMatch = reason.match(/^需要任务 (.+?) 处于 (.+)$/);
+  if (questStatusMatch) {
+    const [, questId, status] = questStatusMatch;
+    const questTitle =
+      context.questDefinitionsById[questId]?.title ?? humanizeToken(questId);
+    return `需要任务“${questTitle}”处于“${humanizeToken(status)}”状态。`;
+  }
+
+  const questActiveMatch = reason.match(/^需要任务 (.+?) 已激活或已完成$/);
+  if (questActiveMatch) {
+    const questId = questActiveMatch[1];
+    const questTitle =
+      context.questDefinitionsById[questId]?.title ?? humanizeToken(questId);
+    return `需要先激活或完成任务“${questTitle}”。`;
+  }
+
+  const questMissingMatch = reason.match(/^需要任务 (.+)$/);
+  if (questMissingMatch) {
+    const questId = questMissingMatch[1];
+    const questTitle =
+      context.questDefinitionsById[questId]?.title ?? humanizeToken(questId);
+    return `需要先拥有任务“${questTitle}”。`;
+  }
+
+  const playerTagMatch = reason.match(/^需要玩家标签 (.+)$/);
+  if (playerTagMatch) {
+    const playerTag = playerTagMatch[1] as PlayerModelState['tags'][number];
+    return `需要玩家风格为“${formatPlayerTagLabel(playerTag)}”。`;
+  }
+
+  const worldFlagMatch = reason.match(/^需要世界标记 (.+)$/);
+  if (worldFlagMatch) {
+    const flagLabel =
+      localizedWorldFlagLabels[worldFlagMatch[1]] ?? humanizeToken(worldFlagMatch[1]);
+    return `需要满足前置条件：${flagLabel}。`;
+  }
+
+  const npcStateMatch = reason.match(/^需要角色状态 (.+)$/);
+  if (npcStateMatch) {
+    const npcId = npcStateMatch[1];
+    const npcName = context.npcDefinitionsById[npcId]?.name ?? humanizeToken(npcId);
+    return `需要先拥有“${npcName}”的状态数据。`;
+  }
+
+  const npcTrustMatch = reason.match(/^需要角色 (.+?) 信任度至少为 (\d+)$/);
+  if (npcTrustMatch) {
+    const [, npcId, trust] = npcTrustMatch;
+    const npcName = context.npcDefinitionsById[npcId]?.name ?? humanizeToken(npcId);
+    return `需要“${npcName}”的信任度至少达到 ${trust}。`;
+  }
+
+  const npcRelationshipMatch = reason.match(/^需要角色 (.+?) 关系值至少为 (\d+)$/);
+  if (npcRelationshipMatch) {
+    const [, npcId, relationship] = npcRelationshipMatch;
+    const npcName = context.npcDefinitionsById[npcId]?.name ?? humanizeToken(npcId);
+    return `需要“${npcName}”的关系值至少达到 ${relationship}。`;
+  }
+
+  const timeMatch = reason.match(/^需要时间段 (.+)$/);
+  if (timeMatch) {
+    return `需要在“${timeMatch[1]}”时触发。`;
+  }
+
+  const minimumTensionMatch = reason.match(/^需要世界张力至少为 (\d+)$/);
+  if (minimumTensionMatch) {
+    return `需要世界张力至少达到 ${minimumTensionMatch[1]}。`;
+  }
+
+  const maximumTensionMatch = reason.match(/^需要世界张力不高于 (\d+)$/);
+  if (maximumTensionMatch) {
+    return `需要世界张力不高于 ${maximumTensionMatch[1]}。`;
+  }
+
+  return reason;
+};
+
+const buildEventDisplayState = (
+  event: WorldEvent | undefined,
+  source: Pick<
+    GamePageViewModelSource,
+    | 'questProgressEntries'
+    | 'playerModel'
+    | 'worldFlags'
+    | 'eventHistory'
+    | 'npcStates'
+    | 'worldRuntime'
+    | 'eventDirector'
+  > & {
+    currentAreaId: string;
+  },
+  context: EventReasonDisplayContext,
+): EventDisplayState => {
+  if (!event) {
+    return {
+      naturallyTriggerable: false,
+      naturalReasons: ['事件配置缺失。'],
+      naturalReason: '事件配置缺失。',
+    };
+  }
+
+  const evaluation = evaluateEventTrigger(event, {
+    currentAreaId: source.currentAreaId,
+    questProgressEntries: source.questProgressEntries,
+    playerTags: source.playerModel.tags,
+    worldFlags: source.worldFlags,
+    eventHistory: source.eventHistory,
+    npcStatesById: Object.fromEntries(
+      source.npcStates.map((npcState) => [npcState.npcId, npcState]),
+    ),
+    worldTimeOfDay: source.worldRuntime.timeOfDay,
+    worldTension: source.eventDirector.worldTension,
+  });
+
+  const naturalReasons = evaluation.reasons.map((reason) =>
+    localizeEventTriggerReason(reason, context),
+  );
+
+  return {
+    naturallyTriggerable: evaluation.ok,
+    naturalReasons,
+    naturalReason: naturalReasons[0],
+  };
 };
 
 const formatSaveStatus = (
@@ -649,10 +824,15 @@ interface MarkerAccessContext {
   mapState: GamePageViewModelSource['mapState'];
   explorationState: ExplorationState;
   questProgressEntries: QuestProgress[];
+  questDefinitionsById: Record<string, QuestDefinition>;
   worldFlags: World['flags'];
   npcStatesById: Record<string, NpcState>;
+  npcDefinitionsById: Record<string, NpcDefinition>;
+  playerModel: PlayerModelState;
+  worldRuntime: GamePageViewModelSource['worldRuntime'];
   eventDefinitionsById: Record<string, WorldEvent>;
   eventHistory: EventLogEntry[];
+  eventDirector: EventDirectorState;
 }
 
 const buildSceneMarker = (
@@ -836,6 +1016,88 @@ const buildSceneMarker = (
   }
 };
 
+const buildSceneMarkerWithEventState = (
+  point: Area['interactionPoints'][number],
+  maxX: number,
+  maxY: number,
+  pendingEventIds: string[],
+  accessContext: MarkerAccessContext,
+): AreaSceneMarker => {
+  const baseMarker = buildSceneMarker(
+    point,
+    maxX,
+    maxY,
+    pendingEventIds,
+    accessContext,
+  );
+
+  if (point.type !== 'event') {
+    return baseMarker;
+  }
+
+  const eventId = point.targetId ?? point.id;
+  const eventDefinition = accessContext.eventDefinitionsById[eventId];
+  const eventDisplayState = buildEventDisplayState(
+    eventDefinition,
+    {
+      currentAreaId: accessContext.currentArea?.id ?? accessContext.mapState.currentAreaId,
+      questProgressEntries: accessContext.questProgressEntries,
+      playerModel: accessContext.playerModel,
+      worldFlags: accessContext.worldFlags,
+      eventHistory: accessContext.eventHistory,
+      npcStates: Object.values(accessContext.npcStatesById),
+      worldRuntime: accessContext.worldRuntime,
+      eventDirector: accessContext.eventDirector,
+    },
+    {
+      areasById: accessContext.areasById,
+      questDefinitionsById: accessContext.questDefinitionsById,
+      npcDefinitionsById: accessContext.npcDefinitionsById,
+    },
+  );
+  const isPendingEvent = pendingEventIds.includes(eventId);
+  const isTriggeredEvent = accessContext.eventHistory.some(
+    (entry) => entry.eventId === eventId,
+  );
+  const isCompletedEvent =
+    isTriggeredEvent && eventDefinition?.repeatable === false;
+
+  if (isCompletedEvent) {
+    return {
+      ...baseMarker,
+      caption: '事件已完成',
+      feedbackTone: 'default',
+      state: 'disabled',
+      enabled: false,
+    };
+  }
+
+  if (isPendingEvent) {
+    return {
+      ...baseMarker,
+      caption: '待触发事件',
+      feedbackTone: 'warning',
+      state: 'alert',
+    };
+  }
+
+  if (eventDisplayState.naturallyTriggerable) {
+    return {
+      ...baseMarker,
+      caption: '当前可触发事件',
+      feedbackTone: 'info',
+      state: 'focus',
+    };
+  }
+
+  return {
+    ...baseMarker,
+    caption: eventDisplayState.naturalReason ?? '当前不可触发',
+    feedbackTone: 'default',
+    state: 'idle',
+  };
+};
+
 const buildExplorationSignalMarker = (
   signal: ExplorationEncounterSignal,
   maxX: number,
@@ -928,6 +1190,24 @@ export function buildGamePageViewModel(
     const event = eventDefinitionsById[eventId];
     const pending = source.eventDirector.pendingEventIds.includes(eventId);
     const triggered = source.eventHistory.some((entry) => entry.eventId === eventId);
+    const displayState = buildEventDisplayState(
+      event,
+      {
+        currentAreaId: currentArea?.id ?? source.mapState.currentAreaId,
+        questProgressEntries: source.questProgressEntries,
+        playerModel: source.playerModel,
+        worldFlags: source.worldFlags,
+        eventHistory: source.eventHistory,
+        npcStates: source.npcStates,
+        worldRuntime: source.worldRuntime,
+        eventDirector: source.eventDirector,
+      },
+      {
+        areasById,
+        questDefinitionsById,
+        npcDefinitionsById,
+      },
+    );
 
     return {
       id: eventId,
@@ -935,6 +1215,8 @@ export function buildGamePageViewModel(
       detail: event?.description ?? '该事件尚未提供详细说明。',
       isPending: pending,
       isTriggered: triggered,
+      naturallyTriggerable: displayState.naturallyTriggerable,
+      naturalReason: displayState.naturalReason,
     };
   });
 
@@ -946,16 +1228,21 @@ export function buildGamePageViewModel(
   );
   const stageMarkers = [
     ...scenePoints.map((point) =>
-      buildSceneMarker(point, maxX, maxY, pendingEventIds, {
+      buildSceneMarkerWithEventState(point, maxX, maxY, pendingEventIds, {
         currentArea,
         areasById,
         mapState: source.mapState,
         explorationState: source.explorationState,
         questProgressEntries: source.questProgressEntries,
+        questDefinitionsById,
         worldFlags: source.worldFlags,
         npcStatesById,
+        npcDefinitionsById,
+        playerModel: source.playerModel,
+        worldRuntime: source.worldRuntime,
         eventDefinitionsById,
         eventHistory: source.eventHistory,
+        eventDirector: source.eventDirector,
       }),
     ),
     ...currentAreaSignals.map((signal) =>
@@ -1108,6 +1395,7 @@ export function buildGamePageViewModel(
           },
         ]
       : []),
+    ...buildPlayerGuidanceHints(source.playerModel),
     ...source.playerModel.rationale.slice(0, 2).map((summary, index) => ({
       id: `player-model:${index}`,
       title: index === 0 ? '玩家模型' : '行为偏好',

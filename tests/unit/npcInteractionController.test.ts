@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createMockAgentSet } from '../../src/core/agents';
 import { NpcInteractionController } from '../../src/core/controllers/npcInteractionController';
 import { QuestProgressionController } from '../../src/core/controllers/questProgressionController';
+import { ReviewGenerationController } from '../../src/core/controllers/reviewGenerationController';
 import { mockIds, mockSaveSnapshot } from '../../src/core/mocks/mvp';
 import { createGameStore } from '../../src/core/state';
 
@@ -42,16 +43,24 @@ describe('npc interaction controller', () => {
 
     const store = createGameStore(snapshot);
     const saveWriter = new SaveWriterSpy();
+    const agents = createMockAgentSet();
+    const reviewController = new ReviewGenerationController({
+      store,
+      agents,
+      now: fixedNow,
+    });
     const questController = new QuestProgressionController({
       store,
       saveController: saveWriter,
+      reviewController,
       now: fixedNow,
     });
     const controller = new NpcInteractionController({
       store,
-      agents: createMockAgentSet(),
+      agents,
       saveController: saveWriter,
       questController,
+      reviewController,
       now: fixedNow,
     });
 
@@ -79,6 +88,11 @@ describe('npc interaction controller', () => {
     ).toBe(true);
     expect(persistedLyra?.memory.lastInteractionAt).toBe(fixedNow());
     expect(persistedLyra?.hasGivenQuestIds).toContain(mockIds.quests.main);
+    expect(store.getState().reviewState.current?.trigger).toBe('npc-interaction');
+    expect(
+      store.getState().reviewState.current?.npcAttitudeReasons[0]?.npcName,
+    ).toContain('莱拉');
+    expect(store.getState().ui.activePanel).toBe('npc');
     expect(saveWriter.calls).toEqual(['auto']);
   });
 

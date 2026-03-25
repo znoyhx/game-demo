@@ -3,6 +3,7 @@ import type { StoreApi } from 'zustand/vanilla';
 import type { AgentSet } from '../agents';
 import type { GameEventBus } from '../events/domainEvents';
 import type { GameLogger } from '../logging';
+import type { CombatCommandAction } from '../schemas';
 import { resolveAreaEnvironmentState } from '../rules/areaRules';
 import type { CombatActionType } from '../rules';
 import type { GameStoreState } from '../state';
@@ -10,6 +11,7 @@ import {
   applyDebugCombatPhase,
   allowedCombatActions,
   buildCombatHistoryEntry,
+  resolvePlayerDifficultyAdjustment,
   resolvePreferredCombatTactic,
   resolveCombatRound,
 } from '../rules';
@@ -22,6 +24,7 @@ import {
   type SaveWriter,
   type TimestampProvider,
 } from './controllerUtils';
+import type { PlayerModelController } from './playerModelController';
 import { ReviewGenerationController } from './reviewGenerationController';
 
 const deriveCommonPlayerActions = (
@@ -65,6 +68,7 @@ interface CombatControllerOptions {
   eventBus?: GameEventBus;
   saveController?: SaveWriter;
   reviewController?: ReviewGenerationController;
+  playerModelController?: PlayerModelController;
   logger?: GameLogger;
   now?: TimestampProvider;
 }
@@ -80,6 +84,8 @@ export class CombatController {
 
   private readonly reviewController?: ReviewGenerationController;
 
+  private readonly playerModelController?: PlayerModelController;
+
   private readonly logger?: GameLogger;
 
   private readonly now: TimestampProvider;
@@ -90,6 +96,7 @@ export class CombatController {
     this.eventBus = options.eventBus;
     this.saveController = options.saveController;
     this.reviewController = options.reviewController;
+    this.playerModelController = options.playerModelController;
     this.logger = options.logger;
     this.now = options.now ?? defaultTimestampProvider;
   }
@@ -111,6 +118,14 @@ export class CombatController {
       encounter.tacticPool.includes(state.debugTools.forcedTactic)
         ? state.debugTools.forcedTactic
         : null;
+    const difficultyAdjustment = resolvePlayerDifficultyAdjustment(
+      state.playerModel,
+      state.gameConfig.difficulty,
+    );
+    const enemyMaxHp = Math.max(
+      60,
+      Math.round(90 * difficultyAdjustment.enemyHpMultiplier),
+    );
 
     let combatState: NonNullable<GameStoreState['combatState']> = {
       encounterId: encounter.id,
@@ -131,8 +146,8 @@ export class CombatController {
       enemy: {
         id: enemyNpc?.id ?? 'combatant:enemy',
         name: enemyNpc?.name ?? encounter.title,
-        hp: 90,
-        maxHp: 90,
+        hp: enemyMaxHp,
+        maxHp: enemyMaxHp,
       },
       logs: [],
     };
@@ -300,6 +315,12 @@ export class CombatController {
       hp: round.playerState.hp,
       energy: round.playerState.energy,
     });
+    await this.playerModelController?.recordCombatChoice(
+      actionType as CombatCommandAction,
+      {
+        autoSave: false,
+      },
+    );
     this.logger?.recordCombatDetail({
       encounterId: combatState.encounterId,
       createdAt,

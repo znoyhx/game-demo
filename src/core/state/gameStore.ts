@@ -37,6 +37,7 @@ import {
   type SessionSnapshot,
   type World,
   type WorldEvent,
+  createEmptyPlayerModelSignalWeights,
   saveSnapshotSchema,
   sessionSnapshotSchema,
 } from '../schemas';
@@ -420,8 +421,12 @@ const buildDefaultPlayerModelState = (
   tags: player.profileTags,
   rationale: [],
   recentAreaVisits: [currentAreaId],
+  recentCombatActions: [],
+  recentNpcInteractionIntents: [],
   recentQuestChoices: [],
   npcInteractionCount: 0,
+  signalWeights: createEmptyPlayerModelSignalWeights(),
+  dominantStyle: player.profileTags[0],
 });
 
 const buildDefaultEventDirectorState = (): EventDirectorState => ({

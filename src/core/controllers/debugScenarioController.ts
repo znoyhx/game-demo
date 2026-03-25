@@ -1,6 +1,10 @@
 import type { StoreApi } from 'zustand/vanilla';
 
-import { mockSaveSnapshot } from '../mocks';
+import {
+  findPlayerModelBehaviorReplayPreset,
+  findPlayerModelPresetScenario,
+  mockSaveSnapshot,
+} from '../mocks';
 import type {
   CombatDebugPlayerPattern,
   EnemyTacticType,
@@ -11,6 +15,7 @@ import type {
   PlayerProfileTag,
   QuestProgress,
   QuestStatus,
+  ReviewReconstructionTarget,
   SaveSnapshot,
   SessionSnapshot,
 } from '../schemas';
@@ -31,6 +36,7 @@ import { EventTriggerController } from './eventTriggerController';
 import { NpcInteractionController } from './npcInteractionController';
 import { PlayerModelController } from './playerModelController';
 import { QuestProgressionController } from './questProgressionController';
+import { ReviewGenerationController } from './reviewGenerationController';
 
 interface DebugScenarioControllerOptions {
   store: StoreApi<GameStoreState>;
@@ -42,6 +48,7 @@ interface DebugScenarioControllerOptions {
   combatController?: CombatController;
   eventController?: EventTriggerController;
   playerModelController?: PlayerModelController;
+  reviewController?: ReviewGenerationController;
   now?: TimestampProvider;
 }
 
@@ -64,6 +71,8 @@ export class DebugScenarioController {
 
   private readonly playerModelController?: PlayerModelController;
 
+  private readonly reviewController?: ReviewGenerationController;
+
   private readonly now: TimestampProvider;
 
   private readonly npcBaselines = new Map<
@@ -84,6 +93,7 @@ export class DebugScenarioController {
     this.combatController = options.combatController;
     this.eventController = options.eventController;
     this.playerModelController = options.playerModelController;
+    this.reviewController = options.reviewController;
     this.now = options.now ?? defaultTimestampProvider;
   }
 
@@ -357,11 +367,79 @@ export class DebugScenarioController {
     return this.eventController?.triggerEvent(eventId, 'debug');
   }
 
-  async injectPlayerTags(tags: PlayerProfileTag[]) {
+  async injectPlayerTags(tags: PlayerProfileTag[], label?: string) {
     this.enableDebugState({
-      injectedPlayerTags: tags,
+      logsPanelOpen: true,
     });
-    await this.playerModelController?.injectPlayerTags(tags);
+
+    return this.playerModelController?.injectPlayerTags(tags, {
+      autoSave: true,
+      label,
+    });
+  }
+
+  async replayPlayerBehaviorPreset(presetId: string) {
+    const preset = findPlayerModelBehaviorReplayPreset(presetId);
+
+    if (!preset) {
+      return null;
+    }
+
+    this.enableDebugState({
+      logsPanelOpen: true,
+    });
+
+    return this.playerModelController?.replayBehaviorProfile(preset.replaySteps, {
+      autoSave: true,
+      currentAreaId: this.store.getState().player.currentAreaId,
+      label: preset.label,
+      source: 'behavior-replay',
+    });
+  }
+
+  async applyPlayerModelScenario(scenarioId: string) {
+    const scenario = findPlayerModelPresetScenario(scenarioId);
+
+    if (!scenario) {
+      return null;
+    }
+
+    this.enableDebugState({
+      logsPanelOpen: true,
+    });
+
+    return this.playerModelController?.applyDebugScenario(scenario, {
+      autoSave: true,
+      currentAreaId: this.store.getState().player.currentAreaId,
+    });
+  }
+
+  async clearInjectedPlayerProfile() {
+    this.enableDebugState({
+      logsPanelOpen: true,
+    });
+
+    return this.playerModelController?.clearInjectedPlayerProfile({
+      autoSave: true,
+    });
+  }
+
+  async reconstructReviewFromScenario(
+    snapshot: SaveSnapshot = this.store.getState().exportSaveSnapshot(),
+    target?: ReviewReconstructionTarget,
+  ) {
+    this.enableDebugState({
+      activeScenarioId: snapshot.metadata.id,
+      logsPanelOpen: true,
+    });
+
+    return this.reviewController?.reconstructReviewFromSnapshot({
+      snapshot,
+      target,
+      autoOpenPanel: true,
+      autoSave: false,
+      appendToHistory: false,
+    });
   }
 
   async upsertQuestProgress(progress: QuestProgress) {

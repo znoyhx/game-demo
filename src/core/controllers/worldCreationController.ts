@@ -36,6 +36,7 @@ import type {
   WorldEvent,
 } from '../schemas';
 import {
+  createEmptyPlayerModelSignalWeights,
   gameConfigStateSchema,
   npcDefinitionSchema,
   npcStateSchema,
@@ -475,8 +476,11 @@ const buildPlayerModelState = (
       : worldCreationText.playerModelRationale.demoMode,
   ],
   recentAreaVisits: [world.startingAreaId],
+  recentCombatActions: [],
+  recentNpcInteractionIntents: [],
   recentQuestChoices: [],
   npcInteractionCount: 0,
+  signalWeights: createEmptyPlayerModelSignalWeights(),
   dominantStyle: tags[0],
   stuckPoint: request.quickStartEnabled
     ? undefined

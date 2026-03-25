@@ -580,6 +580,7 @@ Make the world feel reactive and make AI-driven behavior legible to judges and p
 - battle-oriented tag
 - story-oriented tag
 - cautious or risky tag
+- current implementation also covers social and speedrun tags for PRD alignment
 
 **Acceptance criteria**
 - tags update from player behavior or debug injection
@@ -594,6 +595,7 @@ Make the world feel reactive and make AI-driven behavior legible to judges and p
 #### M4-3 Connect player model to system reactions
 - affect hinting, event selection, or tactic preference
 - expose state in review/debug view
+- current implementation path covers hints, NPC reactions, enemy tactics, combat difficulty, and review summaries
 
 **Acceptance criteria**
 - at least one visible behavior changes based on player model
@@ -624,16 +626,19 @@ Make the world feel reactive and make AI-driven behavior legible to judges and p
 - save slot viewer
 - event trigger panel
 - event replay / cause inspection
+- review reconstruction from saved snapshot/logs
 - randomness toggle for deterministic event testing
 - player model editor
 - NPC editor
 - combat launch tools
 - agent log panel placeholder
+- player model editor now includes manual tag write, behavior replay generation, preset scenarios, and profile reaction comparison
 
 **Acceptance criteria**
 - debug tools cover all MVP systems
 - common test scenarios can be entered in under 30 seconds
 - dynamic events can be manually triggered, replayed where practical, and inspected with visible cause/source/result summaries
+- review payloads can be rebuilt from persisted combat/quest/NPC/event data without replaying a full run
 
 **Dependencies**
 - M1-7, M3-7, M4-1, M4-2
