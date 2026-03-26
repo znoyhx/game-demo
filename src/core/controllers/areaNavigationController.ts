@@ -120,7 +120,12 @@ export class AreaNavigationController {
     });
 
     if (options?.autoSave ?? true) {
-      await maybeAutoSave(this.store, this.saveController, 'auto');
+      await maybeAutoSave(
+        this.store,
+        this.saveController,
+        'auto',
+        'area-transition',
+      );
     }
 
     return access;

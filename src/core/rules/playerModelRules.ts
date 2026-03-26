@@ -10,6 +10,7 @@ import type {
   PlayerProfileTag,
 } from '../schemas';
 import { createEmptyPlayerModelSignalWeights } from '../schemas';
+import { getCombatTuningPreset } from '../config';
 
 const PLAYER_MODEL_TAG_ORDER: PlayerProfileTag[] = [
   'exploration',
@@ -78,8 +79,11 @@ const appendRecentHistory = <T>(
   limit = PLAYER_MODEL_HISTORY_LIMIT,
 ) => [...history, entry].slice(-limit);
 
-const clampEnemyHpMultiplier = (value: number) =>
-  Math.max(0.82, Math.min(1.22, Number(value.toFixed(2))));
+const clampEnemyHpMultiplier = (
+  value: number,
+  minimum: number,
+  maximum: number,
+) => Math.max(minimum, Math.min(maximum, Number(value.toFixed(2))));
 
 const normalizeTags = (
   tags: PlayerProfileTag[],
@@ -474,11 +478,7 @@ export const resolvePlayerDifficultyAdjustment = (
   playerModel: Pick<PlayerModelState, 'tags'>,
   difficulty: DifficultyLevel,
 ): PlayerDifficultyAdjustment => {
-  const baseMultiplierByDifficulty: Record<DifficultyLevel, number> = {
-    easy: 0.92,
-    normal: 1,
-    hard: 1.08,
-  };
+  const tuningPreset = getCombatTuningPreset(difficulty);
   let profileBias = 0;
 
   if (
@@ -486,7 +486,7 @@ export const resolvePlayerDifficultyAdjustment = (
     playerModel.tags.includes('risky') ||
     playerModel.tags.includes('speedrun')
   ) {
-    profileBias += 0.08;
+    profileBias += tuningPreset.playerModelBiasStep;
   }
 
   if (
@@ -494,11 +494,13 @@ export const resolvePlayerDifficultyAdjustment = (
     playerModel.tags.includes('social') ||
     playerModel.tags.includes('cautious')
   ) {
-    profileBias -= 0.08;
+    profileBias -= tuningPreset.playerModelBiasStep;
   }
 
   const enemyHpMultiplier = clampEnemyHpMultiplier(
-    baseMultiplierByDifficulty[difficulty] + profileBias,
+    tuningPreset.baseEnemyHpMultiplier + profileBias,
+    tuningPreset.minimumResolvedEnemyHpMultiplier,
+    tuningPreset.maximumResolvedEnemyHpMultiplier,
   );
 
   if (enemyHpMultiplier <= 0.92) {

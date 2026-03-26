@@ -6,6 +6,7 @@ import {
 } from '../../components/map/areaSceneStage.contract';
 import { buildPixelSceneRenderModel } from '../../components/map/phaser/buildPixelSceneRenderModel';
 import type { PixelSceneRenderModel } from '../../components/map/phaser/pixelSceneRenderer.contract';
+import { resolveGameShellUiSettings } from '../../core/config';
 import type { GameLogRecord } from '../../core/logging/logTypes';
 import {
   buildPlayerGuidanceHints,
@@ -27,6 +28,7 @@ import type {
   EventLogEntry,
   ExplorationEncounterSignal,
   ExplorationState,
+  GameConfigState,
   NpcDefinition,
   NpcState,
   PlayerModelState,
@@ -65,6 +67,7 @@ export interface GamePageViewModelSource {
   eventHistory: EventLogEntry[];
   eventDirector: EventDirectorState;
   review: ReviewPayload | null;
+  gameConfig: GameConfigState;
   saveMetadata: SaveMetadata;
   saveStatus: SaveLifecycleStatus;
   logEntries: GameLogRecord[];
@@ -1137,6 +1140,7 @@ const getQuestStepList = (definition: QuestDefinition | undefined) => {
 export function buildGamePageViewModel(
   source: GamePageViewModelSource,
 ): GamePageViewModel {
+  const shellUiSettings = resolveGameShellUiSettings(source.gameConfig);
   const areasById = Object.fromEntries(source.areas.map((area) => [area.id, area]));
   const npcDefinitionsById = Object.fromEntries(
     source.npcDefinitions.map((npc) => [npc.id, npc]),
@@ -1308,7 +1312,7 @@ export function buildGamePageViewModel(
 
       return right.trust - left.trust;
     })
-    .slice(0, 5)
+    .slice(0, shellUiSettings.maxRelationships)
     .map((relationship) => ({
       id: relationship.id,
       name: relationship.name,
@@ -1366,7 +1370,7 @@ export function buildGamePageViewModel(
       })),
   ];
 
-  const logs = source.logEntries.slice(0, 4).map((entry) => ({
+  const logs = source.logEntries.slice(0, shellUiSettings.maxLogs).map((entry) => ({
     id: entry.id,
     label: humanizeToken(entry.kind),
     detail: entry.summary,
@@ -1396,13 +1400,17 @@ export function buildGamePageViewModel(
         ]
       : []),
     ...buildPlayerGuidanceHints(source.playerModel),
-    ...source.playerModel.rationale.slice(0, 2).map((summary, index) => ({
+    ...source.playerModel.rationale
+      .slice(0, Math.min(2, shellUiSettings.maxTips))
+      .map((summary, index) => ({
       id: `player-model:${index}`,
       title: index === 0 ? '玩家模型' : '行为偏好',
       summary,
       tone: 'info' as const,
     })),
-    ...(source.review?.explanations.slice(0, 2).map((explanation, index) => ({
+    ...(source.review?.explanations
+      .slice(0, Math.min(2, shellUiSettings.maxTips))
+      .map((explanation, index) => ({
       id: `review:${index}`,
       title: explanation.title,
       summary: explanation.summary,
@@ -1418,7 +1426,7 @@ export function buildGamePageViewModel(
           },
         ]
       : []),
-  ].slice(0, 4);
+  ].slice(0, shellUiSettings.maxTips);
 
   return {
     topBar: {
@@ -1505,7 +1513,7 @@ export function buildGamePageViewModel(
     },
     rightSidebar: {
       quests: quests.length
-        ? quests
+        ? quests.slice(0, shellUiSettings.maxVisibleQuests)
         : [
             {
               id: 'quest:none',

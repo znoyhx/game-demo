@@ -5,13 +5,14 @@ import {
   defaultWorldCreationRequest,
   devTestWorldCreationRequest,
   findWorldCreationTemplate,
+  getDifficultyPreset,
+  quickPlayWorldCreationRequest,
+} from '../config';
+import {
   mockBossEncounterDefinition,
   mockNpcDefinitions,
   mockNpcStates,
-  mockQuestDefinitions,
   mockSaveSnapshot,
-  mockWorldEvents,
-  quickPlayWorldCreationRequest,
 } from '../mocks';
 import type { GameLogger } from '../logging';
 import type {
@@ -48,6 +49,13 @@ import {
 } from '../schemas';
 import type { GameStoreState } from '../state';
 import { locale } from '../utils/locale';
+import {
+  findAreaBackgroundResource,
+  findAvatarResource,
+  findEncounterDefinition,
+  listEventDefinitions,
+  listQuestTemplates,
+} from '../resources';
 
 import {
   CURRENT_SAVE_SCHEMA_VERSION,
@@ -275,7 +283,7 @@ const buildEventDefinitions = (
   const secondArea = areas[1] ?? mockSaveSnapshot.areas[1];
   const thirdArea = areas[2] ?? mockSaveSnapshot.areas[2];
 
-  return mockWorldEvents.map((event) => {
+  return listEventDefinitions().map((event) => {
     switch (event.type) {
       case 'weather-change':
         return {
@@ -331,14 +339,23 @@ const buildResourceState = (
         source: `generated://${tilesetKey}`,
       },
       ...areas.flatMap((area) => [
-        {
-          id: `resource:bg:${area.id}`,
-          kind: 'background' as const,
-          key: area.backgroundKey ?? `bg-${toSlug(area.name)}`,
-          label: worldCreationText.resources.background(area.name),
-          areaId: area.id,
-          source: `generated://background/${toSlug(area.name)}`,
-        },
+        (() => {
+          const backgroundResource = findAreaBackgroundResource(area.id);
+
+          return {
+            id: `resource:bg:${area.id}`,
+            kind: 'background' as const,
+            key:
+              area.backgroundKey ??
+              backgroundResource?.key ??
+              `bg-${toSlug(area.name)}`,
+            label: worldCreationText.resources.background(area.name),
+            areaId: area.id,
+            source:
+              backgroundResource?.source ??
+              `generated://background/${toSlug(area.name)}`,
+          };
+        })(),
         {
           id: `resource:music:${area.id}`,
           kind: 'music' as const,
@@ -348,14 +365,23 @@ const buildResourceState = (
           source: `generated://music/${toSlug(area.name)}`,
         },
       ]),
-      ...npcs.map((npc) => ({
-        id: `resource:avatar:${npc.id}`,
-        kind: 'avatar' as const,
-        key: npc.avatarKey ?? `avatar-${toSlug(npc.name)}`,
-        label: worldCreationText.resources.avatar(npc.name),
-        npcId: npc.id,
-        source: `generated://avatar/${toSlug(npc.name)}`,
-      })),
+      ...npcs.map((npc) => {
+        const avatarResource = findAvatarResource(npc.id);
+
+        return {
+          id: `resource:avatar:${npc.id}`,
+          kind: 'avatar' as const,
+          key:
+            npc.avatarKey ??
+            avatarResource?.key ??
+            `avatar-${toSlug(npc.name)}`,
+          label: worldCreationText.resources.avatar(npc.name),
+          npcId: npc.id,
+          source:
+            avatarResource?.source ??
+            `generated://avatar/${toSlug(npc.name)}`,
+        };
+      }),
     ],
     loadedResourceKeys: uniqueIds(
       [
@@ -378,9 +404,11 @@ const buildCombatEncounter = (
 ): CombatEncounterDefinition => {
   const bossArea = areas[2] ?? mockSaveSnapshot.areas[2];
   const bossNpc = npcs.find((npc) => npc.role === 'boss') ?? npcs[npcs.length - 1];
+  const encounterTemplate =
+    findEncounterDefinition(mockBossEncounterDefinition.id) ?? mockBossEncounterDefinition;
 
   return {
-    ...mockBossEncounterDefinition,
+    ...encounterTemplate,
     title: worldCreationText.encounterTitle(world.summary.name),
     areaId: bossArea.id,
     enemyNpcId: bossNpc?.id,
@@ -441,19 +469,14 @@ const buildPlayerState = (
   world: World,
   tags: PlayerProfileTag[],
 ): PlayerState => {
-  const profileByDifficulty = {
-    easy: { hp: 36, maxHp: 36, gold: 30, energy: 12 },
-    normal: { hp: 30, maxHp: 30, gold: 20, energy: 10 },
-    hard: { hp: 26, maxHp: 26, gold: request.devModeEnabled ? 99 : 16, energy: 9 },
-  } as const;
-
-  const stats = profileByDifficulty[request.difficulty];
+  const stats = getDifficultyPreset(request.difficulty).startingPlayer;
 
   return {
     hp: stats.hp,
     maxHp: stats.maxHp,
     energy: stats.energy,
-    gold: stats.gold,
+    gold:
+      request.difficulty === 'hard' && request.devModeEnabled ? 99 : stats.gold,
     inventory: request.quickStartEnabled ? [{ itemId: 'item:field-kit', quantity: 1 }] : [],
     profileTags: tags,
     currentAreaId: world.startingAreaId,
@@ -532,8 +555,7 @@ const buildSnapshot = (options: {
     pendingEventIds:
       request.preferredMode === 'combat' ? [events[events.length - 1]?.id].filter(Boolean) : [],
     scheduledEvents: [],
-    worldTension:
-      request.difficulty === 'hard' ? 72 : request.difficulty === 'easy' ? 24 : 48,
+    worldTension: getDifficultyPreset(request.difficulty).initialWorldTension,
     pacingNote: worldCreationText.pacingNote(
       preferredModeLabels[request.preferredMode],
     ),
@@ -604,6 +626,7 @@ const buildFallbackWorld = (
   areas: Area[];
   storyPremise: string;
 } => {
+  const difficultyPreset = getDifficultyPreset(request.difficulty);
   const focusWord = pickFocusWord(request.theme);
   const worldName = worldCreationText.fallbackWorldName(focusWord);
   const storyPremise = buildStoryPremise(request, worldName);
@@ -646,17 +669,13 @@ const buildFallbackWorld = (
         name: worldName,
         subtitle: worldCreationText.fallbackSubtitle(toTitleCase(request.worldStyle)),
         theme: request.theme,
-        tone:
-          request.difficulty === 'easy'
-            ? 'light'
-            : request.difficulty === 'hard'
-              ? 'dark'
-              : 'mysterious',
+        tone: difficultyPreset.worldTone,
         mode: request.preferredMode,
         createdAt: timestamp,
       },
       factions,
       areaIds: areas.map((area) => area.id),
+      weather: difficultyPreset.defaultWeather,
       flags: {
         tutorialCompleted: request.quickStartEnabled || request.devModeEnabled,
         archiveDoorOpened: archiveUnlocked,
@@ -676,7 +695,7 @@ const buildFallbackQuestDefinitions = (
   request: WorldCreationRequest,
   storyPremise: string,
 ): QuestDefinition[] =>
-  mockQuestDefinitions.map((quest, index) =>
+  listQuestTemplates().map((quest, index) =>
     quest.type === 'main'
       ? {
           ...quest,

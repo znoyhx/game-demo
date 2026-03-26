@@ -195,7 +195,12 @@ export class PlayerModelController {
     this.commitPlayerModelState(playerModel);
 
     if (options?.autoSave !== false) {
-      await maybeAutoSave(this.store, this.saveController, 'auto');
+      await maybeAutoSave(
+        this.store,
+        this.saveController,
+        'auto',
+        'player-model-update',
+      );
     }
 
     return playerModel;
@@ -211,7 +216,12 @@ export class PlayerModelController {
 
     if (options?.refresh === false) {
       if (options.autoSave !== false) {
-        await maybeAutoSave(this.store, this.saveController, 'auto');
+        await maybeAutoSave(
+          this.store,
+          this.saveController,
+          'auto',
+          'player-model-update',
+        );
       }
 
       return playerModel;
@@ -247,7 +257,12 @@ export class PlayerModelController {
     this.commitPlayerModelState(nextState);
 
     if (options?.autoSave !== false) {
-      await maybeAutoSave(this.store, this.saveController, 'auto');
+      await maybeAutoSave(
+        this.store,
+        this.saveController,
+        'auto',
+        'player-model-update',
+      );
     }
 
     return nextState;

@@ -147,7 +147,12 @@ export class ExplorationEncounterController {
     }
 
     if ((options?.autoSave ?? true) && resolution.signals.length > 0) {
-      await maybeAutoSave(this.store, this.saveController, 'auto');
+      await maybeAutoSave(
+        this.store,
+        this.saveController,
+        'auto',
+        'exploration',
+      );
     }
 
     return {
@@ -245,7 +250,12 @@ export class ExplorationEncounterController {
       (options?.autoSave ?? true) &&
       (!searchResolution.searchedAlready || Boolean(searchResolution.resourceGain))
     ) {
-      await maybeAutoSave(this.store, this.saveController, 'auto');
+      await maybeAutoSave(
+        this.store,
+        this.saveController,
+        'auto',
+        'exploration',
+      );
     }
 
     return {
@@ -282,7 +292,12 @@ export class ExplorationEncounterController {
     state.removeExplorationSignal(signal.id);
 
     if (options?.autoSave ?? true) {
-      await maybeAutoSave(this.store, this.saveController, 'auto');
+      await maybeAutoSave(
+        this.store,
+        this.saveController,
+        'auto',
+        'exploration',
+      );
     }
 
     return {

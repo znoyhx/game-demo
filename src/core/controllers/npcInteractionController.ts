@@ -417,7 +417,12 @@ export class NpcInteractionController {
       });
     }
 
-    await maybeAutoSave(this.store, this.saveController, 'auto');
+    await maybeAutoSave(
+      this.store,
+      this.saveController,
+      'auto',
+      'npc-interaction',
+    );
 
     return {
       ...session,

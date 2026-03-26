@@ -1,6 +1,7 @@
 export * from './areaDebugController';
 export * from './areaNavigationController';
 export * from './combatController';
+export * from './configResourceDebugController';
 export * from './controllerUtils';
 export * from './debugScenarioController';
 export * from './eventDebugController';

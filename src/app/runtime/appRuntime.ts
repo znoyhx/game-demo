@@ -3,6 +3,7 @@ import {
   AreaDebugController,
   AreaNavigationController,
   CombatController,
+  ConfigResourceDebugController,
   DebugScenarioController,
   EventDebugController,
   EventTriggerController,
@@ -117,6 +118,11 @@ export const appAreaDebugController = new AreaDebugController({
   eventBus: gameEventBus,
   saveController: appSaveLoadController,
   explorationController: appExplorationEncounterController,
+});
+
+export const appConfigResourceDebugController = new ConfigResourceDebugController({
+  store: gameStore,
+  saveController: appSaveLoadController,
 });
 
 export const appDebugScenarioController = new DebugScenarioController({

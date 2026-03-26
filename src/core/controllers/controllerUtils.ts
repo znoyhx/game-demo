@@ -1,7 +1,8 @@
 import type { StoreApi } from 'zustand/vanilla';
 
+import { shouldAutoSaveForReason } from '../config';
 import type { GameEventBus } from '../events/domainEvents';
-import type { SaveSource } from '../schemas';
+import type { SavePolicyReason, SaveSource } from '../schemas';
 import type { GameStoreState } from '../state';
 
 export type TimestampProvider = () => string;
@@ -23,12 +24,16 @@ export const maybeAutoSave = async (
   store: StoreApi<GameStoreState>,
   saveWriter: SaveWriter | undefined,
   source: SaveSource = 'auto',
+  reason: SavePolicyReason = 'generic',
 ) => {
   if (!saveWriter) {
     return;
   }
 
-  if (source !== 'auto' || store.getState().gameConfig.autosaveEnabled) {
+  if (
+    source !== 'auto' ||
+    shouldAutoSaveForReason(store.getState().gameConfig, reason)
+  ) {
     await saveWriter.saveNow(source);
   }
 };

@@ -4,6 +4,7 @@ import { useShallow } from 'zustand/react/shallow';
 
 import {
   appAreaDebugController,
+  appConfigResourceDebugController,
   appDebugScenarioController,
   appEventDebugController,
   appPlayerModelController,
@@ -11,6 +12,7 @@ import {
   appWorldCreationController,
 } from '../../app/runtime/appRuntime';
 import { CombatDebugPanel } from '../../components/debug/CombatDebugPanel';
+import { ConfigResourceDebugPanel } from '../../components/debug/ConfigResourceDebugPanel';
 import { EventDebugPanel } from '../../components/debug/EventDebugPanel';
 import { PlayerModelDebugPanel } from '../../components/debug/PlayerModelDebugPanel';
 import { RenderingPreviewGallery } from '../../components/debug/RenderingPreviewGallery';
@@ -20,6 +22,7 @@ import { QuestDebugPanel } from '../../components/debug/QuestDebugPanel';
 import { PageFrame } from '../../components/layout/PageFrame';
 import { SectionCard } from '../../components/layout/SectionCard';
 import { Badge } from '../../components/pixel-ui/Badge';
+import { resolveDebugFeatureFlags } from '../../core/config';
 import { useGameLogStore } from '../../core/logging';
 import {
   playerModelBehaviorReplayPresets,
@@ -36,6 +39,7 @@ import type {
   CombatDebugPlayerPattern,
   EnemyTacticType,
   EventDebugOutcome,
+  GameDifficulty,
   NpcDialogueIntent,
   NpcDisposition,
   NpcEmotionalState,
@@ -53,6 +57,7 @@ import {
   selectEventDirector,
   selectEventHistory,
   selectExplorationState,
+  selectGameConfig,
   selectMapState,
   selectNpcDefinitions,
   selectNpcStates,
@@ -60,6 +65,7 @@ import {
   selectPlayerState,
   selectQuestDefinitions,
   selectQuestProgressEntries,
+  selectResourceState,
   selectSaveMetadata,
   selectSaveStatus,
   selectWorldFlags,
@@ -76,6 +82,7 @@ import {
   npcEmotionalStateLabels,
 } from '../../core/utils/displayLabels';
 import { locale } from '../../core/utils/locale';
+import { buildConfigResourceDebugViewModel } from './configResourceDebugViewModel';
 import { buildRenderingPreviewViewModel } from './renderingPreviewViewModel';
 
 const debugText = locale.pages.debug;
@@ -114,10 +121,16 @@ export function DebugPage() {
   const eventHistory = useGameStore(selectEventHistory);
   const eventDirector = useGameStore(selectEventDirector);
   const review = useGameStore(selectCurrentReview);
+  const gameConfig = useGameStore(selectGameConfig);
+  const resourceState = useGameStore(selectResourceState);
   const saveMetadata = useGameStore(selectSaveMetadata);
   const saveStatus = useGameStore(selectSaveStatus);
   const debugTools = useGameStore(selectDebugToolsState);
   const patchDebugToolsState = useGameStore((state) => state.patchDebugToolsState);
+  const debugFeatureFlags = useMemo(
+    () => resolveDebugFeatureFlags(gameConfig),
+    [gameConfig],
+  );
 
   const [isLaunching, setIsLaunching] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -206,6 +219,10 @@ export function DebugPage() {
   const [playerModelDebugStatusMessage, setPlayerModelDebugStatusMessage] =
     useState<string | null>(null);
   const [busyPlayerModelDebugActionId, setBusyPlayerModelDebugActionId] =
+    useState<string | null>(null);
+  const [configResourceDebugStatusMessage, setConfigResourceDebugStatusMessage] =
+    useState<string | null>(null);
+  const [busyConfigResourceDebugActionId, setBusyConfigResourceDebugActionId] =
     useState<string | null>(null);
   const logs = useMemo(() => logEntries.slice(0, 8), [logEntries]);
 
@@ -414,6 +431,7 @@ export function DebugPage() {
       eventHistory,
       eventDirector,
       review,
+      gameConfig,
       saveMetadata,
       saveStatus,
       logEntries: logs,
@@ -426,6 +444,7 @@ export function DebugPage() {
       eventDefinitions,
       eventDirector,
       eventHistory,
+      gameConfig,
       logs,
       mapState,
       npcDefinitions,
@@ -442,6 +461,16 @@ export function DebugPage() {
       worldRuntime,
       worldSummary,
     ],
+  );
+  const configResourceDebugViewModel = useMemo(
+    () =>
+      buildConfigResourceDebugViewModel({
+        gameConfig,
+        resourceState,
+        currentArea,
+        npcDefinitions,
+      }),
+    [currentArea, gameConfig, npcDefinitions, resourceState],
   );
 
   const questDebugSnapshot = appQuestDebugController.getDebugSnapshot();
@@ -930,6 +959,136 @@ export function DebugPage() {
       }
     },
     [],
+  );
+
+  const runConfigResourceDebugTask = useCallback(
+    async <T,>(actionId: string, task: () => Promise<T>) => {
+      setBusyConfigResourceDebugActionId(actionId);
+      setConfigResourceDebugStatusMessage(null);
+
+      try {
+        return await task();
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : '配置与资源调试操作失败。';
+        setConfigResourceDebugStatusMessage(message);
+        return null;
+      } finally {
+        setBusyConfigResourceDebugActionId(null);
+      }
+    },
+    [],
+  );
+
+  const handleApplyRuntimeProfile = useCallback(
+    (profile: 'standard' | 'presentation' | 'dev') => {
+      const targetLabel =
+        configResourceDebugViewModel.profileOptions.find(
+          (option) => option.id === profile,
+        )?.label ?? '目标配置档';
+
+      void runConfigResourceDebugTask(`profile:${profile}`, async () => {
+        const result = await appConfigResourceDebugController.applyRuntimeProfile(
+          profile,
+        );
+
+        setConfigResourceDebugStatusMessage(`已切换为${targetLabel}。`);
+        return result;
+      });
+    },
+    [configResourceDebugViewModel.profileOptions, runConfigResourceDebugTask],
+  );
+
+  const handleApplyConfigDifficulty = useCallback(
+    (difficulty: GameDifficulty) => {
+      const targetLabel =
+        configResourceDebugViewModel.difficultyOptions.find(
+          (option) => option.id === difficulty,
+        )?.label ?? '目标难度';
+
+      void runConfigResourceDebugTask(`difficulty:${difficulty}`, async () => {
+        const result = await appConfigResourceDebugController.setDifficulty(
+          difficulty,
+        );
+
+        setConfigResourceDebugStatusMessage(`已应用${targetLabel}。`);
+        return result;
+      });
+    },
+    [configResourceDebugViewModel.difficultyOptions, runConfigResourceDebugTask],
+  );
+
+  const handleToggleConfigAutosave = useCallback(() => {
+    void runConfigResourceDebugTask('autosave:toggle', async () => {
+      const nextEnabled = !gameConfig.autosaveEnabled;
+      const result = await appConfigResourceDebugController.setAutosaveEnabled(
+        nextEnabled,
+      );
+
+      setConfigResourceDebugStatusMessage(
+        nextEnabled ? '已开启自动保存。' : '已关闭自动保存。',
+      );
+      return result;
+    });
+  }, [gameConfig.autosaveEnabled, runConfigResourceDebugTask]);
+
+  const handleToggleConfigAutoLoad = useCallback(() => {
+    void runConfigResourceDebugTask('autoload:toggle', async () => {
+      const nextEnabled = !gameConfig.autoLoadEnabled;
+      const result = await appConfigResourceDebugController.setAutoLoadEnabled(
+        nextEnabled,
+      );
+
+      setConfigResourceDebugStatusMessage(
+        nextEnabled ? '已开启自动读档。' : '已关闭自动读档。',
+      );
+      return result;
+    });
+  }, [gameConfig.autoLoadEnabled, runConfigResourceDebugTask]);
+
+  const handleSyncAreaResources = useCallback(() => {
+    if (!currentArea) {
+      setConfigResourceDebugStatusMessage('当前没有可同步的区域资源。');
+      return;
+    }
+
+    void runConfigResourceDebugTask('resource-sync', async () => {
+      const result = await appConfigResourceDebugController.syncAreaResourceSelection(
+        currentArea.id,
+      );
+
+      if (!result) {
+        setConfigResourceDebugStatusMessage('当前没有可同步的区域资源。');
+        return null;
+      }
+
+      setConfigResourceDebugStatusMessage('已按当前区域同步背景与音乐选择。');
+      return result;
+    });
+  }, [currentArea, runConfigResourceDebugTask]);
+
+  const handleToggleResourceLoaded = useCallback(
+    (resourceKey: string, resourceLabel: string, shouldLoad: boolean) => {
+      if (!resourceKey) {
+        setConfigResourceDebugStatusMessage('当前条目没有可切换的资源。');
+        return;
+      }
+
+      void runConfigResourceDebugTask(`resource:${resourceKey}`, async () => {
+        const result = await appConfigResourceDebugController.setLoadedResource(
+          resourceKey,
+          shouldLoad,
+        );
+
+        setConfigResourceDebugStatusMessage(
+          shouldLoad
+            ? `已将“${resourceLabel}”标记为已加载。`
+            : `已移除“${resourceLabel}”的加载标记。`,
+        );
+        return result;
+      });
+    },
+    [runConfigResourceDebugTask],
   );
 
   const handleTriggerSelectedEvent = useCallback(() => {
@@ -1835,6 +1994,18 @@ export function DebugPage() {
         ) : null}
       </SectionCard>
 
+      <ConfigResourceDebugPanel
+        viewModel={configResourceDebugViewModel}
+        busyActionId={busyConfigResourceDebugActionId}
+        statusMessage={configResourceDebugStatusMessage}
+        onApplyProfile={handleApplyRuntimeProfile}
+        onApplyDifficulty={handleApplyConfigDifficulty}
+        onToggleAutosave={handleToggleConfigAutosave}
+        onToggleAutoLoad={handleToggleConfigAutoLoad}
+        onSyncAreaResources={handleSyncAreaResources}
+        onToggleResourceLoaded={handleToggleResourceLoaded}
+      />
+
       <QuestDebugPanel
         snapshot={questDebugSnapshot}
         selectedQuestId={selectedQuestSummary?.questId ?? null}
@@ -1958,12 +2129,22 @@ export function DebugPage() {
         onSimulateRounds={handleSimulateCombatRounds}
       />
 
-      <RenderingPreviewGallery
-        preview={preview}
-        onPreviewAreaSelect={handlePreviewAreaSelect}
-        onOpenForcedScene={handleOpenForcedScene}
-        onClearForcedScene={handleClearForcedScene}
-      />
+      {debugFeatureFlags.renderingTools ? (
+        <RenderingPreviewGallery
+          preview={preview}
+          onPreviewAreaSelect={handlePreviewAreaSelect}
+          onOpenForcedScene={handleOpenForcedScene}
+          onClearForcedScene={handleClearForcedScene}
+        />
+      ) : (
+        <SectionCard
+          title="渲染预览已收起"
+          eyebrow="调试配置"
+          description="当前配置已关闭渲染预览工具，避免演示模式暴露额外调试面板。"
+        >
+          <p>如需启用完整渲染预览，请切换到标准或开发调试配置。</p>
+        </SectionCard>
+      )}
 
       <div className="panel-grid panel-grid--two">
         {debugPanels.map((panel) => (

@@ -40,6 +40,8 @@ Supporting systems:
 
 - event bus
 - schema validation
+- immutable config presets
+- immutable resource registries
 - debug tooling
 - mock data and scenario injection
 - logs and review payload generation
@@ -804,7 +806,9 @@ src/
       mocks/
       templates/
       logs/
+    config/
     rules/
+    resources/
     state/
     persistence/
       adapters/
@@ -834,6 +838,22 @@ tests/
 ---
 
 # 8. Domain State Architecture
+
+## 8.1 Immutable Config And Resource Boundaries
+
+PixelForge Agent keeps immutable configuration and resource registries outside mutable
+runtime state:
+
+- `src/core/config/` owns centralized presets for world templates, difficulty,
+  combat tuning, save policies, debug feature flags, and game-shell UI settings
+- `src/core/resources/` owns registry lookups for area backgrounds, avatars,
+  encounters, events, and quest templates
+- controllers and view-model builders resolve these registries at runtime, then
+  project only the relevant selections into `gameConfig` and `resourceState`
+- save payloads must persist mutable selections and active resource choices, but
+  must not serialize the full immutable registries
+- all config and resource definitions must be schema-validated before use so
+  mock-first implementations remain deterministic and independently testable
 
 ## 8.1 World State
 

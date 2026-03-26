@@ -133,7 +133,12 @@ export class ReviewGenerationController {
     });
 
     if (options?.autoSave !== false) {
-      await maybeAutoSave(this.store, this.saveController, 'auto');
+      await maybeAutoSave(
+        this.store,
+        this.saveController,
+        'auto',
+        'review-generation',
+      );
     }
 
     return review;

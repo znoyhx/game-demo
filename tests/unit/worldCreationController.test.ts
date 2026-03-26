@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createMockAgentSet } from '../../src/core/agents';
+import { getDifficultyPreset } from '../../src/core/config';
 import { SaveLoadController } from '../../src/core/controllers/saveLoadController';
 import { StartupController } from '../../src/core/controllers/startupController';
 import { WorldCreationController } from '../../src/core/controllers/worldCreationController';
@@ -175,6 +176,27 @@ describe('world creation controller', () => {
     expect(selectWorldSummary(restoredState).name).toBe(createdResult.outputs.worldName);
     expect(selectGameConfig(restoredState).devModeEnabled).toBe(true);
     expect(selectSaveMetadata(restoredState).id).toBe(createdSave.metadata.id);
+  });
+
+  it('applies centralized difficulty presets to generated runtime state', async () => {
+    const { controller } = createHarness('2026-03-23T02:30:00.000Z');
+
+    const result = await controller.createWorld({
+      ...defaultWorldCreationRequest,
+      difficulty: 'hard',
+      devModeEnabled: true,
+    });
+
+    const hardPreset = getDifficultyPreset('hard');
+
+    expect(result.snapshot.player.hp).toBe(hardPreset.startingPlayer.hp);
+    expect(result.snapshot.player.maxHp).toBe(hardPreset.startingPlayer.maxHp);
+    expect(result.snapshot.player.gold).toBe(99);
+    expect(result.snapshot.events.director.worldTension).toBe(
+      hardPreset.initialWorldTension,
+    );
+    expect(result.snapshot.world.weather).toBe(hardPreset.defaultWeather);
+    expect(result.snapshot.world.summary.tone).toBe(hardPreset.worldTone);
   });
 
   it('falls back to a deterministic opening snapshot when generation fails and still creates an initial save', async () => {

@@ -229,6 +229,7 @@ export class QuestProgressionController {
         this.store,
         this.saveController,
         options?.saveSource ?? 'auto',
+        'quest-update',
       );
     }
 
@@ -326,6 +327,7 @@ export class QuestProgressionController {
         this.store,
         this.saveController,
         options?.saveSource ?? 'auto',
+        'quest-update',
       );
     }
 
@@ -406,6 +408,7 @@ export class QuestProgressionController {
       this.store,
       this.saveController,
       options?.saveSource ?? 'auto',
+      'quest-update',
     );
 
     return nextProgress;
@@ -476,6 +479,7 @@ export class QuestProgressionController {
           this.store,
           this.saveController,
           options?.saveSource ?? 'auto',
+          'quest-update',
         );
       }
     }
@@ -539,6 +543,7 @@ export class QuestProgressionController {
       this.store,
       this.saveController,
       options?.saveSource ?? 'debug',
+      'quest-update',
     );
 
     return progress;

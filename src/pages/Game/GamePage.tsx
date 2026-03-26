@@ -12,6 +12,7 @@ import {
   appSaveLoadController,
 } from '../../app/runtime/appRuntime';
 import { GameHud } from '../../components/game/GameHud';
+import { resolveGameShellUiSettings } from '../../core/config';
 import { selectLogEntries, useGameLogStore } from '../../core/logging';
 import type { NpcDialogueSession } from '../../core/schemas';
 import {
@@ -26,6 +27,7 @@ import {
   selectEventDirector,
   selectEventHistory,
   selectExplorationState,
+  selectGameConfig,
   selectMapState,
   selectNpcDefinitions,
   selectNpcStates,
@@ -74,9 +76,14 @@ export function GamePage() {
   const eventHistory = useGameStore(selectEventHistory);
   const eventDirector = useGameStore(selectEventDirector);
   const currentReview = useGameStore(selectCurrentReview);
+  const gameConfig = useGameStore(selectGameConfig);
   const saveMetadata = useGameStore(selectSaveMetadata);
   const saveStatus = useGameStore(selectSaveStatus);
   const logEntries = useGameLogStore(selectLogEntries);
+  const shellUiSettings = useMemo(
+    () => resolveGameShellUiSettings(gameConfig),
+    [gameConfig],
+  );
 
   const forcedArea = areas.find((area) => area.id === debugTools.forcedAreaId) ?? null;
   const effectiveCurrentArea = forcedArea ?? currentArea;
@@ -122,6 +129,7 @@ export function GamePage() {
         eventHistory,
         eventDirector,
         review: currentReview,
+        gameConfig,
         saveMetadata,
         saveStatus,
         logEntries,
@@ -137,6 +145,7 @@ export function GamePage() {
       eventDirector,
       eventHistory,
       explorationState,
+      gameConfig,
       logEntries,
       npcDefinitions,
       npcStates,
@@ -570,7 +579,7 @@ export function GamePage() {
   const bottomModel = useMemo(() => {
     const combatLines =
       combatState?.logs
-        .slice(-2)
+        .slice(-Math.max(1, Math.ceil(shellUiSettings.maxBottomLines / 2)))
         .flatMap((log) =>
           log.actions.map((action) => ({
             speaker:
@@ -746,7 +755,9 @@ export function GamePage() {
           ? dialogueState.npcName
           : viewModel.scene.areaName,
       dialogueLines:
-        (combatState ? combatLines : dialogueLines)?.slice(-4) ?? [
+        (combatState ? combatLines : dialogueLines)?.slice(
+          -shellUiSettings.maxBottomLines,
+        ) ?? [
           {
             speaker: '系统',
             text: viewModel.scene.description,
@@ -758,7 +769,7 @@ export function GamePage() {
         ],
       controls,
       logs: viewModel.logs,
-      tips: [...dialogueTips, ...viewModel.tips].slice(0, 4),
+      tips: [...dialogueTips, ...viewModel.tips].slice(0, shellUiSettings.maxTips),
       statusMessage,
       activeControlId: busyControlId,
       attitudeSummary,
@@ -771,6 +782,8 @@ export function GamePage() {
     dialogueState,
     isForcedRender,
     player.energy,
+    shellUiSettings.maxBottomLines,
+    shellUiSettings.maxTips,
     statusMessage,
     viewModel.logs,
     viewModel.scene.areaName,

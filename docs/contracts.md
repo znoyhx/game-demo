@@ -1344,6 +1344,21 @@ export interface SaveSnapshot {
 }
 ```
 
+### Config and Resource Registry Note
+
+The save contract stores only mutable config/resource selections that affect the
+active run, such as:
+
+- chosen template and difficulty
+- autosave / autoload / presentation toggles
+- current theme and selected resource keys
+- currently loaded resource keys for the shell/runtime
+
+Immutable registries and presets such as world templates, difficulty presets,
+combat tuning tables, save policies, debug feature-flag profiles, UI shell
+profiles, and resource registries are validated in code and resolved at runtime;
+they are not serialized wholesale into saves.
+
 ## 12.3 Load Result
 
 ```ts

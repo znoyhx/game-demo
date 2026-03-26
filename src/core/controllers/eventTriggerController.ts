@@ -247,6 +247,7 @@ export class EventTriggerController {
         this.store,
         this.saveController,
         source === 'debug' ? 'debug' : 'auto',
+        'event-trigger',
       );
     }
 
@@ -273,7 +274,12 @@ export class EventTriggerController {
     }
 
     if (options?.autoSave ?? true) {
-      await maybeAutoSave(this.store, this.saveController, 'auto');
+      await maybeAutoSave(
+        this.store,
+        this.saveController,
+        'auto',
+        'event-trigger',
+      );
     }
 
     return results;

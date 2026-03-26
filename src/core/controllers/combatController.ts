@@ -1,6 +1,7 @@
 import type { StoreApi } from 'zustand/vanilla';
 
 import type { AgentSet } from '../agents';
+import { getCombatTuningPreset } from '../config';
 import type { GameEventBus } from '../events/domainEvents';
 import type { GameLogger } from '../logging';
 import type { CombatCommandAction } from '../schemas';
@@ -122,9 +123,10 @@ export class CombatController {
       state.playerModel,
       state.gameConfig.difficulty,
     );
+    const combatTuning = getCombatTuningPreset(state.gameConfig.difficulty);
     const enemyMaxHp = Math.max(
-      60,
-      Math.round(90 * difficultyAdjustment.enemyHpMultiplier),
+      combatTuning.minimumEnemyHp,
+      Math.round(combatTuning.baseEnemyHp * difficultyAdjustment.enemyHpMultiplier),
     );
 
     let combatState: NonNullable<GameStoreState['combatState']> = {
@@ -364,7 +366,12 @@ export class CombatController {
         state.setActivePanel('map');
       }
 
-      await maybeAutoSave(this.store, this.saveController, 'auto');
+      await maybeAutoSave(
+        this.store,
+        this.saveController,
+        'auto',
+        'combat-end',
+      );
     }
 
     return round;
