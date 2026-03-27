@@ -1,6 +1,7 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, NavLink, Outlet } from 'react-router-dom';
 
-import { routeMeta } from '../../app/router/routeMeta';
+import { primaryRouteMeta } from '../../app/router/routeMeta';
 import {
   selectCurrentArea,
   selectSaveMetadata,
@@ -20,6 +21,9 @@ const appLayoutText = locale.appLayout;
 
 export function AppLayout() {
   const currentRoute = useShellStore((state) => state.currentRoute);
+  const developerToolsVisible = useShellStore((state) => state.developerToolsVisible);
+  const setDeveloperToolsVisible = useShellStore((state) => state.setDeveloperToolsVisible);
+  const toggleDeveloperToolsVisible = useShellStore((state) => state.toggleDeveloperToolsVisible);
   const startupSource = useGameStore(selectStartupSource);
   const startupReason = useGameStore(selectStartupReason);
   const worldSummary = useGameStore(selectWorldSummary);
@@ -33,6 +37,26 @@ export function AppLayout() {
         ? 'warning'
         : 'info';
   const startupReady = startupSource !== 'pending';
+  const developerEntryVisible = developerToolsVisible || currentRoute.id === 'debug';
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const pressedKey = event.key.toLowerCase();
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && pressedKey === 'd') {
+        event.preventDefault();
+        toggleDeveloperToolsVisible();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [toggleDeveloperToolsVisible]);
+
+  useEffect(() => {
+    if (currentRoute.id === 'debug') {
+      setDeveloperToolsVisible(true);
+    }
+  }, [currentRoute.id, setDeveloperToolsVisible]);
 
   return (
     <div className="app-shell">
@@ -44,46 +68,49 @@ export function AppLayout() {
               <h1 className="app-shell__title">{appLayoutText.title}</h1>
               <p className="app-shell__subtitle">{appLayoutText.subtitle}</p>
             </div>
-            <div className="app-shell__meta">
+            <div className="app-shell__meta app-shell__meta--header">
               <Badge tone="success">{appLayoutText.badges.milestone}</Badge>
               <Badge tone="warning">{appLayoutText.badges.mockFirst}</Badge>
-              <Badge tone={startupTone}>{startupLabels[startupSource]}</Badge>
             </div>
           </div>
-          <nav className="app-shell__nav" aria-label={appLayoutText.navigationAriaLabel}>
-            {routeMeta.map((entry) => (
-              <NavLink
-                key={entry.id}
-                to={entry.path}
-                end={entry.path === '/'}
-                className={({ isActive }) =>
-                  cn('app-shell__nav-link', isActive && 'app-shell__nav-link--active')
-                }
-              >
-                {entry.label}
-              </NavLink>
-            ))}
-          </nav>
-          <div className="app-shell__meta">
-            <Badge tone="info">{currentRoute.label}</Badge>
-            <span>{currentRoute.summary}</span>
+          <div className="app-shell__header-row">
+            <nav className="app-shell__nav" aria-label={appLayoutText.navigationAriaLabel}>
+              {primaryRouteMeta.map((entry) => (
+                <NavLink
+                  key={entry.id}
+                  to={entry.path}
+                  end={entry.path === '/'}
+                  className={({ isActive }) =>
+                    cn('app-shell__nav-link', isActive && 'app-shell__nav-link--active')
+                  }
+                >
+                  {entry.label}
+                </NavLink>
+              ))}
+            </nav>
+            <div className="app-shell__route-panel">
+              <Badge tone="info">{currentRoute.label}</Badge>
+              <p className="app-shell__route-summary">{currentRoute.summary}</p>
+            </div>
           </div>
-          <div className="app-shell__meta">
-            <Badge tone={startupTone}>{startupLabels[startupSource]}</Badge>
-            <span>{startupMessages[startupReason]}</span>
-          </div>
-          <div className="app-shell__meta">
-            <Badge tone="info">
-              {startupReady ? worldSummary.name : appLayoutText.pendingWorldBadge}
-            </Badge>
-            <span>
-              {startupReady
-                ? appLayoutText.readyWorldStatus(
-                    currentArea?.name,
-                    saveMetadata.label ?? saveMetadata.slot ?? saveMetadata.id,
-                  )
-                : appLayoutText.pendingWorldStatus}
-            </span>
+          <div className="app-shell__status-strip">
+            <div className="app-shell__meta app-shell__meta--status">
+              <Badge tone={startupTone}>{startupLabels[startupSource]}</Badge>
+              <span>{startupMessages[startupReason]}</span>
+            </div>
+            <div className="app-shell__meta app-shell__meta--status">
+              <Badge tone="info">
+                {startupReady ? worldSummary.name : appLayoutText.pendingWorldBadge}
+              </Badge>
+              <span>
+                {startupReady
+                  ? appLayoutText.readyWorldStatus(
+                      currentArea?.name,
+                      saveMetadata.label ?? saveMetadata.slot ?? saveMetadata.id,
+                    )
+                  : appLayoutText.pendingWorldStatus}
+              </span>
+            </div>
           </div>
         </header>
         <main className="app-shell__content">
@@ -102,6 +129,32 @@ export function AppLayout() {
             <Outlet />
           )}
         </main>
+        {developerEntryVisible ? (
+          <aside className="app-shell__developer-dock" aria-label="开发者入口">
+            <div className="app-shell__developer-copy">
+              <Badge tone="warning">开发模式</Badge>
+              <p className="app-shell__developer-title">开发者入口已启用</p>
+              <p className="app-shell__developer-description">
+                主流程只保留首页、游戏与回顾；需要时可从这里进入调试页，或使用
+                Ctrl+Shift+D 保持开发入口可见。
+              </p>
+            </div>
+            <div className="app-shell__developer-actions">
+              <Link className="pixel-button pixel-button--ghost" to="/debug">
+                打开调试页
+              </Link>
+              {currentRoute.id !== 'debug' ? (
+                <button
+                  className="pixel-button pixel-button--ghost"
+                  type="button"
+                  onClick={() => setDeveloperToolsVisible(false)}
+                >
+                  隐藏入口
+                </button>
+              ) : null}
+            </div>
+          </aside>
+        ) : null}
       </div>
     </div>
   );

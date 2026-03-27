@@ -13,16 +13,34 @@ describe('game page main interface layout', () => {
     gameLogStore.getState().clearLogs();
   });
 
-  it('renders the baseline HUD shell', () => {
+  it('renders the standardized HUD shell and anchor sections', () => {
     const markup = renderToStaticMarkup(createElement(GamePage));
+    const dialogueIndex = markup.indexOf('id="game-dialogue"');
+    const railIndex = markup.indexOf('game-layout__rail');
 
     expect(markup).toContain('game-layout');
+    expect(markup).toContain('game-layout__tabs');
+    expect(markup).toContain('game-layout__main');
+    expect(markup).toContain('game-layout__primary');
+    expect(markup).toContain('game-layout__dialogue');
+    expect(markup).toContain('game-layout__rail');
+    expect(markup).toContain('game-layout__support');
+    expect(markup).toContain('id="game-scene"');
+    expect(markup).toContain('id="game-journey"');
+    expect(markup).toContain('id="game-status"');
+    expect(markup).toContain('id="game-dialogue"');
+    expect(markup).not.toContain('game-bottom-dock');
+    expect(dialogueIndex).toBeGreaterThan(-1);
+    expect(railIndex).toBeGreaterThan(-1);
+    expect(dialogueIndex).toBeLessThan(railIndex);
+    expect(markup).toContain('ui-list-card--quest');
+    expect(markup).toContain('ui-list-card--npc');
+    expect(markup).toContain('ui-list-card--review');
     expect(markup).toContain('data-renderer="phaser"');
     expect(markup).toContain('data-scene-state="idle"');
-    expect(markup).toContain('能量');
   });
 
-  it('renders combat hp summaries while an encounter is active', () => {
+  it('renders combat action controls and hp summaries while an encounter is active', () => {
     gameStore.getState().setCombatState({
       encounterId: mockIds.encounter,
       turn: 3,
@@ -36,7 +54,7 @@ describe('game page main interface layout', () => {
       },
       enemy: {
         id: 'combatant:enemy',
-        name: '灰烬守卫',
+        name: '首领',
         hp: 42,
         maxHp: 90,
       },
@@ -45,14 +63,13 @@ describe('game page main interface layout', () => {
 
     const markup = renderToStaticMarkup(createElement(GamePage));
 
-    expect(markup).toContain('玩家生命');
-    expect(markup).toContain('玩家能量');
-    expect(markup).toContain('敌方生命');
-    expect(markup).toContain('当前战术');
-    expect(markup).toContain('当前正处于对话或战斗流程，场景移动暂时锁定');
+    expect(markup).toContain('18 / 30');
+    expect(markup).toContain('42 / 90');
+    expect(markup).toContain('攻击');
+    expect(markup).toContain('撤退');
   });
 
-  it('does not keep the scene locked when only a resolved combat snapshot remains', () => {
+  it('returns to standard controls when only a resolved combat snapshot remains', () => {
     gameStore.getState().setCombatState({
       encounterId: mockIds.encounter,
       turn: 5,
@@ -66,7 +83,7 @@ describe('game page main interface layout', () => {
       },
       enemy: {
         id: 'combatant:enemy',
-        name: '灰烬守卫',
+        name: '首领',
         hp: 0,
         maxHp: 90,
       },
@@ -76,7 +93,9 @@ describe('game page main interface layout', () => {
 
     const markup = renderToStaticMarkup(createElement(GamePage));
 
-    expect(markup).toContain('战斗结果');
-    expect(markup).not.toContain('当前正处于对话或战斗流程，场景移动暂时锁定');
+    expect(markup).toContain('9 / 30');
+    expect(markup).toContain('0 / 90');
+    expect(markup).not.toContain('攻击');
+    expect(markup).toContain('手动存档');
   });
 });

@@ -22,6 +22,7 @@ import { QuestDebugPanel } from '../../components/debug/QuestDebugPanel';
 import { PageFrame } from '../../components/layout/PageFrame';
 import { SectionCard } from '../../components/layout/SectionCard';
 import { Badge } from '../../components/pixel-ui/Badge';
+import { PixelTabs } from '../../components/pixel-ui/PixelTabs';
 import { resolveDebugFeatureFlags } from '../../core/config';
 import { useGameLogStore } from '../../core/logging';
 import {
@@ -1804,10 +1805,26 @@ export function DebugPage() {
   const selectedAreaIsHidden = selectedArea
     ? (selectedArea.isHiddenUntilDiscovered ?? selectedArea.type === 'hidden')
     : false;
+  const debugSections = [
+    { id: 'scenarios', label: '快捷场景', href: '#debug-scenarios', isActive: true },
+    { id: 'world', label: '区域配置', href: '#debug-world' },
+    { id: 'quests', label: '任务', href: '#debug-quests' },
+    { id: 'events', label: '事件', href: '#debug-events' },
+    { id: 'npc', label: '角色', href: '#debug-npc' },
+    { id: 'player', label: '玩家模型', href: '#debug-player' },
+    { id: 'combat', label: '战斗', href: '#debug-combat' },
+    { id: 'render', label: '渲染', href: '#debug-render' },
+    { id: 'logs', label: '运行日志', href: '#debug-logs' },
+  ];
 
   return (
-    <PageFrame title={debugText.title} description={debugText.description}>
+    <PageFrame
+      title={debugText.title}
+      description={debugText.description}
+      navigation={<PixelTabs items={debugSections} label="调试页面分区" />}
+    >
       <SectionCard
+        id="debug-scenarios"
         title={debugText.scenarioShortcuts.title}
         eyebrow={debugText.scenarioShortcuts.eyebrow}
         description={debugText.scenarioShortcuts.description}
@@ -1857,6 +1874,7 @@ export function DebugPage() {
       ) : null}
 
       <SectionCard
+        id="debug-world"
         title={debugText.areaTools.title}
         eyebrow={debugText.areaTools.eyebrow(selectedArea?.name ?? '—')}
         description={debugText.areaTools.description}
@@ -2006,74 +2024,81 @@ export function DebugPage() {
         onToggleResourceLoaded={handleToggleResourceLoaded}
       />
 
-      <QuestDebugPanel
-        snapshot={questDebugSnapshot}
-        selectedQuestId={selectedQuestSummary?.questId ?? null}
-        selectedStageIndex={selectedQuestStageIndex}
-        selectedBranchId={selectedQuestBranchId}
-        busyActionId={busyQuestDebugActionId}
-        statusMessage={questDebugStatusMessage}
-        onSelectQuest={setSelectedQuestId}
-        onStageIndexChange={setSelectedQuestStageIndex}
-        onBranchIdChange={setSelectedQuestBranchId}
-        onActivateQuest={handleActivateQuest}
-        onSetQuestStatus={handleSetQuestStatus}
-        onChooseBranch={handleChooseQuestBranch}
-        onJumpToStage={handleJumpQuestStage}
-        onSimulateCondition={handleSimulateQuestCondition}
-        onResetQuest={handleResetQuestDebug}
-      />
+      <section id="debug-quests">
+        <QuestDebugPanel
+          snapshot={questDebugSnapshot}
+          selectedQuestId={selectedQuestSummary?.questId ?? null}
+          selectedStageIndex={selectedQuestStageIndex}
+          selectedBranchId={selectedQuestBranchId}
+          busyActionId={busyQuestDebugActionId}
+          statusMessage={questDebugStatusMessage}
+          onSelectQuest={setSelectedQuestId}
+          onStageIndexChange={setSelectedQuestStageIndex}
+          onBranchIdChange={setSelectedQuestBranchId}
+          onActivateQuest={handleActivateQuest}
+          onSetQuestStatus={handleSetQuestStatus}
+          onChooseBranch={handleChooseQuestBranch}
+          onJumpToStage={handleJumpQuestStage}
+          onSimulateCondition={handleSimulateQuestCondition}
+          onResetQuest={handleResetQuestDebug}
+        />
+      </section>
 
-      <EventDebugPanel
-        snapshot={eventDebugSnapshot}
-        selectedEventId={selectedEventId}
-        selectedHistoryIndex={selectedEventHistoryIndex}
-        latestOutcome={latestEventOutcome}
-        busyActionId={busyEventDebugActionId}
-        statusMessage={eventDebugStatusMessage}
-        onSelectEvent={(eventId) => {
-          setSelectedEventId(eventId);
-          setEventDebugStatusMessage(null);
-        }}
-        onSelectHistoryIndex={(historyIndex) => {
-          setSelectedEventHistoryIndex(historyIndex);
-          setEventDebugStatusMessage(null);
-        }}
-        onTriggerSelectedEvent={handleTriggerSelectedEvent}
-        onReplaySelectedHistory={handleReplaySelectedEventHistory}
-        onToggleRandomness={handleToggleEventRandomness}
-      />
+      <section id="debug-events">
+        <EventDebugPanel
+          snapshot={eventDebugSnapshot}
+          selectedEventId={selectedEventId}
+          selectedHistoryIndex={selectedEventHistoryIndex}
+          latestOutcome={latestEventOutcome}
+          busyActionId={busyEventDebugActionId}
+          statusMessage={eventDebugStatusMessage}
+          onSelectEvent={(eventId) => {
+            setSelectedEventId(eventId);
+            setEventDebugStatusMessage(null);
+          }}
+          onSelectHistoryIndex={(historyIndex) => {
+            setSelectedEventHistoryIndex(historyIndex);
+            setEventDebugStatusMessage(null);
+          }}
+          onTriggerSelectedEvent={handleTriggerSelectedEvent}
+          onReplaySelectedHistory={handleReplaySelectedEventHistory}
+          onToggleRandomness={handleToggleEventRandomness}
+        />
+      </section>
 
-      <NpcDebugPanel
-        npcs={npcDebugViewModels}
-        selectedNpcId={selectedNpc?.definition.id ?? null}
-        trustValue={npcTrustValue}
-        relationshipValue={npcRelationshipValue}
-        dispositionValue={npcDispositionValue}
-        emotionalStateValue={npcEmotionalStateValue}
-        shortTermMemoryValue={npcShortTermMemoryValue}
-        longTermMemoryValue={npcLongTermMemoryValue}
-        currentGoalValue={npcCurrentGoalValue}
-        statusMessage={npcDebugStatusMessage}
-        busyActionId={busyNpcDebugActionId}
-        latestOutcome={latestNpcOutcome}
-        dispositionOptions={npcDispositionOptions}
-        emotionalStateOptions={npcEmotionalStateOptions}
-        onSelectNpc={setSelectedNpcId}
-        onTrustChange={setNpcTrustValue}
-        onRelationshipChange={setNpcRelationshipValue}
-        onDispositionChange={setNpcDispositionValue}
-        onEmotionalStateChange={setNpcEmotionalStateValue}
-        onShortTermMemoryChange={setNpcShortTermMemoryValue}
-        onLongTermMemoryChange={setNpcLongTermMemoryValue}
-        onCurrentGoalChange={setNpcCurrentGoalValue}
-        onApplyInjection={handleApplyNpcInjection}
-        onOpenDialogue={handleOpenNpcDialogue}
-        onTestBranch={handleTestNpcBranch}
-        onResetOutcome={handleResetNpcDebug}
-      />
+      <section id="debug-npc">
+        <NpcDebugPanel
+          npcs={npcDebugViewModels}
+          selectedNpcId={selectedNpc?.definition.id ?? null}
+          trustValue={npcTrustValue}
+          relationshipValue={npcRelationshipValue}
+          dispositionValue={npcDispositionValue}
+          emotionalStateValue={npcEmotionalStateValue}
+          shortTermMemoryValue={npcShortTermMemoryValue}
+          longTermMemoryValue={npcLongTermMemoryValue}
+          currentGoalValue={npcCurrentGoalValue}
+          statusMessage={npcDebugStatusMessage}
+          busyActionId={busyNpcDebugActionId}
+          latestOutcome={latestNpcOutcome}
+          dispositionOptions={npcDispositionOptions}
+          emotionalStateOptions={npcEmotionalStateOptions}
+          onSelectNpc={setSelectedNpcId}
+          onTrustChange={setNpcTrustValue}
+          onRelationshipChange={setNpcRelationshipValue}
+          onDispositionChange={setNpcDispositionValue}
+          onEmotionalStateChange={setNpcEmotionalStateValue}
+          onShortTermMemoryChange={setNpcShortTermMemoryValue}
+          onLongTermMemoryChange={setNpcLongTermMemoryValue}
+          onCurrentGoalChange={setNpcCurrentGoalValue}
+          onApplyInjection={handleApplyNpcInjection}
+          onOpenDialogue={handleOpenNpcDialogue}
+          onTestBranch={handleTestNpcBranch}
+          onResetOutcome={handleResetNpcDebug}
+        />
+      </section>
 
-      <PlayerModelDebugPanel
+      <section id="debug-player">
+        <PlayerModelDebugPanel
         summary={playerModelSummaryViewModel}
         manualTagOptions={playerTagOptions}
         manualSelectedTags={selectedManualPlayerTags}
@@ -2097,9 +2122,11 @@ export function DebugPage() {
         onReplayBehavior={handleReplayPlayerBehavior}
         onApplyScenario={handleApplyPlayerScenario}
         onClearInjected={handleClearInjectedPlayerProfile}
-      />
+        />
+      </section>
 
-      <CombatDebugPanel
+      <section id="debug-combat">
+        <CombatDebugPanel
         encounters={combatEncounterViewModels}
         selectedEncounterId={selectedCombatEncounterId}
         selectedTactic={selectedForcedTactic}
@@ -2127,15 +2154,18 @@ export function DebugPage() {
         onApplyForcedPhase={handleApplyForcedBossPhase}
         onClearForcedPhase={handleClearForcedBossPhase}
         onSimulateRounds={handleSimulateCombatRounds}
-      />
+        />
+      </section>
 
       {debugFeatureFlags.renderingTools ? (
-        <RenderingPreviewGallery
-          preview={preview}
-          onPreviewAreaSelect={handlePreviewAreaSelect}
-          onOpenForcedScene={handleOpenForcedScene}
-          onClearForcedScene={handleClearForcedScene}
-        />
+        <section id="debug-render">
+          <RenderingPreviewGallery
+            preview={preview}
+            onPreviewAreaSelect={handlePreviewAreaSelect}
+            onOpenForcedScene={handleOpenForcedScene}
+            onClearForcedScene={handleClearForcedScene}
+          />
+        </section>
       ) : (
         <SectionCard
           title="渲染预览已收起"
@@ -2151,6 +2181,7 @@ export function DebugPage() {
           <DebugPanel key={panel.title} panel={panel} />
         ))}
         <SectionCard
+          id="debug-logs"
           title={debugText.runtimeLogs.title}
           eyebrow={debugText.runtimeLogs.eyebrow(logs.length)}
           description={debugText.runtimeLogs.description}

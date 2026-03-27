@@ -5,6 +5,7 @@ import { appWorldCreationController } from '../../app/runtime/appRuntime';
 import { PageFrame } from '../../components/layout/PageFrame';
 import { SectionCard } from '../../components/layout/SectionCard';
 import { Badge } from '../../components/pixel-ui/Badge';
+import { PixelTabs } from '../../components/pixel-ui/PixelTabs';
 import {
   defaultWorldCreationRequest,
   mockNpcDefinitions,
@@ -12,11 +13,13 @@ import {
 } from '../../core/mocks';
 import type { WorldCreationRequest } from '../../core/schemas';
 import {
+  selectCurrentArea,
   selectRecoveryNotice,
   selectSaveMetadata,
   selectStartupSource,
   selectWorldSummary,
   useGameStore,
+  useShellStore,
 } from '../../core/state';
 import { locale } from '../../core/utils/locale';
 
@@ -63,7 +66,9 @@ const buildDraftPreview = (request: WorldCreationRequest) => {
 
 export function HomePage() {
   const navigate = useNavigate();
+  const developerToolsVisible = useShellStore((state) => state.developerToolsVisible);
   const worldSummary = useGameStore(selectWorldSummary);
+  const currentArea = useGameStore(selectCurrentArea);
   const saveMetadata = useGameStore(selectSaveMetadata);
   const startupSource = useGameStore(selectStartupSource);
   const recoveryNotice = useGameStore(selectRecoveryNotice);
@@ -82,9 +87,7 @@ export function HomePage() {
       await task();
       navigate('/game');
     } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : homeText.unknownCreationError,
-      );
+      setErrorMessage(error instanceof Error ? error.message : homeText.unknownCreationError);
     } finally {
       setIsCreating(false);
     }
@@ -93,37 +96,59 @@ export function HomePage() {
   const runCreation = async (request: WorldCreationRequest) =>
     runControllerTask(() => appWorldCreationController.createWorld(request));
 
+  const homeSections = [
+    { id: 'start', label: '快速启程', href: '#home-start', isActive: true },
+    { id: 'preview', label: '模板预览', href: '#home-preview' },
+    { id: 'create', label: '自定义世界', href: '#home-create' },
+  ];
+
   return (
-    <PageFrame title={homeText.title} description={homeText.description}>
-      <section className="hero-callout">
+    <PageFrame
+      eyebrow={homeText.currentWorld.kicker}
+      title={homeText.title}
+      description={homeText.description}
+      className="page-frame--home"
+      navigation={<PixelTabs items={homeSections} label="首页分区导航" />}
+      actions={
+        <div className="page-frame__badge-row">
+          <Badge tone={worldReadyFromSave || worldReadyFromCreation ? 'success' : 'warning'}>
+            {worldReadyFromSave
+              ? homeText.currentWorld.continueBadge
+              : worldReadyFromCreation
+                ? homeText.currentWorld.generatedWorldBadge
+                : homeText.currentWorld.sampleWorldBadge}
+          </Badge>
+          <Badge tone="info">{saveMetadata.label ?? saveMetadata.slot ?? saveMetadata.id}</Badge>
+        </div>
+      }
+    >
+      <section className="hero-callout home-hero" id="home-start">
         <div className="hero-callout__header">
           <div>
             <p className="hero-callout__kicker">{homeText.currentWorld.kicker}</p>
             <h3 className="hero-callout__title">{worldSummary.name}</h3>
-          </div>
-          <div className="hero-callout__badges">
-            <Badge
-              tone={worldReadyFromSave || worldReadyFromCreation ? 'success' : 'warning'}
-            >
-              {worldReadyFromSave
-                ? homeText.currentWorld.continueBadge
-                : worldReadyFromCreation
-                  ? homeText.currentWorld.generatedWorldBadge
-                  : homeText.currentWorld.sampleWorldBadge}
-            </Badge>
-            <Badge tone="info">{saveMetadata.label ?? saveMetadata.slot ?? saveMetadata.id}</Badge>
+            <p className="home-hero__detail">
+              {currentArea
+                ? `当前主舞台位于 ${currentArea.name}，可以直接进入游戏继续探索。`
+                : '当前世界已经准备完成，可以直接进入游戏主流程。'}
+            </p>
           </div>
         </div>
         <p>{homeText.currentWorld.description}</p>
-        <div className="hero-callout__actions">
-          <Link className="pixel-button" to="/game">
+        <div className="hero-callout__actions home-hero__actions">
+          <Link className="pixel-button pixel-button--lg" to="/game">
             {homeText.currentWorld.continueAction}
           </Link>
-          <Link className="pixel-button pixel-button--ghost" to="/debug">
-            {homeText.currentWorld.debugAction}
-          </Link>
           <button
-            className="pixel-button pixel-button--ghost"
+            className="pixel-button pixel-button--info pixel-button--lg"
+            disabled={isCreating}
+            type="button"
+            onClick={() => void runControllerTask(() => appWorldCreationController.createQuickPlayWorld())}
+          >
+            {homeText.templates.quickPlayAction}
+          </button>
+          <button
+            className="pixel-button pixel-button--ghost pixel-button--lg"
             disabled={isCreating}
             type="button"
             onClick={() => void runControllerTask(() => appWorldCreationController.createDefaultWorld())}
@@ -147,7 +172,7 @@ export function HomePage() {
         </section>
       ) : null}
 
-      <div className="panel-grid panel-grid--two">
+      <div className="panel-grid panel-grid--two panel-grid--home" id="home-preview">
         <SectionCard
           title={homeText.templates.title}
           eyebrow={homeText.templates.eyebrow}
@@ -186,14 +211,16 @@ export function HomePage() {
             >
               {homeText.templates.quickPlayAction}
             </button>
-            <button
-              className="pixel-button pixel-button--ghost"
-              disabled={isCreating}
-              type="button"
-              onClick={() => void runControllerTask(() => appWorldCreationController.createDevTestWorld())}
-            >
-              {homeText.templates.devModeAction}
-            </button>
+            {developerToolsVisible ? (
+              <button
+                className="pixel-button pixel-button--ghost"
+                disabled={isCreating}
+                type="button"
+                onClick={() => void runControllerTask(() => appWorldCreationController.createDevTestWorld())}
+              >
+                {homeText.templates.devModeAction}
+              </button>
+            ) : null}
           </div>
         </SectionCard>
 
@@ -202,6 +229,7 @@ export function HomePage() {
           eyebrow={homeText.preview.eyebrow}
           description={homeText.preview.description}
           footer={homeText.preview.footer}
+          className="section-card--highlight"
         >
           <dl className="creation-preview-list">
             <div>
@@ -237,10 +265,12 @@ export function HomePage() {
       </div>
 
       <SectionCard
+        id="home-create"
         title={homeText.customWorld.title}
         eyebrow={homeText.customWorld.eyebrow}
         description={homeText.customWorld.description}
         footer={homeText.customWorld.footer}
+        className="section-card--wide"
       >
         <form
           className="world-creation-form"
@@ -375,20 +405,22 @@ export function HomePage() {
               <span>{homeText.customWorld.fields.quickStart}</span>
             </label>
 
-            <label className="world-creation-form__toggle">
-              <input
-                checked={draft.devModeEnabled}
-                disabled={isCreating}
-                type="checkbox"
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    devModeEnabled: event.target.checked,
-                  }))
-                }
-              />
-              <span>{homeText.customWorld.fields.devMode}</span>
-            </label>
+            {developerToolsVisible ? (
+              <label className="world-creation-form__toggle">
+                <input
+                  checked={draft.devModeEnabled}
+                  disabled={isCreating}
+                  type="checkbox"
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      devModeEnabled: event.target.checked,
+                    }))
+                  }
+                />
+                <span>{homeText.customWorld.fields.devMode}</span>
+              </label>
+            ) : null}
           </div>
 
           <div className="hero-callout__actions">
@@ -408,6 +440,24 @@ export function HomePage() {
           </div>
         </form>
       </SectionCard>
+
+      {developerToolsVisible ? (
+        <section
+          className="developer-entry"
+          id="home-debug"
+          aria-label={homeText.developerTools.title}
+        >
+          <div className="developer-entry__copy">
+            <p className="developer-entry__title">{homeText.developerTools.title}</p>
+            <p className="developer-entry__description">
+              {homeText.developerTools.description}
+            </p>
+          </div>
+          <Link className="pixel-button pixel-button--ghost" to="/debug">
+            {homeText.developerTools.action}
+          </Link>
+        </section>
+      ) : null}
     </PageFrame>
   );
 }

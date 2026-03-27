@@ -12,5 +12,9 @@ const defaultRoute: RouteMeta = routeMeta[0] ?? {
 
 export const useShellStore = create<ShellState>((set) => ({
   currentRoute: defaultRoute,
+  developerToolsVisible: false,
   setCurrentRoute: (route) => set({ currentRoute: route }),
+  setDeveloperToolsVisible: (visible) => set({ developerToolsVisible: visible }),
+  toggleDeveloperToolsVisible: () =>
+    set((state) => ({ developerToolsVisible: !state.developerToolsVisible })),
 }));

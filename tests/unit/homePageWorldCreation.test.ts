@@ -4,28 +4,26 @@ import { StaticRouter } from 'react-router-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import { HomePage } from '../../src/pages/Home/HomePage';
+import { useShellStore } from '../../src/core/state';
 
 describe('home page world creation flow', () => {
-  it('renders the required creation inputs, presets, and quick actions', () => {
+  it('renders only the primary home sections by default', () => {
+    useShellStore.setState({ developerToolsVisible: false });
+
     const markup = renderToStaticMarkup(
-      createElement(
-        StaticRouter,
-        { location: '/' },
-        createElement(HomePage),
-      ),
+      createElement(StaticRouter, { location: '/' }, createElement(HomePage)),
     );
 
-    expect(markup).toContain('世界创建模块');
-    expect(markup).toContain('游戏主题');
-    expect(markup).toContain('世界风格');
-    expect(markup).toContain('难度');
-    expect(markup).toContain('游戏目标');
-    expect(markup).toContain('学习目标（可选）');
-    expect(markup).toContain('偏好');
-    expect(markup).toContain('一键生成默认世界');
-    expect(markup).toContain('快速开局');
-    expect(markup).toContain('开发/测试模式');
-    expect(markup).toContain('生成自定义世界');
-    expect(markup).toContain('预计生成结果');
+    expect(markup).toContain('page-frame--home');
+    expect(markup).toContain('pixel-tabs');
+    expect(markup).toContain('快速启程');
+    expect(markup).toContain('模板预览');
+    expect(markup).toContain('自定义世界');
+    expect(markup).toContain('id="home-start"');
+    expect(markup).toContain('id="home-preview"');
+    expect(markup).toContain('id="home-create"');
+    expect(markup).toContain('world-creation-form');
+    expect(markup).not.toContain('id="home-debug"');
+    expect(markup).not.toContain('developer-entry');
   });
 });

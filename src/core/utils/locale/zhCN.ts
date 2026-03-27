@@ -12,11 +12,11 @@ import type { FeaturePanel, RouteId } from '../../types/appShell';
 const routeText = {
   home: {
     label: '首页',
-    summary: '像素锻炉代理的比赛优先入口。',
+    summary: '从这里开启、继续或重塑你的像素冒险世界。',
   },
   game: {
     label: '游戏',
-    summary: '区域、角色、任务与战斗模块的主游玩界面。',
+    summary: '以场景探索、角色互动与战斗推进为核心的主游玩界面。',
   },
   debug: {
     label: '调试',
@@ -24,7 +24,7 @@ const routeText = {
   },
   review: {
     label: '回顾',
-    summary: '用于展示智能行为解释与总结的结算页面。',
+    summary: '集中展示解释、关键变化与下一步建议的回顾页面。',
   },
 } satisfies Record<RouteId, { label: string; summary: string }>;
 
@@ -168,9 +168,9 @@ export const zhCN = {
   },
   appLayout: {
     eyebrow: '像素锻炉代理',
-    title: '比赛演示版骨架',
+    title: '像素幻想冒险演示',
     subtitle:
-      '以前端网页为先、以模拟实现为先，并按清晰分层为玩法、持久化、代理编排和调试工具做好承接。',
+      '以可演示、可测试、可扩展为前提，将世界、任务、角色、战斗与回顾组织成一条清晰可读的冒险主流程。',
     badges: {
       milestone: '阶段 8：完整实现动态事件与导演模块',
       mockFirst: '模拟优先',
@@ -198,8 +198,13 @@ export const zhCN = {
         description:
           '你可以立刻继续最近一次世界，也可以通过世界架构师、任务设计师和关卡构建器的模拟流程重新打造一个新世界。',
         continueAction: '继续当前世界',
-        debugAction: '打开调试入口',
         defaultWorldAction: '一键生成默认世界',
+      },
+      developerTools: {
+        title: '开发者入口',
+        description:
+          '调试工具已从主演示流程中移出，仍可通过独立入口进入以验证状态、事件、战斗与存档。',
+        action: '打开调试工具',
       },
       recoveryBadge: '回退提示',
       creationErrorBadge: '创建错误',
@@ -356,6 +361,18 @@ export const zhCN = {
       description:
         '这里集中展示当前玩家画像、任务分支原因、角色态度变化、敌方策略原因、关键成败因素与下一步建议。',
       triggerBadge: (trigger: string) => `触发来源：${trigger}`,
+      summaryTitle: '本轮摘要',
+      summaryEmpty:
+        '当战斗、任务分支、关键角色互动或整轮流程结束后，这里会汇总最值得展示的解释节点。',
+      suggestionsTitle: '下一步建议',
+      suggestionsDescription:
+        '建议保持可执行、可测试和可演示，方便直接衔接下一轮游玩或调试。',
+      explanationCardTitle: '关键解释',
+      explanationCardDescription:
+        '把任务分支、角色态度、敌方策略与成败因素压缩到同一阅读路径中，减少页面切换和面板噪声。',
+      diagnosticsTitle: '诊断记录',
+      diagnosticsDescription:
+        '回顾遥测与教育模式扩展会收敛到同一侧栏，保证演示时的阅读顺序更稳定。',
       sections: {
         keyEvents: {
           title: '关键节点',

@@ -1,5 +1,5 @@
-import { Badge } from '../pixel-ui/Badge';
 import { GamePanel } from '../game/GamePanel';
+import { StatusChip } from '../pixel-ui/StatusChip';
 
 interface QuestViewModel {
   id: string;
@@ -22,18 +22,18 @@ export function QuestTrackerPanel({
     <GamePanel
       title="进行中的任务"
       eyebrow="任务追踪"
-      description="展示当前主线与支线推进，以及清晰可见的目标状态。"
+      description="展示当前主线与支线推进，以及清楚可见的目标状态。"
       className={className}
     >
       <div className="game-list">
         {quests.map((quest) => (
-          <article key={quest.id} className="game-list__card">
-            <div className="game-list__card-header">
+          <article key={quest.id} className="game-list__card ui-list-card ui-list-card--quest">
+            <div className="game-list__card-header ui-list-card__header">
               <strong>{quest.title}</strong>
-              <Badge tone="info">{quest.status}</Badge>
+              <StatusChip label="阶段" value={quest.status} tone="info" />
             </div>
             <p>{quest.objective}</p>
-            <span>{quest.progress}</span>
+            <span className="ui-list-card__meta">{quest.progress}</span>
           </article>
         ))}
       </div>

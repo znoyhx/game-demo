@@ -17,7 +17,10 @@ export interface FeaturePanel {
 
 export interface ShellState {
   currentRoute: RouteMeta;
+  developerToolsVisible: boolean;
   setCurrentRoute: (route: RouteMeta) => void;
+  setDeveloperToolsVisible: (visible: boolean) => void;
+  toggleDeveloperToolsVisible: () => void;
 }
 
 export interface SchemaStub {

@@ -1,5 +1,5 @@
-import { Badge } from '../pixel-ui/Badge';
 import { PixelLogFeed } from '../pixel-ui/PixelLogFeed';
+import { StatusChip } from '../pixel-ui/StatusChip';
 import { uiToneLabels } from '../../core/utils/displayLabels';
 import { DialoguePanel } from './DialoguePanel';
 import { GamePanel } from './GamePanel';
@@ -58,7 +58,7 @@ export function GameBottomDock({
   activeControlId,
 }: GameBottomDockProps) {
   return (
-    <section className="game-bottom-dock">
+    <section className="game-bottom-dock" id="game-dialogue">
       <DialoguePanel
         dialogueTitle={dialogueTitle}
         dialogueSpeaker={dialogueSpeaker}
@@ -68,31 +68,30 @@ export function GameBottomDock({
         statusMessage={statusMessage}
         onControlSelect={onControlSelect}
         activeControlId={activeControlId}
+        className="game-bottom-dock__dialogue"
       />
-      <GamePanel
-        title="日志"
-        eyebrow="行动流"
-        description="展示最新的运行与交互事件。"
-      >
-        <PixelLogFeed entries={logs} />
-      </GamePanel>
-      <GamePanel
-        title="可解释提示"
-        eyebrow="代理备注"
-        description="让智能决策在现场演示中也能一眼看懂。"
-      >
-        <div className="game-list">
-          {tips.map((tip) => (
-            <article key={tip.id} className="game-list__card">
-              <div className="game-list__card-header">
-                <strong>{tip.title}</strong>
-                <Badge tone={tip.tone}>{uiToneLabels[tip.tone]}</Badge>
-              </div>
-              <p>{tip.summary}</p>
-            </article>
-          ))}
-        </div>
-      </GamePanel>
+      <div className="game-bottom-dock__aside">
+        <GamePanel title="日志" eyebrow="行动流" description="展示最新的运行与交互事件。">
+          <PixelLogFeed entries={logs} />
+        </GamePanel>
+        <GamePanel
+          title="可解释提示"
+          eyebrow="代理备注"
+          description="让智能决策在现场演示中也能一眼看懂。"
+        >
+          <div className="game-list">
+            {tips.map((tip) => (
+              <article key={tip.id} className="game-list__card ui-list-card ui-list-card--review">
+                <div className="game-list__card-header ui-list-card__header">
+                  <strong>{tip.title}</strong>
+                  <StatusChip label="提示" value={uiToneLabels[tip.tone]} tone={tip.tone} />
+                </div>
+                <p>{tip.summary}</p>
+              </article>
+            ))}
+          </div>
+        </GamePanel>
+      </div>
     </section>
   );
 }

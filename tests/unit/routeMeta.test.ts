@@ -1,12 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
-import { findRouteMeta, routeMeta } from '../../src/app/router/routeMeta';
+import {
+  findRouteMeta,
+  primaryRouteMeta,
+  routeMeta,
+} from '../../src/app/router/routeMeta';
 import { agentRegistry } from '../../src/core/agents/agentRegistry';
 import { schemaRegistry } from '../../src/core/schemas';
 
 describe('route metadata scaffold', () => {
   it('defines the four placeholder routes for the app shell', () => {
     expect(routeMeta.map((entry) => entry.path)).toEqual(['/', '/game', '/debug', '/review']);
+  });
+
+  it('keeps debug outside the primary navigation flow', () => {
+    expect(primaryRouteMeta.map((entry) => entry.path)).toEqual(['/', '/game', '/review']);
   });
 
   it('falls back to the home route for unknown paths', () => {

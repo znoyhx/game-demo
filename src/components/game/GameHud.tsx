@@ -1,9 +1,12 @@
 import type { AreaSceneStageModel } from '../map/areaSceneStage.contract';
 import type { PixelSceneRenderModel } from '../map/phaser/pixelSceneRenderer.contract';
-import { GameBottomDock } from './GameBottomDock';
+import { PixelTabs } from '../pixel-ui/PixelTabs';
+import { DialoguePanel } from './DialoguePanel';
 import { GameLeftSidebar } from './GameLeftSidebar';
 import { GameRightSidebar } from './GameRightSidebar';
+import { GameSceneDetailsPanels } from './GameSceneDetailsPanels';
 import { GameSceneViewport } from './GameSceneViewport';
+import { GameSupportPanels } from './GameSupportPanels';
 import { GameTopBar } from './GameTopBar';
 
 interface GameHudProps {
@@ -143,24 +146,60 @@ export function GameHud({
   onEventActivate,
   onControlSelect,
 }: GameHudProps) {
+  const gameSections = [
+    { id: 'scene', label: '主场景', href: '#game-scene', isActive: true },
+    { id: 'journey', label: '行路地图', href: '#game-journey' },
+    { id: 'status', label: '旅程状态', href: '#game-status' },
+    { id: 'dialogue', label: '对话与战斗', href: '#game-dialogue' },
+  ];
+
   return (
     <section className="game-layout" aria-label="主游戏界面">
       <GameTopBar {...topBar} onManualSave={onManualSave} />
-      <div className="game-layout__body">
+      <PixelTabs items={gameSections} label="游戏页面分区" className="game-layout__tabs" />
+      <div className="game-layout__main">
+        <div className="game-layout__primary">
+          <GameSceneViewport
+            areaName={scene.areaName}
+            areaType={scene.areaType}
+            description={scene.description}
+            sceneStatus={scene.sceneStatus}
+            stage={scene.stage}
+            renderScene={scene.renderScene}
+            events={scene.events}
+            interactionLocked={scene.interactionLocked}
+            onNpcSelect={onNpcSelect}
+            onMarkerActivate={onMarkerActivate}
+            onEventActivate={onEventActivate}
+          />
+          <DialoguePanel
+            dialogueTitle={bottom.dialogueTitle}
+            dialogueSpeaker={bottom.dialogueSpeaker}
+            dialogueLines={bottom.dialogueLines}
+            attitudeSummary={bottom.attitudeSummary}
+            controls={bottom.controls}
+            statusMessage={bottom.statusMessage}
+            onControlSelect={onControlSelect}
+            activeControlId={bottom.activeControlId}
+            className="game-layout__dialogue"
+          />
+        </div>
+      </div>
+      <div className="game-layout__rail">
+        <GameSceneDetailsPanels
+          npcs={scene.npcs}
+          markers={scene.stage.markers}
+          onNpcSelect={onNpcSelect}
+          onMarkerActivate={onMarkerActivate}
+        />
         <GameLeftSidebar
           {...leftSidebar}
           busyAreaId={busyAreaId}
           onAreaSelect={onAreaSelect}
         />
-        <GameSceneViewport
-          {...scene}
-          onNpcSelect={onNpcSelect}
-          onMarkerActivate={onMarkerActivate}
-          onEventActivate={onEventActivate}
-        />
         <GameRightSidebar {...rightSidebar} />
+        <GameSupportPanels logs={bottom.logs} tips={bottom.tips} />
       </div>
-      <GameBottomDock {...bottom} onControlSelect={onControlSelect} />
     </section>
   );
 }

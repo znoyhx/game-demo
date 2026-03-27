@@ -1,5 +1,5 @@
-import { Badge } from '../pixel-ui/Badge';
 import { PixelButton } from '../pixel-ui/PixelButton';
+import { StatusChip } from '../pixel-ui/StatusChip';
 
 interface GameTopBarProps {
   worldName: string;
@@ -33,24 +33,21 @@ export function GameTopBar({
         <strong className="game-topbar__value">{worldName}</strong>
         {worldSubtitle ? <span className="game-topbar__detail">{worldSubtitle}</span> : null}
       </div>
-      <div className="game-topbar__item">
+      <div className="game-topbar__item game-topbar__item--area">
         <p className="game-topbar__label">当前区域</p>
         <strong className="game-topbar__value">{currentArea}</strong>
-        <span className="game-topbar__detail">{areaType}</span>
-      </div>
-      <div className="game-topbar__item">
-        <p className="game-topbar__label">时间 / 天候</p>
-        <strong className="game-topbar__value">{timeWeather}</strong>
-        <span className="game-topbar__detail">世界实时状态</span>
+        <span className="game-topbar__detail">
+          {areaType} · {timeWeather}
+        </span>
       </div>
       <div className="game-topbar__item game-topbar__item--save">
         <div className="game-topbar__save-header">
           <p className="game-topbar__label">存档状态</p>
-          <Badge tone={saveTone}>{saveStatus}</Badge>
+          <StatusChip label="状态" value={saveStatus} tone={saveTone} />
         </div>
         <strong className="game-topbar__value">{saveDetail}</strong>
         <PixelButton tone="success" onClick={onManualSave} disabled={isSaving}>
-          {isSaving ? '正在保存...' : '立即保存'}
+          {isSaving ? '正在保存…' : '立即保存'}
         </PixelButton>
       </div>
     </section>

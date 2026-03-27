@@ -1,29 +1,46 @@
 import type { ReactNode } from 'react';
 
+import { cn } from '../../core/utils/cn';
+import { PixelPanel } from '../pixel-ui/PixelPanel';
+
 interface SectionCardProps {
+  id?: string;
   title: string;
   eyebrow?: string;
   description?: string;
-  footer?: string;
+  footer?: ReactNode;
   children?: ReactNode;
+  className?: string;
 }
 
 export function SectionCard({
+  id,
   title,
   eyebrow,
   description,
   footer,
   children,
+  className,
 }: SectionCardProps) {
   return (
-    <article className="section-card">
-      <header className="section-card__header">
-        <h3 className="section-card__title">{title}</h3>
-        {eyebrow ? <span className="badge">{eyebrow}</span> : null}
-      </header>
-      {description ? <p className="section-card__description">{description}</p> : null}
+    <PixelPanel
+      id={id}
+      title={title}
+      eyebrow={eyebrow}
+      description={description}
+      footer={
+        footer ? (
+          typeof footer === 'string' ? (
+            <p className="section-card__footer">{footer}</p>
+          ) : (
+            footer
+          )
+        ) : undefined
+      }
+      className={cn('section-card', className)}
+      bodyClassName="section-card__body"
+    >
       {children}
-      {footer ? <p className="section-card__footer">{footer}</p> : null}
-    </article>
+    </PixelPanel>
   );
 }

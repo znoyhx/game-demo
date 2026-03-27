@@ -1,5 +1,4 @@
 import { Badge } from '../pixel-ui/Badge';
-import { PixelButton } from '../pixel-ui/PixelButton';
 import { GamePanel } from './GamePanel';
 
 interface AreaNodeViewModel {
@@ -35,11 +34,11 @@ export function GameLeftSidebar({
   busyAreaId,
 }: GameLeftSidebarProps) {
   return (
-    <aside className="game-sidebar game-sidebar--left">
+    <aside className="game-sidebar game-sidebar--left" id="game-journey">
       <GamePanel
         title="区域地图"
         eyebrow="小地图 / 区域图"
-        description="跟踪连通区域、已发现地带与当前位置。"
+        description="跟踪连通区域、已发现地带与当前位置，并直接从地图节点切换目标区域。"
         footer={areaSummary}
       >
         <div className="game-minimap">
@@ -66,29 +65,9 @@ export function GameLeftSidebar({
         </div>
       </GamePanel>
       <GamePanel
-        title="区域切换"
-        eyebrow="路线入口"
-        description="在已探索的网络中切换区域，同时保持界面层不承载路由规则。"
-      >
-        <div className="game-sidebar__button-stack">
-          {areas.map((area) => (
-            <PixelButton
-              key={area.id}
-              variant={area.isCurrent ? 'solid' : 'ghost'}
-              tone={area.isCurrent ? 'warning' : area.isConnected ? 'info' : 'default'}
-              isActive={area.isCurrent}
-              onClick={() => onAreaSelect(area.id)}
-              disabled={busyAreaId === area.id || area.isCurrent}
-            >
-              {area.isCurrent ? `位于 ${area.name}` : `进入 ${area.name}`}
-            </PixelButton>
-          ))}
-        </div>
-      </GamePanel>
-      <GamePanel
         title="探索进度"
         eyebrow="世界扫描"
-        description="清楚展示当前世界循环已经开放了多少内容。"
+        description="把地图开放度、已发现内容与当前循环进度压缩到同一块阅读区域里。"
       >
         <div className="game-progress">
           <div className="game-progress__track" aria-hidden="true">

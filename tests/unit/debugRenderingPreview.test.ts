@@ -91,7 +91,7 @@ describe('debug rendering preview gallery', () => {
     expect(markup).toContain(locale.pages.debug.renderLab.mapAreaTitle);
     expect(markup).toContain(locale.pages.debug.renderLab.npcLayerTitle);
     expect(markup).toContain(locale.pages.debug.renderLab.interactionLayerTitle);
-    expect(markup).toContain('对话框');
+    expect(markup).toContain('对话与指令');
     expect(markup).toContain('进行中的任务');
   });
 });

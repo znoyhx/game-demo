@@ -1,19 +1,8 @@
 import type { AreaSceneStageModel } from '../map/areaSceneStage.contract';
 import type { PixelSceneRenderModel } from '../map/phaser/pixelSceneRenderer.contract';
 import { PhaserAreaSceneViewport } from '../map/phaser/PhaserAreaSceneViewport';
-import { Badge } from '../pixel-ui/Badge';
-import { PixelButton } from '../pixel-ui/PixelButton';
+import { StatusChip } from '../pixel-ui/StatusChip';
 import { GamePanel } from './GamePanel';
-
-interface SceneNpcViewModel {
-  id: string;
-  name: string;
-  role: string;
-  disposition: string;
-  emotionalState: string;
-  trust: number;
-  relationship: number;
-}
 
 interface SceneEventViewModel {
   id: string;
@@ -32,13 +21,36 @@ interface GameSceneViewportProps {
   sceneStatus: string;
   stage: AreaSceneStageModel;
   renderScene: PixelSceneRenderModel;
-  npcs: SceneNpcViewModel[];
   events: SceneEventViewModel[];
   interactionLocked?: boolean;
   onNpcSelect: (npcId: string) => void;
   onMarkerActivate: (markerId: string, source?: 'manual' | 'approach') => void;
   onEventActivate: (eventId: string) => void;
 }
+
+const resolveEventStatusLabel = (event: SceneEventViewModel) => {
+  if (event.isPending) {
+    return '待触发';
+  }
+
+  if (event.isTriggered) {
+    return '已发生';
+  }
+
+  return event.naturallyTriggerable ? '当前可触发' : '当前不可触发';
+};
+
+const resolveEventStatusTone = (event: SceneEventViewModel) => {
+  if (event.isPending) {
+    return 'warning' as const;
+  }
+
+  if (event.isTriggered) {
+    return 'success' as const;
+  }
+
+  return event.naturallyTriggerable ? ('info' as const) : ('default' as const);
+};
 
 export function GameSceneViewport({
   areaName,
@@ -47,7 +59,6 @@ export function GameSceneViewport({
   sceneStatus,
   stage,
   renderScene,
-  npcs,
   events,
   interactionLocked = false,
   onNpcSelect,
@@ -55,9 +66,9 @@ export function GameSceneViewport({
   onEventActivate,
 }: GameSceneViewportProps) {
   return (
-    <section className="game-scene">
+    <section className="game-scene" id="game-scene">
       <GamePanel
-        title="主场景 / 区域视窗"
+        title="主场景"
         eyebrow={`${areaName} · ${areaType}`}
         description={description}
         footer={sceneStatus}
@@ -78,25 +89,11 @@ export function GameSceneViewport({
                   <span>{event.naturalReason}</span>
                 ) : null}
               </div>
-              <Badge
-                tone={
-                  event.isPending
-                    ? 'warning'
-                    : event.isTriggered
-                      ? 'success'
-                      : event.naturallyTriggerable
-                        ? 'info'
-                        : 'default'
-                }
-              >
-                {event.isPending
-                  ? '待触发'
-                  : event.isTriggered
-                    ? '已触发'
-                    : event.naturallyTriggerable
-                      ? '当前可触发'
-                      : '当前不可触发'}
-              </Badge>
+              <StatusChip
+                label="状态"
+                value={resolveEventStatusLabel(event)}
+                tone={resolveEventStatusTone(event)}
+              />
             </button>
           ))}
         </div>
@@ -110,43 +107,6 @@ export function GameSceneViewport({
           onNpcSelect={onNpcSelect}
           onMarkerActivate={onMarkerActivate}
         />
-
-        <div className="game-scene__details">
-          <div className="game-scene__details-block">
-            <h4>区域角色</h4>
-            <div className="game-scene__npc-grid">
-              {npcs.map((npc) => (
-                <button
-                  key={npc.id}
-                  type="button"
-                  className="game-scene__npc-card"
-                  onClick={() => onNpcSelect(npc.id)}
-                >
-                  <strong>{npc.name}</strong>
-                  <span>{npc.role}</span>
-                  <span>{npc.disposition} · {npc.emotionalState}</span>
-                  <span>信任 {npc.trust} · 关系 {npc.relationship}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="game-scene__details-block">
-            <h4>交互点位</h4>
-            <div className="game-scene__marker-list">
-              {stage.markers.map((marker) => (
-                <PixelButton
-                  key={marker.id}
-                  variant="ghost"
-                  tone={marker.feedbackTone}
-                  onClick={() => onMarkerActivate(marker.id, 'manual')}
-                  disabled={!marker.enabled}
-                >
-                  {marker.typeLabel}: {marker.label} · {marker.caption}
-                </PixelButton>
-              ))}
-            </div>
-          </div>
-        </div>
       </GamePanel>
     </section>
   );

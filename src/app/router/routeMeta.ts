@@ -24,6 +24,8 @@ export const routeMeta: RouteMeta[] = [
   },
 ];
 
+export const primaryRouteMeta = routeMeta.filter((entry) => entry.id !== 'debug');
+
 export function findRouteMeta(pathname: string): RouteMeta {
   return routeMeta.find((entry) => entry.path === pathname) ?? routeMeta[0];
 }

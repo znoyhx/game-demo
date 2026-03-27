@@ -1,4 +1,5 @@
 import { Badge } from '../pixel-ui/Badge';
+import { StatusChip } from '../pixel-ui/StatusChip';
 import { uiToneLabels } from '../../core/utils/displayLabels';
 import { QuestTrackerPanel } from '../quest/QuestTrackerPanel';
 import { GamePanel } from './GamePanel';
@@ -51,26 +52,12 @@ export function GameRightSidebar({
   enemyAlerts,
 }: GameRightSidebarProps) {
   return (
-    <aside className="game-sidebar game-sidebar--right">
+    <aside className="game-sidebar game-sidebar--right" id="game-status">
       <QuestTrackerPanel quests={quests} />
-      <GamePanel
-        title="背包"
-        eyebrow="随行包裹"
-        description="用紧凑视图展示物品，方便演示时快速读取。"
-      >
-        <div className="game-simple-list">
-          {inventory.map((item) => (
-            <div key={item.id} className="game-simple-list__item">
-              <span>{item.label}</span>
-              <strong>×{item.quantity}</strong>
-            </div>
-          ))}
-        </div>
-      </GamePanel>
       <GamePanel
         title="玩家状态"
         eyebrow="即时状态"
-        description="展示生命、能量、资源以及当前玩法倾向标签。"
+        description="展示生命、能量、资源与随行物资，并保留当前玩法倾向标签。"
       >
         <dl className="game-stat-list">
           {playerStatus.map((stat) => (
@@ -82,46 +69,48 @@ export function GameRightSidebar({
         </dl>
         <div className="game-tag-row">
           {playerTags.map((tag) => (
-            <Badge key={tag} tone="success">
-              {tag}
-            </Badge>
+            <StatusChip key={tag} label="倾向" value={tag} tone="success" />
+          ))}
+        </div>
+        <div className="game-simple-list">
+          {inventory.map((item) => (
+            <div key={item.id} className="game-simple-list__item">
+              <span>{item.label}</span>
+              <strong>×{item.quantity}</strong>
+            </div>
           ))}
         </div>
       </GamePanel>
       <GamePanel
-        title="关系指示"
-        eyebrow="角色立场"
-        description="快速读取最关键的信任与关系变化。"
+        title="关系与敌情"
+        eyebrow="角色立场 / 威胁流"
+        description="把角色关系变化与当前敌情提醒放到同一阅读区，减少视线往返。"
       >
+        <div className="game-list">
+          {enemyAlerts.map((alert) => (
+            <article key={alert.id} className="game-list__card ui-list-card ui-list-card--review">
+              <div className="game-list__card-header ui-list-card__header">
+                <strong>{alert.label}</strong>
+                <Badge tone={alert.tone}>{uiToneLabels[alert.tone]}</Badge>
+              </div>
+              <p>{alert.detail}</p>
+            </article>
+          ))}
+        </div>
         <div className="game-simple-list">
           {relationships.map((relationship) => (
-            <div key={relationship.id} className="game-relationship-row">
+            <div key={relationship.id} className="game-relationship-row ui-list-card ui-list-card--npc">
               <div>
                 <strong>{relationship.name}</strong>
-                <span>{relationship.disposition} · {relationship.emotionalState}</span>
+                <span>
+                  {relationship.disposition} · {relationship.emotionalState}
+                </span>
               </div>
               <div>
                 <span>信任 {relationship.trust}</span>
                 <strong>关系 {relationship.relationship}</strong>
               </div>
             </div>
-          ))}
-        </div>
-      </GamePanel>
-      <GamePanel
-        title="敌情预警"
-        eyebrow="威胁流"
-        description="展示战斗压力、首领存在感与动态世界预警。"
-      >
-        <div className="game-list">
-          {enemyAlerts.map((alert) => (
-            <article key={alert.id} className="game-list__card">
-              <div className="game-list__card-header">
-                <strong>{alert.label}</strong>
-                <Badge tone={alert.tone}>{uiToneLabels[alert.tone]}</Badge>
-              </div>
-              <p>{alert.detail}</p>
-            </article>
           ))}
         </div>
       </GamePanel>
